@@ -448,14 +448,18 @@ if __name__ == "__main__":
     #workloads = {"hpvm_cava"}
     #workloads ={"audio_decoder", "edge_detection", "hpvm_cava"}
     # workloads = {"SOC_example"}
-    # workloads = {"simple_all_parallel"}
+    #workloads = {"simple_all_parallel"}
 
     # set the IP spawning params
     ip_loop_unrolling = {"incr": 2, "max_spawn_ip": 17, "spawn_mode": "geometric"}
     ip_freq_range = {"incr":9, "upper_bound":11}
+    mem_freq_range = {"incr":9, "upper_bound":11}
+    ic_freq_range = {"incr":9, "upper_bound":11}
     tech_node_SF = {"perf":1, "energy":.056, "area":.038}   # technology node scaling factor
     db_population_misc_knobs = {"ip_freq_correction_ratio": 1, "gpp_freq_correction_ratio": 1,
                                 "ip_spawn": {"ip_loop_unrolling": ip_loop_unrolling, "ip_freq_range": ip_freq_range},
+                                "mem_spawn": {"mem_freq_range":mem_freq_range},
+                                "ic_spawn": {"ic_freq_range":ic_freq_range},
                                 "tech_node_SF":tech_node_SF}
 
     # set software hardware database population
@@ -475,6 +479,7 @@ if __name__ == "__main__":
         result_folder = "05-28_18-46_40"  # edge detection 
         result_folder = "05-28_18-47_33" # hpvm cava
         result_folder = "05-28_18-47_03"
+        result_folder = "05-31_16-24_49" # hpvm cava (2, tighter constraints)
         result_dir_addr= os.path.join(config.home_dir, 'data_collection/data/', study_type, result_folder,
                                                    "result_summary")
         full_file_addr = os.path.join(result_dir_addr,

@@ -97,6 +97,10 @@ class NoMigrantError(Exception):
 class ICMigrationException(Exception):
     pass
 
+# ic migration not supported at the moment
+class NoValidTransformationException(Exception):
+    pass
+
 def get_error_classes():
     error_class_list = []
     for name, obj in inspect.getmembers(sys.modules[__name__]):

@@ -654,9 +654,48 @@ class DataBase:
         idx = 0
 
         # find the block
+        results = []
         for blck in srtd_comptble_blcks:
-            idx += 1
-            if blck_to_imprv.get_generic_instance_name() == blck.get_generic_instance_name():
-                break
+            #if (getattr(blck, metric_to_sort) == getattr(blck_to_imprv, metric_to_sort)):
+            if sampling_dir < 0:  # need to reduce
+                if (getattr(blck, metric_to_sort) > getattr(blck_to_imprv, metric_to_sort)):
+                    results.append(blck)
+            elif sampling_dir > 0:  # need to reduce
+                if (getattr(blck, metric_to_sort) < getattr(blck_to_imprv, metric_to_sort)):
+                    results.append(blck)
 
-        return srtd_comptble_blcks[min(idx, len(srtd_comptble_blcks)-1):]   # do not go beyond the length of the list
+        if len(results) == 0:
+            results = [blck_to_imprv]
+        return results
+
+    def equal_sample_up_sample_down_sample_block(self, blck_to_imprv, metric, sampling_dir, tasks=[]):
+        all_compatible_blocks = self.find_all_compatible_blocks(blck_to_imprv.type, tasks)
+        if metric == "latency":
+            metric_to_sort = 'peak_work_rate'
+        elif metric == "power":
+            # metric_to_sort = 'work_over_energy'
+            metric_to_sort = 'one_over_power'
+        elif metric == "area":
+            metric_to_sort = 'one_over_area'
+        else:
+            print("metric: " + metric + " is not defined")
+
+        if sampling_dir > 0:
+            reversed = True
+        else:
+            reversed = False
+        srtd_comptble_blcks = sorted(all_compatible_blocks, key=attrgetter(metric_to_sort), reverse=reversed)  #
+        idx = 0
+
+        # find the block
+        results = []
+        for blck in srtd_comptble_blcks:
+            if sampling_dir < 0:  # need to reduce
+                if (getattr(blck, metric_to_sort) >= getattr(blck_to_imprv, metric_to_sort)):
+                    results.append(blck)
+            elif sampling_dir > 0:  # need to reduce
+                if (getattr(blck, metric_to_sort) <= getattr(blck_to_imprv, metric_to_sort)):
+                    results.append(blck)
+
+        return results
+

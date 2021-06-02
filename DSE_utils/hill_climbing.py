@@ -231,6 +231,15 @@ class HillClimbing:
                         matched_idx.append(idx_2)
         return matching_blocks
 
+    # check if there is another task (on the block that can run in parallel with the task of interest
+    def check_if_task_can_run_with_any_other_task_in_parallel(self, sim_dp, task, block):
+        tasks_of_block = [task_ for task_ in block.get_tasks_of_block() if (not ("souurce" in task_.name) or not ("siink" in task_.name))]
+        for task_ in tasks_of_block:
+            if sim_dp.get_dp_rep().get_hardware_graph().get_task_graph().tasks_can_run_in_parallel(task_, task):
+                return True
+        return False
+
+
     # ------------------------------
     # Functionality:
     #       check if there are any tasks across two blocks that can be run in parallel
@@ -392,15 +401,97 @@ class HillClimbing:
     #      selected_metric: metric to focus on
     #      selected_krnl: the kernel to focus on
     # ------------------------------
-    def pick_transformation(self, hot_blck_synced, selected_metric, selected_krnl):
-        feasible_transformations = []
-        if len(hot_blck_synced.get_tasks_of_block()) == 1:
-            feasible_transformations = list(set(config.metric_trans_dict[selected_metric]) - set(['split']))
-        else:
-            feasible_transformations = config.metric_trans_dict[selected_metric]
+    def pick_transformation(self, ex_dp, sim_dp, hot_blck_synced, selected_metric, selected_krnl, selected_dir):
+        imm_block = self.dh.get_immediate_block(hot_blck_synced, selected_metric, selected_dir,  hot_blck_synced.get_tasks_of_block())
+        task_synced = [task__ for task__ in hot_blck_synced.get_tasks_of_block() if task__.name == selected_krnl.get_task_name()][0]
+        feasible_transformations = set(config.metric_trans_dict[selected_metric])
 
+        # find the block that is at least as good as the block (for migration)
+        # if can't find any, we return the same block
+        equal_imm_block_present_for_migration = self.dh.get_equal_immediate_block_present(ex_dp, hot_blck_synced,
+                                                                selected_metric, selected_dir, [task_synced])
+
+        # filter transformations accordingly
+        if equal_imm_block_present_for_migration == hot_blck_synced:
+            # if can't find a block that is at least as good as the current block, can't migrate
+            feasible_transformations =  set(list(feasible_transformations - set(['migrate'])))
+        #else:
+        #   print("now find now ok")
+        if len(hot_blck_synced.get_tasks_of_block()) == 1:  # can't split an accelerator
+            feasible_transformations =  set(list(feasible_transformations - set(['split'])))
+        if imm_block.get_generic_instance_name() == hot_blck_synced.get_generic_instance_name():  # if can't swap improve, get rid of swap
+            feasible_transformations = set(list(feasible_transformations - set(['swap'])))
+        if hot_blck_synced.type in ["ic", "mem"]  and selected_metric == "latency" and selected_dir  == -1:
+            if not (self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp, task_synced, hot_blck_synced)):
+                feasible_transformations = set(list(feasible_transformations - set(['split'])))
+        if hot_blck_synced.type in ["ic"]:
+            # we don't cover migrate for ICs at the moment
+            # TODO: add this feature later
+            feasible_transformations = set(list(feasible_transformations - set(['migrate'])))
+
+
+
+        # if no valid transformation left, issue the identity transformation (where nothing changes and a simple copying is done)
+        if len(list(feasible_transformations)) == 0:
+            return "identity"
+        print(list(feasible_transformations))
         random.seed(datetime.now().microsecond)
-        return random.choice(feasible_transformations)
+        return random.choice(list(feasible_transformations))
+
+    # calculate the cost impact of a kernel improvement
+    def get_swap_improvement_cost(self, sim_dp, kernels, selected_metric, dir):
+        def get_subtype_for_cost(block):
+            if block.type == "pe" and block.subtype == "ip":
+                return "ip"
+
+            if block.type == "pe" and block.subtype == "gpp":
+                if "A53" in block.instance_name or "ARM" in block.instance_name:
+                    return "arm"
+            else:
+                return block.type
+
+        # Figure out whether there is a mapping that improves kernels performance
+        def no_swap_improvement_possible(sim_dp, selected_metric, dir, krnl):
+            hot_block = sim_dp.get_dp_stats().get_hot_block_of_krnel(krnl.get_task_name(), selected_metric)
+            imm_block = self.dh.get_immediate_block(hot_block, selected_metric, dir, [krnl.get_task()])
+            blah  = hot_block.get_generic_instance_name()
+            blah2  = imm_block.get_generic_instance_name()
+            return hot_block.get_generic_instance_name() == imm_block.get_generic_instance_name()
+
+
+        # find the cost of improvement by comparing the current and accelerated design (for the kernel)
+        kernel_improvement_cost = {}
+        kernel_name_improvement_cost = {}
+        for krnel in kernels:
+            hot_block = sim_dp.get_dp_stats().get_hot_block_of_krnel(krnel.get_task_name(), selected_metric)
+            hot_block_subtype = get_subtype_for_cost(hot_block)
+            current_cost = self.database.db_input.porting_effort[hot_block_subtype]
+            #if hot_block_subtype == "ip":
+            #    print("what")
+            imm_block = self.dh.get_immediate_block(hot_block,selected_metric, dir,[krnel.get_task()])
+            imm_block_subtype = get_subtype_for_cost(imm_block)
+            imm_block_cost =  self.database.db_input.porting_effort[imm_block_subtype]
+            improvement_cost = (imm_block_cost - current_cost)
+            kernel_improvement_cost[krnel] = improvement_cost
+
+        # calcualte inverse so lower means worse
+        max_val =  max(kernel_improvement_cost.values()) # multiply by
+        kernel_improvement_cost_inverse = {}
+        for k, v in kernel_improvement_cost.items():
+            kernel_improvement_cost_inverse[k] = max_val - kernel_improvement_cost[k]
+
+        # get sum and normalize
+        sum_ = sum(list(kernel_improvement_cost_inverse.values()))
+        for k, v in kernel_improvement_cost_inverse.items():
+            # normalize
+            if not (sum_ == 0):
+                kernel_improvement_cost_inverse[k] = kernel_improvement_cost_inverse[k]/sum_
+            kernel_improvement_cost_inverse[k] = max(kernel_improvement_cost_inverse[k], .0000001)
+            if no_swap_improvement_possible(sim_dp, selected_metric, dir, k):
+                kernel_improvement_cost_inverse[k] = .0000001
+            kernel_name_improvement_cost[k.get_task_name()] = kernel_improvement_cost_inverse[k]
+
+        return kernel_improvement_cost_inverse
 
     # ------------------------------
     # Functionality:
@@ -450,10 +541,16 @@ class HillClimbing:
         # sort kernels based on their contribution to the metric of interest
         for krnl in krnls:
             krnl_prob_dict[krnl] = krnl.stats.get_metric(selected_metric)/metric_total
-        krnl_prob_dict_sorted = {k: v for k, v in sorted(krnl_prob_dict.items(), key=lambda item: item[1])}
 
+        # only if cost and bottleneck should be considered simultenously
+        krnl_improvement_cost = self.get_swap_improvement_cost(sim_dp, krnls, selected_metric, move_dir)
+        for krnl, prob in krnl_prob_dict.items():
+            krnl_prob_dict[krnl] = prob * krnl_improvement_cost[krnl]
+
+        # sort
+        krnl_prob_dict_sorted = {k: v for k, v in sorted(krnl_prob_dict.items(), key=lambda item: item[1])}
         # quick sanity check
-        if sum(krnl_prob_dict_sorted.values()) < .99:
+        if not(config.move_krnel_ranking_mode == "exact") and sum(krnl_prob_dict_sorted.values()) < .99:
             x = sum(krnl_prob_dict_sorted.values())
             print("This should not happen")
 
@@ -476,7 +573,7 @@ class HillClimbing:
         # --- select a transformation
         # ------------------------
         # if bus, (forgot which exception), if IP, avoid split .
-        transformation_name = self.pick_transformation(hot_blck_synced, selected_metric, selected_krnl)
+        transformation_name = self.pick_transformation(ex_dp, sim_dp, hot_blck_synced, selected_metric, selected_krnl, move_dir)
         if sim_dp.dp_stats.fits_budget(1) or self.is_cleanup_iter():
             transformation_name = "cleanup"
             selected_metric = "cost"
@@ -497,6 +594,8 @@ class HillClimbing:
         # ------------------------
         # prepare for the move
         # ------------------------
+        if move_to_apply.get_transformation_name() == "identity":
+            move_to_apply.set_validity(False, "NoValidTransformationException")
         if move_to_apply.get_transformation_name() == "swap":
             self.dh.unload_read_mem(ex_dp)  # unload memories
             if not move_to_apply.get_block_ref().type == "ic":
@@ -523,7 +622,7 @@ class HillClimbing:
             self.dh.unload_read_mem(ex_dp)  # unload memories
             if not hot_blck_synced.type == "ic":  # ic migration is not supported
                 migrant_tasks = self.dh.migrant_selection(move_to_apply.get_block_ref(), move_to_apply.get_kernel_ref())
-                imm_block_present = self.dh.get_immediate_block_present(ex_dp, move_to_apply.get_block_ref(),
+                imm_block_present = self.dh.get_equal_immediate_block_present(ex_dp, move_to_apply.get_block_ref(),
                                                                      move_to_apply.get_metric(), move_to_apply.get_dir(),
                                                                      migrant_tasks)  # immediate block either superior or
 

@@ -160,6 +160,7 @@ class KernelStats:
             # sort from worst to best and return the worst (the bottleneck)
             sorted_block_duration_bottleneck = OrderedDict(
                 sorted(block_duration_bottleneck.items(), key=operator.itemgetter(1)))
+
             return list(sorted_block_duration_bottleneck.keys())[-1]
 
     # get the block bottleneck from power perspective
@@ -280,7 +281,7 @@ class KernelStats:
             return self.get_block_cost_bottleneck(phase)
 
     # -----
-    # setters
+    # setter
     # -----
     def set_stats(self):
         for metric in config.all_metrics:

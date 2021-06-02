@@ -167,6 +167,8 @@ class move:
                 raise CostPairingException
             elif self.validity_meta_data == "IPSplitException":
                 raise IPSplitException
+            elif self.validity_meta_data == "NoValidTransformationException":
+                raise NoValidTransformationException
             else:
                 print("this invalidity reason is not supported" + self.validity_meta_data)
                 exit(0)
@@ -880,13 +882,13 @@ class DesignHandler:
     # Variables:
     #   metric_dir: -1 (increase) and 1 (decrease)
     #   block: the block to improve/de-improve
-    def get_immediate_block_present(self, ex_dp, block, metric, metric_dir, tasks):
-        imm_blcks = self.database.up_sample_down_sample_block(block, metric, metric_dir, tasks)  # get the first value
+    def get_equal_immediate_block_present(self, ex_dp, block, metric, metric_dir, tasks):
+        imm_blcks = self.database.equal_sample_up_sample_down_sample_block(block, metric, metric_dir, tasks)  # get the first value
         des_blocks = ex_dp.get_blocks()
         for block_ in imm_blcks:
             for des_block in des_blocks:
                 if block_.get_generic_instance_name() == des_block.get_generic_instance_name() and \
-                        not (block_.instance_name  == des_block.instance_name):
+                        not (block.instance_name  == des_block.instance_name):
                     return des_block
 
         return block
