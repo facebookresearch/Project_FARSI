@@ -22,9 +22,10 @@ from visualization_utils.vis_hardware import *
 # Move at the moment has 4 different parts (metric, kernel, block, transformation) that needs to be
 # set
 class move:
-    def __init__(self, transformation_name, dir, metric, blck, krnel):
+    def __init__(self, transformation_name, batch_mode, dir, metric, blck, krnel):
         self.transformation_name = transformation_name
         self.metric = metric
+        self.batch_mode = batch_mode
         self.dir = dir
         self.blck = blck
         self.krnel = krnel
@@ -56,6 +57,9 @@ class move:
             self.kernel_rnk_to_consider = data
         if type_ == "dist_to_goal":
             self.dist_to_goal = data
+
+    def get_transformation_batch(self):
+        return self.batch_mode
 
     def get_logs(self, type_):
         if type_ == "cost":
@@ -145,8 +149,8 @@ class move:
 
     def print_info(self, mode="all"):
         if mode ==  "all":
-            print("info:" + " tp" + self.get_transformation_name() + ", mtrc:" + self.get_metric() + ", blck_ref:" +
-                  self.get_block_ref().instance_name + ", block_des" + self.get_des_block_name()+
+            print("info:" + " tp::" + self.get_transformation_name() + ", mtrc::" + self.get_metric() + ", blck_ref::" +
+                  self.get_block_ref().instance_name + ", block_des:" + self.get_des_block_name()+
                   ", tsk:" + self.get_kernel_ref().get_task().name)
         else:
             print("mode:" + mode + " is not supported for move printing")
@@ -1092,12 +1096,17 @@ class DesignHandler:
     #       residing_task_on_block: tasks that are already occupying the block (that we want to split
     #       num_clusters: how many clusters to generate for migration.
     # ------------------------------
-    def cluster_tasks_based_on_tasks_dependencies(self, residing_tasks_on_block, num_clusters):
+    def cluster_tasks_based_on_tasks_dependencies(self, task_ref, residing_tasks_on_block, num_clusters):
         cluster_0 = []
         clusters_length = int(len(residing_tasks_on_block)/num_clusters)
         residing_tasks_copy = residing_tasks_on_block[:]
+        for tsk in residing_tasks_copy:
+            if tsk.name == task_ref.name:
+                ref_task = tsk
+                break
 
-        ref_task = random.choice(residing_tasks_on_block)
+        #ref_task = random.choice(residing_tasks_on_block)
+
         cluster_0.append(ref_task)
         residing_tasks_copy.remove(ref_task)
         tasks_to_add_pool = [ref_task]  # list containing all the tasks that have been added so far.
@@ -1142,9 +1151,9 @@ class DesignHandler:
     #       residing_task_on_block: tasks that are already occupying the block (that we want to split
     #       num_clusters: how many clusters to generate for migration.
     # ------------------------------
-    def cluster_tasks_based_on_data_sharing(self, residing_tasks_on_block, num_clusters):
+    def cluster_tasks_based_on_data_sharing(self, task_ref, residing_tasks_on_block, num_clusters):
         if (config.tasks_clustering_data_sharing_method == "task_dep"):
-            return self.cluster_tasks_based_on_tasks_dependencies(residing_tasks_on_block, num_clusters)
+            return self.cluster_tasks_based_on_tasks_dependencies(task_ref, residing_tasks_on_block, num_clusters)
         else:
             raise Exception("tasks_clustering_data_sharing_method:" + config.tasks_clustering_data_sharing_method + "not defined")
 
@@ -1323,13 +1332,15 @@ class DesignHandler:
     #       block: block where tasks resides in.
     #       num_clusters: how many clusters do we want to have.
     # ------------------------------
-    def cluster_tasks(self, block, selected_kernel, num_clusters=2):
-        if config.migrant_clustering_policy == "random":
+    def cluster_tasks(self, block, selected_kernel, selection_mode, parallel_tasks):
+        if selection_mode == "random":
             return self.cluster_tasks_randomly(block.get_tasks_of_block())
-        elif config.migrant_clustering_policy == "tasks_dependency":
-            return self.cluster_tasks_based_on_data_sharing(block.get_tasks_of_block(), num_clusters)
-        elif config.migrant_clustering_policy == "selected_kernel":
+        elif selection_mode == "tasks_dependency":
+            return self.cluster_tasks_based_on_data_sharing(selected_kernel.get_task(), block.get_tasks_of_block(), 2)
+        elif selection_mode == "single":
             return self.separate_a_task(block.get_tasks_of_block(), selected_kernel)
+        elif selection_mode == "batch":
+            return self.cluster_tasks_based_on_data_sharing(selected_kernel.get_task(), block.get_tasks_of_block(), 2)
         else:
             raise Exception("migrant clustering policy:" + config.migration_policy + "not supported")
 
@@ -1339,10 +1350,10 @@ class DesignHandler:
     # Variables:
     #       block: block where tasks resides in.
     # ------------------------------
-    def migrant_selection(self, block, selected_kernel):
+    def migrant_selection(self, block, selected_kernel, selection_mode, parallel_tasks):
         if config.DEBUG_FIX: random.seed(0)
         else: time.sleep(.00001), random.seed(datetime.now().microsecond)
-        clustered_tasks = self.cluster_tasks(block, selected_kernel)
+        clustered_tasks = self.cluster_tasks(block, selected_kernel, selection_mode, parallel_tasks)
 
         return clustered_tasks[0]
 

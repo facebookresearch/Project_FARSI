@@ -466,6 +466,11 @@ class DPStatsContainer():
         # collect the data
         self.collect_stats()
         self.dp = self.sim_dp_container  # container that has all the designs
+        self.parallel_kernels = dp_rep.parallel_kernels
+
+
+    def get_parallel_kernels(self):
+        return self.parallel_kernels
 
     # helper function to apply an operator across two dictionaries
     def operate_on_two_dic_values(self,dict1, dict2, operator):
@@ -847,6 +852,7 @@ class SimDesignPoint(ExDesignPoint):
         self.dp_stats = None   # design point statistics
         self.block_phase_work_dict = {}  # work done by the block as the system goes through different phases
         self.block_phase_utilization_dict = {}  # utilization done by the block as the system goes through different phases
+        self.parallel_kernels = {}
 
         if config.use_cacti:
             self.cacti_hndlr = cact_handlr.CactiHndlr(config.cact_bin_addr, config.cacti_param_addr,

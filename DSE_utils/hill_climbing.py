@@ -156,7 +156,7 @@ class HillClimbing:
             move_to_try = self.sel_moves(new_des_tup, "dist_rank")
             safety_chk_passed = move_to_try.safety_check(ex_dp)
 
-        #print("what is happening")
+        move_to_try.print_info()
 
         # ------------------------
         # apply the move
@@ -419,24 +419,33 @@ class HillClimbing:
         #   print("now find now ok")
         if len(hot_blck_synced.get_tasks_of_block()) == 1:  # can't split an accelerator
             feasible_transformations =  set(list(feasible_transformations - set(['split'])))
-        if imm_block.get_generic_instance_name() == hot_blck_synced.get_generic_instance_name():  # if can't swap improve, get rid of swap
+        if imm_block.get_generic_instance_name() == hot_blck_synced.get_generic_instance_name():
+            # if can't swap improve, get rid of swap
             feasible_transformations = set(list(feasible_transformations - set(['swap'])))
         if hot_blck_synced.type in ["ic", "mem"]  and selected_metric == "latency" and selected_dir  == -1:
+            # if no other task to run in parallel with, don't split
             if not (self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp, task_synced, hot_blck_synced)):
-                feasible_transformations = set(list(feasible_transformations - set(['split'])))
+                feasible_transformations = set(list(feasible_transformations - set(['split', 'migrate'])))
         if hot_blck_synced.type in ["ic"]:
             # we don't cover migrate for ICs at the moment
             # TODO: add this feature later
             feasible_transformations = set(list(feasible_transformations - set(['migrate'])))
 
-
-
         # if no valid transformation left, issue the identity transformation (where nothing changes and a simple copying is done)
         if len(list(feasible_transformations)) == 0:
-            return "identity"
+            feasible_transformations = ["identity"]
+
         print(list(feasible_transformations))
         random.seed(datetime.now().microsecond)
-        return random.choice(list(feasible_transformations))
+        transformation = random.choice(list(feasible_transformations))
+        if transformation == "migrate":
+            batch_mode = "single"
+        elif transformation == "split":
+            batch_mode = random.choice(["single", "batch"])
+        else:
+            batch_mode = "single"
+
+        return transformation, batch_mode
 
     # calculate the cost impact of a kernel improvement
     def get_swap_improvement_cost(self, sim_dp, kernels, selected_metric, dir):
@@ -573,9 +582,10 @@ class HillClimbing:
         # --- select a transformation
         # ------------------------
         # if bus, (forgot which exception), if IP, avoid split .
-        transformation_name = self.pick_transformation(ex_dp, sim_dp, hot_blck_synced, selected_metric, selected_krnl, move_dir)
+        transformation_name,transformation_batch_mode = self.pick_transformation(ex_dp, sim_dp, hot_blck_synced, selected_metric, selected_krnl, move_dir)
         if sim_dp.dp_stats.fits_budget(1) or self.is_cleanup_iter():
             transformation_name = "cleanup"
+            transformation_batch_mode = "single"
             selected_metric = "cost"
             #config.VIS_GR_PER_GEN = True
             self.cleanup_ctr += 1
@@ -583,7 +593,7 @@ class HillClimbing:
 
         # log the data for future profiling/data collection/debugging
         block_prob_dict = sim_dp.get_dp_stats().get_hot_block_of_krnel_sorted(selected_krnl.get_task_name(), selected_metric)
-        move_to_apply = move(transformation_name, move_dir, selected_metric, hot_blck_synced, selected_krnl)
+        move_to_apply = move(transformation_name, transformation_batch_mode, move_dir, selected_metric, hot_blck_synced, selected_krnl)
         move_to_apply.set_logs(sim_dp.dp_stats.get_system_complex_metric("cost"), "cost")
         move_to_apply.set_logs(krnl_prob_dict, "kernels")
         move_to_apply.set_logs(metric_prob_dict, "metrics")
@@ -609,9 +619,12 @@ class HillClimbing:
             move_to_apply.set_dest_block(imm_block)
 
             move_to_apply.set_tasks(move_to_apply.get_block_ref().get_tasks_of_block())
-        elif move_to_apply.get_transformation_name() == "split":
+        elif move_to_apply.get_transformation_name() in ["split"]:
             # select tasks to migrate
-            migrant_tasks = self.dh.migrant_selection(move_to_apply.get_block_ref(), move_to_apply.get_kernel_ref())
+            migrant_tasks = self.dh.migrant_selection(move_to_apply.get_block_ref(), move_to_apply.get_kernel_ref(),
+                                                      move_to_apply.get_transformation_batch(), sim_dp.dp_stats.get_parallel_kernels())
+            #migrant_tasks = self.dh.migrant_selection(move_to_apply.get_block_ref(), move_to_apply.get_kernel_ref(),
+            #                                          tch", sim_dp.dp_stats.get_parallel_kernels())
             move_to_apply.set_tasks(migrant_tasks)
             if move_to_apply.get_block_ref().subtype == "ip": # makes no sense to split the IPs,
                                                               # it can actually cause problems where
@@ -621,7 +634,8 @@ class HillClimbing:
             self.dh.unload_buses(ex_dp)  # unload buses
             self.dh.unload_read_mem(ex_dp)  # unload memories
             if not hot_blck_synced.type == "ic":  # ic migration is not supported
-                migrant_tasks = self.dh.migrant_selection(move_to_apply.get_block_ref(), move_to_apply.get_kernel_ref())
+                migrant_tasks = self.dh.migrant_selection(move_to_apply.get_block_ref(), move_to_apply.get_kernel_ref(),
+                                                          move_to_apply.get_transformation_batch(), [])
                 imm_block_present = self.dh.get_equal_immediate_block_present(ex_dp, move_to_apply.get_block_ref(),
                                                                      move_to_apply.get_metric(), move_to_apply.get_dir(),
                                                                      migrant_tasks)  # immediate block either superior or

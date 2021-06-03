@@ -109,6 +109,21 @@ class PerformanceSimulator:
             kernel.update_ic_size()
 
 
+    def update_parallel_tasks(self):
+        scheduled_kernels = self.scheduled_kernels[:]
+        for idx, krnl in enumerate(scheduled_kernels):
+            if krnl.get_task_name() in ["souurce", "siink"]:
+                continue
+            if krnl not in self.design.parallel_kernels.keys():
+                self.design.parallel_kernels[krnl] = []
+            for idx, krnl_2 in enumerate(scheduled_kernels):
+                if krnl_2 == krnl:
+                    continue
+                elif not krnl_2 in self.design.parallel_kernels[krnl]:
+                    self.design.parallel_kernels[krnl].append(krnl_2)
+
+        pass
+
     # ------------------------------
     # Functionality:
     #   update the status of each kernel, this means update
@@ -271,6 +286,7 @@ class PerformanceSimulator:
         self.update_program_status()
         self.update_kernels_work_rate_for_next_tick()  # update each kernels' work rate
 
+        self.update_parallel_tasks()
         self.phase_num += 1
 
         # return the new tick position
