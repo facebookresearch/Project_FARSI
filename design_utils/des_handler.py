@@ -414,7 +414,6 @@ class DesignHandler:
                                                                                           # even if having multiple children, it will be
                                                                                           # writing its results in the same memory
 
-
         # recurse down
         for task_ in task.get_children():
             if len(mem_blocks) == 0:

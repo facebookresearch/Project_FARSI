@@ -25,6 +25,8 @@ import matplotlib.colors as colors
 import matplotlib.colors as mcolors
 import pandas as pd
 import argparse, sys
+import data_collection.collection_utils.what_ifs.FARSI_what_ifs as wf
+
 
 #  selecting the database based on the simulation method (power or performance)
 if config.simulation_method == "power_knobs":
@@ -34,71 +36,9 @@ elif config.simulation_method == "performance":
 else:
     raise NameError("Simulation method unavailable")
 
-
-# ------------------------------
-# Functionality:
-#     write the results into a file
-# Variables:
-#      sim_dp: design point simulation
-#      result_dir: result directory
-#      unique_number: a number to differentiate between designs
-#      file_name: output file name
-# ------------------------------
-def write_results(sim_dp, case_study, result_dir, unique_number, file_name):
-    result_dir_specific = os.path.join(result_dir, "result_summary")
-    if not os.path.isdir(os.path.join(result_dir, "result_summary")):
-        os.makedirs(result_dir_specific)
-
-    output_file_minimal = os.path.join(result_dir_specific, file_name+ ".csv")
-
-    # minimal output
-    if os.path.exists(output_file_minimal):
-        output_fh_minimal = open(output_file_minimal, "a")
-    else:
-        output_fh_minimal = open(output_file_minimal, "w")
-        for metric in config.all_metrics:
-            output_fh_minimal.write(metric + ",")
-            if metric in sim_dp.database.db_input.get_budget_dict("glass").keys():
-                output_fh_minimal.write(metric+"_budget" + ",")
-        output_fh_minimal.write("sampling_mode,")
-        output_fh_minimal.write("sampling_reduction" +",")
-        for metric, accuracy_percentage in sim_dp.database.hw_sampling["accuracy_percentage"]["ip"].items():
-            output_fh_minimal.write(metric+"_accuracy" + ",")  # for now only write the latency accuracy as the other
-        for block_type, porting_effort in sim_dp.database.db_input.porting_effort.items():
-            output_fh_minimal.write(block_type+"_effort" + ",")  # for now only write the latency accuracy as the other
-
-        output_fh_minimal.write("output_design_status"+ ",")  # for now only write the latency accuracy as the other
-        output_fh_minimal.write("case_study"+ ",")  # for now only write the latency accuracy as the other
-        output_fh_minimal.write("unique_number" + ",")  # for now only write the latency accuracy as the other
-
-    output_fh_minimal.write("\n")
-    for metric in config.all_metrics:
-        output_fh_minimal.write(str(sim_dp.dp_stats.get_system_complex_metric(metric)) + ",")
-        if metric in sim_dp.database.db_input.get_budget_dict("glass").keys():
-            output_fh_minimal.write(str(sim_dp.database.db_input.get_budget_dict("glass")[metric]) + ",")
-    output_fh_minimal.write(sim_dp.database.hw_sampling["mode"] + ",")
-    output_fh_minimal.write(sim_dp.database.hw_sampling["reduction"] + ",")
-    for metric, accuracy_percentage in sim_dp.database.hw_sampling["accuracy_percentage"]["ip"].items():
-        output_fh_minimal.write(str(accuracy_percentage) + ",")  # for now only write the latency accuracy as the other
-    for block_type, porting_effort in sim_dp.database.db_input.porting_effort.items():
-        output_fh_minimal.write(str(porting_effort)+ ",")  # for now only write the latency accuracy as the other
-
-    if sim_dp.dp_stats.fits_budget(1):
-        output_fh_minimal.write("budget_met"+ ",")  # for now only write the latency accuracy as the other
-    else:
-        output_fh_minimal.write("budget_not_met" + ",")  # for now only write the latency accuracy as the other
-    output_fh_minimal.write(case_study + ",")  # for now only write the latency accuracy as the other
-    output_fh_minimal.write(str(unique_number)+ ",")  # for now only write the latency accuracy as the other
-
-    output_fh_minimal.close()
-
-
-def copy_DSE_data(result_dir):
-    #result_dir_specific = os.path.join(result_dir, "result_summary")
-    os.system("cp " + config.latest_visualization+"/*" + " " + result_dir_specific)
-
 if __name__ == "__main__":
     case_study = "simple_sim_run"
+    file_prefix = config.FARSI_simple_sim_run_study_prefix
     current_process_id = 0
     total_process_cnt = 1
     #starting_exploration_mode = config.exploration_mode
@@ -120,10 +60,10 @@ if __name__ == "__main__":
     reduction = "most_likely"
     db_population_misc_knobs = {"ip_freq_correction_ratio":1, "gpp_freq_correction_ratio":1}
     #workloads = {"audio_decoder", "edge_detection"}
-    workloads = {"audio_decoder"}
+    #workloads = {"audio_decoder"}
     #workloads = {"edge_detection"}
     #workloads = {"hpvm_cava"}
-    #workloads = {"SOC_example"}
+    workloads = {"SOC_example"}
     sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "parse",
                                  "workloads": workloads, "misc_knobs":db_population_misc_knobs}
 
@@ -154,16 +94,17 @@ if __name__ == "__main__":
     dse_hndlr = run_FARSI_only_simulation(result_folder, unique_suffix, db_input, hw_sampling, sw_hw_database_population["hw_graph_mode"])
     run_ctr += 1
 
+    # write the results in the general folder
     result_dir_specific = os.path.join(result_folder, "result_summary")
-    write_results(dse_hndlr.dse.so_far_best_sim_dp, case_study, result_dir_specific, unique_suffix,
-                  config.FARSI_simple_run_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
+    reason_to_terminate = "simple_sim_run"
+    wf.write_results(dse_hndlr.dse.so_far_best_sim_dp, reason_to_terminate, case_study, result_dir_specific,
+                  unique_suffix,
+                  file_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
 
     # write the results in the specific folder
     result_folder_modified = result_folder + "/runs/" + str(run_ctr) + "/"
     os.system("mkdir -p " + result_folder_modified)
-    copy_DSE_data(result_folder_modified)
-    write_results(dse_hndlr.dse.so_far_best_sim_dp, case_study, result_folder_modified, unique_suffix,
-                  config.FARSI_simple_run_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
-
-    copy_DSE_data(result_folder)
-
+    wf.copy_DSE_data(result_folder_modified)
+    wf.write_results(dse_hndlr.dse.so_far_best_sim_dp, reason_to_terminate, case_study,
+                  result_folder_modified, unique_suffix,
+                  file_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
