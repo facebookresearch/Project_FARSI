@@ -165,7 +165,7 @@ def save_to_html(fig, file_addr):
 # ------------------------------
 def plot_sim_data(dp_stats, ex_dp, result_folder):
     # plot latency
-    kernel__metric_value_per_SOC = dp_stats.get_sim_progress(["latency"])
+    kernel__metric_value_per_SOC = dp_stats.get_sim_progress("latency")
     for kernel__metrtic_value in kernel__metric_value_per_SOC:
         name__start_width_metric_unit_dict = {}
         kernel_end_time_dict = {}

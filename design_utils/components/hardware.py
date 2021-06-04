@@ -894,6 +894,9 @@ class pipe:
 
         return result
 
+    def get_traffic(self):
+        return self.traffics
+
 
 # This class is the graph with nodes denoting the blocks and the edges denoting
 # the relationship (parent/child) between the nodes.

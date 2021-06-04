@@ -125,6 +125,7 @@ class KernelStats:
         self.phase_area_dict = {}    # area consumed per phase (note that we will be double counting the statically size
                                      # blocks
 
+        self.phase_bytes_dict = {}
         self.design_cost = None
         self.phase_block_duration_bottleneck:Dict[int, (Block, float)] = {}  # dictionary containing phases and how different
                                                                              # blocks for different durations become the kernel
@@ -759,6 +760,14 @@ class Kernel:
         # unnormalized the results (unnormalizing means that actually provide the work rate as opposed
         # to normalizing it to the ref block (which is usally PE) work rate
         self.block_att_work_rate_dict = self.calc_unnormalize_work_rate(self.block_normalized_work_rate, bottleneck_work_rate)
+
+        """
+        print("need to delete this write now other wise it will be weird")
+        for blck,wr in self.block_att_work_rate_dict.items():
+            if blck.type == "mem" and 'read' in wr.keys():
+                time_taken = 64/wr['read']
+                pass
+        """
 
     # calculate the completion time for the kernel
     def calc_kernel_completion_time(self):

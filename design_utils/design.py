@@ -228,6 +228,22 @@ class ExDesignPoint:
                 blocks_by_type.append(block)
         return blocks_by_type
 
+
+    def get_write_mem_tasks(self, task, mem):
+        # get conncted ic
+        ics = [el for el in mem.get_neighs() if el.type =="ic"]
+        assert(len(ics) <= 1), "Each memory can be only connected to one bus master"
+
+        # get the pipes
+        pipes = self.get_hardware_graph().get_pipes_between_two_blocks(ics[0], mem, "write")
+        assert(len(pipes) <= 1), "can only have one pipe (in a direction) between a memory and a ic"
+
+        # traffic
+        traffics = pipes[0].get_traffic()
+
+        return [trf.child for trf in traffics if trf.parent.name == task.name]
+
+
     # for a specific task, find all the specific blocks of a type and their direction
     def get_blocks_of_task_by_block_type_and_task_dir(self, task, block_type, task_dir=""):
         assert ((block_type == "pe") != task_dir) # XORing the expression
@@ -1453,9 +1469,27 @@ class DPStats:
                     kernel_metric_value[kernel].append((kernel.starting_time*10**3, kernel.stats.latency*10**3, kernel.stats.latency*10**3, "ms"))
         return kernel_metric_value
 
-    def get_sim_progress(self, progress_metrics, metric="latency"):
+    # get the simulation progress
+    def get_SOC_s_latency_sim_progress(self, SOC_type, SOC_id, metric):
+        kernels_on_SOC = [kernel for kernel in self.__kernels if kernel.SOC_type == SOC_type and kernel.SOC_id == SOC_id]
+        kernel_metric_value = {}
+        for kernel in kernels_on_SOC:
+            kernel_metric_value[kernel] = []
+        for kernel in kernels_on_SOC:
+            if metric == "latency":
+                kernel_metric_value[kernel].append((kernel.starting_time*10**3, kernel.stats.latency*10**3, kernel.stats.latency*10**3, "ms"))
+            elif metric == "bytes":
+                kernel_metric_value[kernel].append((kernel.starting_time * 10 ** 3, kernel.stats.latency * 10 ** 3,
+                                                    kernel.stats.latency* 10 ** 3, "bytes"))
+        return kernel_metric_value
+
+
+    def get_sim_progress(self, metric="latency"):
         if metric == "latency":
-            return [self.get_SOC_s_latency_sim_progress(type, id, progress_metrics) for type, id in self.dp.get_designs_SOCs()]
+            return [self.get_SOC_s_latency_sim_progress(type, id, metric) for type, id in self.dp.get_designs_SOCs()]
+        if metric == "bytes":
+            pass
+
 
     # returns the latency associated with the phases of the system execution
     def get_phase_latency(self, SOC_type, SOC_id):

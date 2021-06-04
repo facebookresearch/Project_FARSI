@@ -386,14 +386,17 @@ class DesignHandler:
     def load_read_mem_and_ic_recursive(self, ex_dp, read_mem, task, tasks_seen, father_task):
         mem_blocks = ex_dp.get_blocks_of_task_by_block_type(task, "mem")  # all the memory blocks of the task
         if "souurce" in task.name:
-            write_mem = ex_dp.get_blocks_of_task_by_block_type(task, "mem")[0]
+            write_mem = ex_dp.get_blocks_of_task_by_block_type(task, "mem")
         elif "siink" in task.name:
             write_mem= None
         else:
-            write_mem = ex_dp.get_blocks_of_task_by_block_type_and_task_dir(task, "mem", "write")[0]
+            write_mem = ex_dp.get_blocks_of_task_by_block_type_and_task_dir(task, "mem", "write")
 
-        #if (len(mem_blocks)) != 0:
-        #    write_mem = ex_dp.get_blocks_of_task_by_block_type(task, "mem")[0]
+        # get the tasks that this task writes to and the memory within which the transaction happens
+        if write_mem:
+            write_mem_tasks = [(mem, ex_dp.get_write_mem_tasks(task,mem)) for mem in write_mem]
+        else:
+            write_mem_tasks = None
 
         # Add read Memory, buses
         if read_mem:
@@ -403,6 +406,13 @@ class DesignHandler:
         if task in tasks_seen: return # terminate
         else: tasks_seen.append(task)
 
+
+        if not(len(mem_blocks) == 0) and write_mem:
+            for mem, child_tasks in write_mem_tasks:
+                for child in child_tasks:
+                    self.load_single_bus(ex_dp, mem, task, "write", child)  # we make an assumption that the task
+
+        """
         # Add write buses
         if not(len(mem_blocks) == 0) and write_mem:
             if (len(task.get_children()) == 0):
@@ -413,14 +423,19 @@ class DesignHandler:
                 #self.load_single_bus(ex_dp, write_mem, task, "write", task.get_children()[0]) # we make an assumption that the task
                                                                                           # even if having multiple children, it will be
                                                                                           # writing its results in the same memory
-
+        """
+        if write_mem_tasks:
+            for mem, child_tasks in write_mem_tasks:
+                for child in child_tasks:
+                    self.load_read_mem_and_ic_recursive(ex_dp, mem, child, tasks_seen, task)
+        """
         # recurse down
         for task_ in task.get_children():
             if len(mem_blocks) == 0:
                 mem_blocks_ = ex_dp.get_blocks_of_task_by_block_type(task, "mem")  # all the memory blocks of the task
                 print("what")
             self.load_read_mem_and_ic_recursive(ex_dp, write_mem, task_, tasks_seen, task)
-
+        """
     # ------------------------------
     # Functionality:
     #      unload read buses. Need to do this first, to prepare the design for the next iteration.
