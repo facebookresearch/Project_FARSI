@@ -399,10 +399,14 @@ class SimDesignPointContainer:
         self.dp = self.dp_rep  # design point is used to fill up some default values
                                # we use dp_rep, i.e., design point representative for this
 
+        self.move_applied = None
+
     # bootstrap the design from scratch
     def reset_design(self, workload_to_hardware_map=[], workload_to_hardware_schedule=[]):
         self.dp_rep.reset_design()
 
+    def set_move_applied(self, move_applied):
+        self.move_applied = move_applied
 
 
     def get_dp_stats(self):
@@ -870,6 +874,7 @@ class SimDesignPoint(ExDesignPoint):
         self.block_phase_utilization_dict = {}  # utilization done by the block as the system goes through different phases
         self.parallel_kernels = {}
 
+
         if config.use_cacti:
             self.cacti_hndlr = cact_handlr.CactiHndlr(config.cact_bin_addr, config.cacti_param_addr,
                                                       config.cacti_data_log_file, config.cacti_input_col_order,
@@ -878,6 +883,8 @@ class SimDesignPoint(ExDesignPoint):
         for block in self.get_blocks():
             self.block_phase_work_dict[block] = {}
             self.block_phase_utilization_dict[block] = {}
+
+
 
     # Log the BW data about all the connections it the system
     def dump_mem_bus_connection_bw(self, result_folder):  # batch means that all the blocks of similar type have similar props

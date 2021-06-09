@@ -41,6 +41,8 @@ FARSI_input_error_output_cost_sensitivity_study_prefix = "FARSI_input_error_outp
 FARSI_input_error_input_cost_sensitivity_study_prefix = "FARSI_input_error_input_cost_sensitivity_study"
 FARSI_input_error_output_PPA_sensitivity_study_prefix = "FARSI_input_error_output_PPA_sensitivity_study"
 FARSI_simple_run_prefix = "FARSI_simple_run"
+FARSI_simple_sim_run_study_prefix = "simple_sim_run"
+
 
 parallel_processes_count = 1  # number of processes to spawn to search the design space. Only used for exhaustive search
 process_id = 0  # used for parallel execution. Each process is assigned an id, through main
@@ -49,11 +51,6 @@ warning_mode = "always"
 num_clusters = 2  # how many clusters to create everytime we split
 TOTAL_RUN_THRESHOLD = 10000  # acceptable iterations count without improvement before termination
 DES_STAG_THRESHOLD = 50  # acceptable iterations count without improvement before termination
-BOTTLENECK_STAG_THRESHOLD = 20  # acceptable iterations count without improvement before termination,
-                               # keep this small if we go for:
-                               # ic_mig_clustering = "data_sharing" # how to pick the pe, mem tuples choose between ["data_sharing", random]
-                               # tasks_clustering_data_sharing_method = "task_dep"
-                               # small means 3, or 4 (since there is not much randomness)
 
 neigh_gen_mode = "some" # neighbouring design points generation mode ("all" "random_one", ...)
 num_neighs_to_try = 3 # how many neighs to try around a dp
@@ -64,7 +61,7 @@ dp_rank_obj = "latency"  # design point ranking object function(best, sometimes,
 # selection algorithm (picking the best neighbour)
 neigh_sel_algorithm = "annealing"
 SA_breadth = 2 # breath of the neighbour search
-SA_depth = 3  # depth of the neighbour search
+SA_depth = 5 # depth of the neighbour search
 annealing_max_temp = 500
 annealing_temp_dec = 50
 annealing_dampening_coef = 10  # how much to dampen the metric that has  met the design objectives
@@ -137,10 +134,12 @@ move_blck_ranking_mode = "exact"  # exact, prob.  If exact, blocks are ranked (a
                                     # their distance to the goal. If prob, we sample probabilistically based on the
                                     # distance
 
-max_krnel_stagnation_ctr = 2
-fitted_budget_ctr_threshold = 5  # how many times fitting the budget before terminating
+max_krnel_stagnation_ctr = 3
+fitted_budget_ctr_threshold = 3  # how many times fitting the budget before terminating
 
-
+recently_cached_designs_queue_size = 10
+max_recently_seen_design_ctr = 5
+assert(recently_cached_designs_queue_size > max_recently_seen_design_ctr)
 # --------------------
 # DEBUGGING
 # --------------------
@@ -220,7 +219,7 @@ zero_sized_blocks = ["ic"]         # blocks to ignore for now  # TODO: figure ic
 
 
 DMA_mode = "serialized_read_write"  # [serialized_read_write, parallel_read_write]
-#DMA_mode = "parallelized_read_write"  # [serialized_read_write, parallelized_read_write]
+DMA_mode = "parallelized_read_write"  # [serialized_read_write, parallelized_read_write]
 
 # power  collection period (how often to divide energy). it's measured in seconds
 #PCP = .0001

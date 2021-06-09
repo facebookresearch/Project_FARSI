@@ -87,6 +87,10 @@ class MoveNotValidException(Exception):
 class NoMigrantException(Exception):
     pass
 
+# could not find a task that can run in parallel (for split and migration)
+class NoParallelTaskException(Exception):
+    pass
+
 # This is a scenario where no migrant is detected to be moved, but it must have
 # this is different than NoMigrantException (since the exception scenario is permissable)
 class NoMigrantError(Exception):

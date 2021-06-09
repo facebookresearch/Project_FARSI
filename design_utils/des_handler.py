@@ -173,6 +173,8 @@ class move:
                 raise IPSplitException
             elif self.validity_meta_data == "NoValidTransformationException":
                 raise NoValidTransformationException
+            elif self.validity_meta_data == "NoParallelTaskException":
+                raise NoParallelTaskException
             else:
                 print("this invalidity reason is not supported" + self.validity_meta_data)
                 exit(0)
@@ -330,6 +332,27 @@ class DesignHandler:
     def load_tasks_to_read_mem_and_ic(self, ex_dp):
         # assign buses (for both read and write) and mem for read
         self.load_read_mem_and_ic_recursive(ex_dp, [], ex_dp.get_hardware_graph().get_task_graph().get_root(), [], None)
+
+    # check if there is another task (on the block that can run in parallel with the task of interest
+    def find_parallel_tasks_of_task_in_block(self, ex_dp, task, block):
+        task_synced = [task__ for task__ in block.get_tasks_of_block() if task__.name == task.name][0]
+        parallel_tasks = []
+        tasks_of_block = [task_ for task_ in block.get_tasks_of_block() if (not ("souurce" in task_.name) or not ("siink" in task_.name))]
+        for task_ in tasks_of_block:
+            if ex_dp.get_hardware_graph().get_task_graph().tasks_can_run_in_parallel(task_, task_synced):
+                parallel_tasks.append(task_)
+
+        cluster_one = parallel_tasks
+        cluster_two = list(set(tasks_of_block) - set(cluster_one))
+        return [cluster_one, cluster_two]
+
+    # can any other task on the block run in parallel with that ref task
+    def can_any_task_on_block_run_in_parallel(self, ex_dp, ref_task, block):
+        clusters_run_in_parallel = self.find_parallel_tasks_of_task_in_block(ex_dp, ref_task, block)
+        if len(clusters_run_in_parallel[0]) > 0:
+            return True
+        else:
+            return False
 
     # ------------------------------
     # Functionality:
@@ -1103,6 +1126,11 @@ class DesignHandler:
                 if num_of_tasks_to_migrate == 0:
                     return 0
 
+
+    def cluster_tasks_based_on_tasks_parallelism(self, ex_dp, task, block):
+        return self.find_parallel_tasks_of_task_in_block(ex_dp, task, block)
+
+
     # ------------------------------
     # Functionality:
     #    clustering tasks bases on their dependencies, i.e, having the same child or parent (this is to improve locality)
@@ -1346,15 +1374,17 @@ class DesignHandler:
     #       block: block where tasks resides in.
     #       num_clusters: how many clusters do we want to have.
     # ------------------------------
-    def cluster_tasks(self, block, selected_kernel, selection_mode, parallel_tasks):
+    def cluster_tasks(self, ex_dp, block, selected_kernel, selection_mode):
         if selection_mode == "random":
             return self.cluster_tasks_randomly(block.get_tasks_of_block())
         elif selection_mode == "tasks_dependency":
             return self.cluster_tasks_based_on_data_sharing(selected_kernel.get_task(), block.get_tasks_of_block(), 2)
         elif selection_mode == "single":
             return self.separate_a_task(block.get_tasks_of_block(), selected_kernel)
+        #elif selection_mode == "batch":
+        #    return self.cluster_tasks_based_on_data_sharing(selected_kernel.get_task(), block.get_tasks_of_block(), 2)
         elif selection_mode == "batch":
-            return self.cluster_tasks_based_on_data_sharing(selected_kernel.get_task(), block.get_tasks_of_block(), 2)
+            return self.cluster_tasks_based_on_tasks_parallelism(ex_dp, selected_kernel.get_task(), block)
         else:
             raise Exception("migrant clustering policy:" + config.migration_policy + "not supported")
 
@@ -1364,11 +1394,10 @@ class DesignHandler:
     # Variables:
     #       block: block where tasks resides in.
     # ------------------------------
-    def migrant_selection(self, block, selected_kernel, selection_mode, parallel_tasks):
+    def migrant_selection(self, ex_dp, block, selected_kernel, selection_mode):
         if config.DEBUG_FIX: random.seed(0)
         else: time.sleep(.00001), random.seed(datetime.now().microsecond)
-        clustered_tasks = self.cluster_tasks(block, selected_kernel, selection_mode, parallel_tasks)
-
+        clustered_tasks = self.cluster_tasks(ex_dp, block, selected_kernel, selection_mode)
         return clustered_tasks[0]
 
     # ------------------------------
