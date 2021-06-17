@@ -18,7 +18,7 @@ from visualization_utils import vis_sim
 import dill
 import pickle
 import importlib
-
+import difflib
 # ------------------------------
 # This class is responsible for design space exploration using our proprietary hill-climbing algorithm.
 # Our Algorithm currently uses swap (improving the current design) and  duplicate (relaxing the contention on the
@@ -87,7 +87,7 @@ class HillClimbing:
         self.SA_current_depth = -1  # which depth is current move on
         self.check_point_folder = config.check_point_folder
 
-        self.seen_config_codes = []  # config code of all the designs seen so far (this is mainly for debugging, concretely
+        self.seen_SOC_design_codes = []  # config code of all the designs seen so far (this is mainly for debugging, concretely
                                      # simulation validation
 
         self.cached_SOC_sim = {} # cache of designs simulated already. index is a unique code base on allocation and mapping
@@ -458,10 +458,11 @@ class HillClimbing:
         def get_subtype_for_cost(block):
             if block.type == "pe" and block.subtype == "ip":
                 return "ip"
-
             if block.type == "pe" and block.subtype == "gpp":
                 if "A53" in block.instance_name or "ARM" in block.instance_name:
                     return "arm"
+                if "G3" in block.instance_name:
+                    return "dsp"
             else:
                 return block.type
 
@@ -679,7 +680,7 @@ class HillClimbing:
                 move_to_apply.set_dest_block(imm_block_present)
             else:
                 pair = self.gen_block_match_cleanup_move(des_tup)
-                if len(pair) == 0:
+                if len(pair) == 0 or True:
                     move_to_apply.set_validity(False, "CostPairingException")
                 else:
                     ref_block = pair[0]
@@ -816,12 +817,14 @@ class HillClimbing:
         if include_cost_in_distance:
             ann_energy_best_dp_so_far = best_sim_dp_so_far_stats.dist_to_goal(["cost", "latency", "power", "area"],
                                                                               "eliminate")
+            ann_energy_best_dp_so_far_all_metrics = best_sim_dp_so_far_stats.dist_to_goal(["cost", "latency", "power", "area"],
+                                                                              "eliminate")
         else:
             ann_energy_best_dp_so_far = best_sim_dp_so_far_stats.dist_to_goal([metric_to_target], "dampen")
-            #ann_energy_best_dp_so_far = best_sim_dp_so_far_stats.dist_to_goal(["power", "area", "latency"],
-            #                                                                  "dampen")
+            ann_energy_best_dp_so_far_all_metrics = best_sim_dp_so_far_stats.dist_to_goal(["power", "area", "latency"],
+                                                                              "dampen")
         sim_dp_stat_ann_delta_energy_dict = {}
-
+        sim_dp_stat_ann_delta_energy_dict_all_metrics = {}
 
         # deleteee the following debugging lines
         print("--------%%%%%%%%%%%---------------")
@@ -845,10 +848,13 @@ class HillClimbing:
             if include_cost_in_distance:
                 sim_dp_stat_ann_delta_energy_dict[sim_dp_stat] = sim_dp_stat.dist_to_goal(
                     ["cost", "latency", "power", "area"], "eliminate") - ann_energy_best_dp_so_far
+                sim_dp_stat_ann_delta_energy_dict_all_metrics[sim_dp_stat] = sim_dp_stat.dist_to_goal(
+                    ["latency", "power", "area"], "eliminate") - ann_energy_best_dp_so_far_all_metrics
             else:
-                new_design_energy = sim_dp_stat.dist_to_goal([metric_to_target],
-                                                                                      "dampen")
+                new_design_energy = sim_dp_stat.dist_to_goal([metric_to_target], "dampen")
                 sim_dp_stat_ann_delta_energy_dict[sim_dp_stat] = new_design_energy - ann_energy_best_dp_so_far
+                new_design_energy_all_metrics = sim_dp_stat.dist_to_goal(["power", "latency", "area"], "dampen")
+                sim_dp_stat_ann_delta_energy_dict_all_metrics[sim_dp_stat] = new_design_energy_all_metrics - ann_energy_best_dp_so_far_all_metrics
 
                 # deleteee this later
                 print(" des" + " latency:" + str(
@@ -864,8 +870,14 @@ class HillClimbing:
         else: time.sleep(.00001), random.seed(datetime.now().microsecond)
 
         # find the best design
-        result, design_improved = self.find_best_design(sim_dp_stat_ann_delta_energy_dict, best_sim_dp_so_far_stats)
-        best_neighbour_stat, best_neighbour_delta_energy = result
+        sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics = sorted(sim_dp_stat_ann_delta_energy_dict_all_metrics.items(), key=lambda x: x[1])
+        if sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics[0][1] < 0 and not True:
+            design_improved = True
+            best_neighbour_stat = sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics[0][0]
+            best_neighbour_delta_energy = sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics[0][1]
+        else:
+            result, design_improved = self.find_best_design(sim_dp_stat_ann_delta_energy_dict, best_sim_dp_so_far_stats)
+            best_neighbour_stat, best_neighbour_delta_energy = result
 
         # if any negative (desired move) value is detected or there is a design in the new batch
         #  that meet the budget, but the previous best design didn't, we have at least one improved solution
@@ -884,8 +896,8 @@ class HillClimbing:
             if self.krnel_stagnation_ctr > config.max_krnel_stagnation_ctr:
                 self.krnel_rnk_to_consider = min(self.krnel_rnk_to_consider + 1, len(best_sim_dp_so_far_stats.get_kernels()) -1)
                 self.krnel_stagnation_ctr = 0
-                self.recently_seen_design_ctr = 0
-        elif best_sim_dp_so_far_stats.dp.dp_rep.get_hardware_graph().get_SOC_design_code() in self.recently_cached_designs:
+                #self.recently_seen_design_ctr = 0
+        elif best_neighbour_stat.dp.dp_rep.get_hardware_graph().get_SOC_design_code() in self.recently_cached_designs:
             # avoid circular exploration
             self.recently_seen_design_ctr += 1
             self.des_stag_ctr += 1
@@ -893,16 +905,13 @@ class HillClimbing:
                 self.krnel_rnk_to_consider = min(self.krnel_rnk_to_consider + 1,
                                                  len(best_sim_dp_so_far_stats.get_kernels()) - 1)
                 self.krnel_stagnation_ctr = 0
-                self.recently_seen_design_ctr = 0
+                #self.recently_seen_design_ctr = 0
         else:
             self.krnel_stagnation_ctr = 0
             self.krnel_rnk_to_consider = 0
             self.cleanup_ctr +=1
             self.des_stag_ctr = 0
             self.recently_seen_design_ctr = 0
-
-        self.recently_cached_designs.insert(self.total_itr_ctr%config.recently_cached_designs_queue_size,
-                                            best_sim_dp_so_far_stats.dp.dp_rep.get_hardware_graph().get_SOC_design_code())
 
         # initialize selected_sim_dp
         selected_sim_dp = best_sim_dp_so_far_stats.dp
@@ -914,6 +923,13 @@ class HillClimbing:
                     selected_sim_dp = best_neighbour_stat.dp
             except:
                 selected_sim_dp = best_neighbour_stat.dp
+
+        # cache the best design
+        if len(self.recently_cached_designs) < config.recently_cached_designs_queue_size:
+            self.recently_cached_designs.append(selected_sim_dp.dp_rep.get_hardware_graph().get_SOC_design_code())
+        else:
+            self.recently_cached_designs[self.total_itr_ctr%config.recently_cached_designs_queue_size] = selected_sim_dp.dp_rep.get_hardware_graph().get_SOC_design_code()
+
         return selected_sim_dp, found_an_improved_solution
 
     # ------------------------------
@@ -930,12 +946,16 @@ class HillClimbing:
         # find the ones that fit the expanded budget (note that budget radius shrinks)
         selected_sim_dp, found_improved_solution = self.SA_design_selection(sim_dp_stat_list, best_sim_dp_so_far.dp_stats, cur_temp)
 
-        # extract the design
-        for key, val in ex_sim_dp_dict.items():
-            key.sanity_check()
-            if val == selected_sim_dp:
-                selected_ex_dp = key
-                break
+        if not found_improved_solution:
+            selected_sim_dp = self.so_far_best_sim_dp
+            selected_ex_dp = self.so_far_best_ex_dp
+        else:
+            # extract the design
+            for key, val in ex_sim_dp_dict.items():
+                key.sanity_check()
+                if val == selected_sim_dp:
+                    selected_ex_dp = key
+                    break
 
         # generate verification data
         if found_improved_solution and config.RUN_VERIFICATION_PER_IMPROVMENT:
@@ -1101,9 +1121,9 @@ class HillClimbing:
             vis_hardware.vis_hardware(sim_dp.get_dp_rep())
         if config.RUN_VERIFICATION_PER_GEN or \
                 (config.RUN_VERIFICATION_PER_NEW_CONFIG and
-                 not(sim_dp.dp.get_hardware_graph().get_config_code() in self.seen_config_codes)):
+                 not(sim_dp.dp.get_hardware_graph().get_SOC_design_code() in self.seen_SOC_design_codes)):
             self.gen_verification_data(sim_dp, ex_dp)
-        self.seen_config_codes.append(sim_dp.dp.get_hardware_graph().get_config_code())
+        self.seen_SOC_design_codes.append(sim_dp.dp.get_hardware_graph().get_SOC_design_code())
 
         return (ex_dp, sim_dp)
 
@@ -1132,9 +1152,9 @@ class HillClimbing:
             des_tup_new = self.gen_neigh_and_eval(des_tup)
 
             # collect the generate design in a list and run sanity check on it
+            des_tup_list.append(des_tup_new)
             self.gen_some_neighs_and_eval(des_tup_new, 1, depth_length-1, des_tup_list)
             #des_tup_list.extend(self.gen_some_neighs_and_eval(des_tup_new, 1, depth_length-1))
-            des_tup_list.append(des_tup_new)
 
             # visualization and sanity checks
             if config.VIS_MOVE_TRAIL:
@@ -1361,14 +1381,6 @@ class HillClimbing:
     def update_ctrs(self):
         should_terminate = False
         reason_to_terminate = ""
-        """
-        if self.cur_best_sim_dp.dp_stats.get_system_complex_metric("latency") == self.so_far_best_sim_dp.dp_stats.get_system_complex_metric("latency") and\
-                self.cur_best_sim_dp.dp_stats.get_system_complex_metric("power") == self.so_far_best_sim_dp.dp_stats.get_system_complex_metric("power") and\
-                self.cur_best_sim_dp.dp_stats.get_system_complex_metric("area") == self.so_far_best_sim_dp.dp_stats.get_system_complex_metric("area"):
-            self.des_stag_ctr += 1
-        else:
-            self.des_stag_ctr = 0
-        """
 
         self.so_far_best_ex_dp = self.cur_best_ex_dp
         self.so_far_best_sim_dp = self.cur_best_sim_dp

@@ -79,7 +79,7 @@ class database_input_class():
 
         # start parsing/generating
         if sw_hw_database_population["db_mode"] == "hardcoded":
-            lib_relative_addr = config.database_data_dir.replace(config.home_dir, "")[1:]
+            lib_relative_addr = config.database_data_dir.replace(config.home_dir, "")
             lib_relative_addr_pythony_fied = lib_relative_addr.replace("/",".")
             files_to_import = [lib_relative_addr_pythony_fied+".hardcoded."+workload+".input"  for workload in sw_hw_database_population["workloads"]]
             imported_databases = [importlib.import_module(el) for el in files_to_import]

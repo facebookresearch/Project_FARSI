@@ -557,7 +557,7 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
             IP_name_refined = blck_value['Name']+ "_" + str(freq)
             hardware_library_dict[IP_name_refined] = {}
             #hardware_library_dict[blck_value['Name']] = {}
-            hardware_library_dict[IP_name_refined]["work_rate"] = freq*correction_values[blck_value["Subtype"]]["work_rate"]*float(blck_value['BitWidth'])*float(blck_value['Freq'])
+            hardware_library_dict[IP_name_refined]["work_rate"] = 10*freq*correction_values[blck_value["Subtype"]]["work_rate"]*float(blck_value['BitWidth'])*float(blck_value['Freq'])
             hardware_library_dict[IP_name_refined]["work_over_energy"] = correction_values[blck_value["Subtype"]]["work_over_energy"]*float(blck_value['Byte_per_joul'])
             hardware_library_dict[IP_name_refined]["work_over_area"] = correction_values[blck_value["Subtype"]]["work_over_area"]*float(blck_value['Byte_per_m'])
             hardware_library_dict[IP_name_refined]["one_over_area"] = correction_values[blck_value["Subtype"]]["one_over_area"]*float(blck_value['Byte_per_m'])  # not gonna be used so doesn't matter how to populate
@@ -569,7 +569,7 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
         for freq in ic_freq_range:
             IP_name_refined = blck_value['Name']+ "_" + str(freq)
             hardware_library_dict[IP_name_refined] = {}
-            hardware_library_dict[IP_name_refined]["work_rate"] = freq*correction_values[blck_value["Subtype"]]["work_rate"]*float(blck_value['BitWidth'])*float(blck_value['Freq'])
+            hardware_library_dict[IP_name_refined]["work_rate"] = 10*freq*correction_values[blck_value["Subtype"]]["work_rate"]*float(blck_value['BitWidth'])*float(blck_value['Freq'])
             hardware_library_dict[IP_name_refined]["work_over_energy"] = correction_values[blck_value["Subtype"]]["work_over_energy"]*float(blck_value['Byte_per_joul'])
             hardware_library_dict[IP_name_refined]["work_over_area"] = correction_values[blck_value["Subtype"]]["work_over_area"]*float(blck_value['Byte_per_m'])
             hardware_library_dict[IP_name_refined]["one_over_area"] = correction_values[blck_value["Subtype"]]["one_over_area"]*float(blck_value['Byte_per_m']) # not gonna be used so doesn't matter how to populate

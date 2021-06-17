@@ -394,7 +394,7 @@ class Task:
 class TaskGraph:
     def __init__(self, tasks):
         self.__tasks = tasks
-        _ = [task_.calc_work_unit(64) for task_ in self.__tasks]
+        _ = [task_.calc_work_unit(512) for task_ in self.__tasks]
 
     # -----------
     # Functionality:

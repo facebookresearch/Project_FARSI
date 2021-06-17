@@ -428,7 +428,8 @@ if __name__ == "__main__":
     system_workers = (current_process_id, total_process_cnt)
 
     # set the study type 
-    study_type = "cost_PPA"
+    #study_type = "cost_PPA"
+    study_type = "simple_run"
     #study_subtype = "plot_3d_distance"
     study_subtype = "run"
     assert study_type in ["cost_PPA", "simple_run", "input_error_output_cost_sensitivity", "input_error_input_cost_sensitivity"]
@@ -443,7 +444,8 @@ if __name__ == "__main__":
 
     # set the study parameters
     # set the workload
-    workloads = {"audio_decoder"}
+    #workloads = {"audio_decoder"}
+    workloads = {"SLAM"}
     #workloads = {"edge_detection"}
     #workloads = {"hpvm_cava"}
     #workloads ={"audio_decoder", "edge_detection", "hpvm_cava"}
@@ -463,8 +465,10 @@ if __name__ == "__main__":
                                 "tech_node_SF":tech_node_SF}
 
     # set software hardware database population
-    sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_scratch",
+    sw_hw_database_population = {"db_mode": "hardcoded", "hw_graph_mode": "generated_from_scratch",
                                  "workloads": workloads, "misc_knobs": db_population_misc_knobs}
+    #sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_scratch",
+    #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
 
     # depending on the study/substudy type, invoke the appropriate function
     if study_type == "simple_run":

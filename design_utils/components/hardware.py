@@ -102,6 +102,7 @@ class Block:
         self.categorize_power_knobs()
 
         self.pipes = []  # these are the queues that connect different block
+        self.pipe_clusters = []
         self.type = type  # type of the block (i.e., pe, mem, ic)
         self.neighs: List[Block] = []  # neighbours, i.e., the connected blocks
         self.__task_name_dir_list = []  #  tasks on the block
@@ -711,24 +712,43 @@ class Block:
     def set_pipe(self, pipe_):
         self.pipes.append(pipe_)
 
+    def set_pipe_cluster(self, cluster):
+        self.pipe_clusters.append(cluster)
+
     def reset_pipes(self):
         self.pipes = []
 
-    def get_pipes(self, block, channel_name):
+    def reset_clusters(self):
+        self.pipe_clusters = []
+
+    def get_pipe_clusters(self, ):
+        return self.pipe_clusters
+
+    def get_pipe_clusters_of_task(self, task):
+        clusters = []
+        for pipe_cluster in self.pipe_clusters:
+            if pipe_cluster.is_task_present(task):
+                clusters.append(pipe_cluster)
+        return clusters
+
+
+    def get_pipes(self, channel_name):
+        block = self
         result = []
         if channel_name == "same":
             dirs = ["read", "write"]
         else:
             dirs = [channel_name]
 
-        pipes_of_channel = filter(lambda pipe: pipe.dir == dirs, self.pipes)
-        for pipe in pipes_of_channel:
-            if block == pipe.get_slave():
-                result.append(pipe)
+        for dir_ in dirs:
+            pipes_of_channel = list(filter(lambda pipe: pipe.dir == dir_, self.pipes))
+            for pipe in pipes_of_channel:
+                if block == pipe.get_slave():
+                    result.append(pipe)
 
-        if len(result) ==0:
-            print("what")
-        assert(len(result)>0)
+        #if len(result) ==0:
+        #    print("what")
+        #assert(len(result)>0)
         return result
 
     # ---------------------------
@@ -825,6 +845,85 @@ class traffic:
         self.dir = dir  # direction (read/write/loop)
 
 
+# physical channels inside the the router
+class PipeCluster:
+    def __init__(self, ref_block, dir, outgoing_pipe, incoming_pipes, unique_name):
+        self.ref_block = ref_block
+        self.dir = dir
+        self.cluster_type = "regular"
+        if outgoing_pipe == None:
+            self.outgoing_pipe = None
+        else:
+            self.outgoing_pipe = outgoing_pipe
+
+        if incoming_pipes == None:
+            self.incoming_pipes = []
+        else:
+            self.incoming_pipes = incoming_pipes
+        self.unique_name = unique_name
+
+    def change_to_dummy(self, tasks):
+        self.cluster_type = "dummy"
+        self.set_dir("same")
+        self.dummy_tasks = tasks
+
+    def set_dir(self, dir):
+        self.dir = dir
+
+    def get_unique_name(self):
+        return self.unique_name
+
+    # the block at the center of the cluster (with source (incoming) pipes  and dest (outgoing) pipe)
+    def get_block_ref(self):
+        return self.ref_block
+
+    # incoming pipes
+    def get_incoming_pipes(self):
+        assert not(self.cluster_type == "dummy")
+        return self.incoming_pipes
+
+    def get_outgoing_pipe(self):
+        assert not(self.cluster_type == "dummy")
+        return self.outgoing_pipe
+
+    def get_dir(self):
+        return self.dir
+
+    def get_task_work_unit(self, task):
+        assert not(self.cluster_type == "dummy")
+        work_unit = 0
+        for pipe in self.incoming_pipes:
+            work_unit += pipe.get_task_work_unit(task)
+        return work_unit
+
+    def get_task_work(self, task):
+        assert not(self.cluster_type == "dummy")
+        work = 0
+        for pipe in self.incoming_pipes:
+            work += pipe.get_task_work(task)
+        return work
+
+    def is_task_present(self, task):
+        if self.get_block_ref().type == "pe":
+            return task in self.dummy_tasks
+        elif self.get_block_ref().type in ["ic"]:
+            return self.outgoing_pipe.is_task_present(task)
+        else:
+            return any([pipe.is_task_present(task ) for pipe in self.incoming_pipes])
+
+    def get_info(self):
+        incoming_pipes = []
+        for el in self.incoming_pipes:
+            incoming_pipes.append(el.get_info())
+        if self.outgoing_pipe == None:
+            outgoing = " None "
+            #outgoing_tasks = "None"
+        else:
+            outgoing = self.outgoing_pipe.get_info()
+
+
+        return "block:" + self.get_block_ref().instance_name + " incoming_pipes:" +str(incoming_pipes) + "  outgoing_pipes:"+str(outgoing)
+
 # A pipe is a queue that connects blocks
 class pipe:
     def __init__(self, master, slave, dir_, number):
@@ -897,6 +996,14 @@ class pipe:
     def get_traffic(self):
         return self.traffics
 
+    def get_traffic_names(self):
+        result = []
+        for el in self.traffics:
+            result.append(el.parent.name+ " " + el.child.name+ "   -  ")
+        return result
+
+    def get_info(self):
+        return "m:"+self.master.instance_name + " s:"+self.slave.instance_name
 
 # This class is the graph with nodes denoting the blocks and the edges denoting
 # the relationship (parent/child) between the nodes.
@@ -905,13 +1012,15 @@ class pipe:
 class HardwareGraph:
     def __init__(self, block_to_prime_with:Block, generation_mode="tool_generated"):
         self.pipes = []
+        self.pipe_clusters = []
         self.last_pipe_assigned_number = 0  # this is used for setting up the pipes.
+        self.last_cluster_assigned_number = 0
         self.blocks = self.traverse_neighs_recursively(block_to_prime_with, []) # all the blocks in the graph
         self.task_graph = TaskGraph(self.get_all_tasks())  # the task graph
         self.config_code = str(-1) # used to differentiat between systems (focuses on type/number of elements)
         self.SOC_design_code= "" # used to differentiat between systems (focuses on type/number of elements)
         self.simplified_topology_code = str(-1)  # used to differential between systems (focuses on number of elements)
-        self.assign_pipes()  # set up the pipes
+        self.pipe_design()  # set up the pipes
         self.generation_mode = generation_mode
 
 
@@ -1058,13 +1167,43 @@ class HardwareGraph:
     # this code (value) uniquely specifies a design.
     # Usage: prevent regenerating/reevaluting the design for example.
     def set_SOC_design_code(self):
-        TG = sorted([tsk.name for tsk in self.get_task_graph().get_all_tasks()])
+        # sort based on the blk name and task names tuples
+        def sort_blk_tasks(blks):
+            blk_tasks = []
+            for blk in blks:
+                blk_tasks_sorted = str([el.name for el in sorted(blk.get_tasks_of_block(), key=lambda x: x.name)])
+                blk_name_stripped = '_'.join(blk.instance_name.split("_")[:-1])
+                blk_tasks.append((blk, blk_tasks_sorted + "__tasks_one_blk_" + blk_name_stripped))
+            blk_sorted = sorted(blk_tasks, key=lambda x: x[1])
+            return blk_sorted
 
+        self.SOC_design_code= "" # used to differentiat between systems (focuses on type/number of elements)
+        hg_string = ""
+
+        # sort the PEs
+        pes_sorted = sort_blk_tasks(self.get_blocks_by_type("pe"))
+        # iterate through PEs
+        for pe, string_ in pes_sorted:
+            hg_string += string_
+            # sort the neighbours
+            neighs_sorted = sort_blk_tasks(pe.get_neighs())
+            # iterate through neighbours
+            for neigh, string_ in neighs_sorted:
+                hg_string +=  string_
+                neigh_s_neighs_sorted = sort_blk_tasks(neigh.get_neighs())
+                for neigh_s_neigh, string_ in neigh_s_neighs_sorted:
+                    if not neigh_s_neigh.type == "mem":
+                        continue
+                    hg_string += string_
+
+        # task graph based id
+        TG = sorted([tsk.name for tsk in self.get_task_graph().get_all_tasks()])
         for tsk_name in TG:
             task = self.get_task_graph().get_task_by_name(tsk_name)
             blks_hosting_task = self.get_blocks_of_task(task)
             blks_hosting_task_sorted = str(sorted(['_'.join(blk.instance_name.split("_")[:-1]) for blk in blks_hosting_task]))
             self.SOC_design_code += tsk_name + "_" + blks_hosting_task_sorted + "___"
+        self.SOC_design_code += hg_string
 
     # this is just a number that helps us encode a design topology/block type
     def get_SOC_design_code(self):
@@ -1142,6 +1281,15 @@ class HardwareGraph:
             pipes.append(self.get_pipe_with_master_slave(block_master, block_slave, dir_))
         return pipes
 
+    def filter_empty_pipes(self):
+        empty_pipes = []
+        for pipe in self.pipes:
+            if pipe.traffics == []:
+                empty_pipes.append(pipe)
+
+        for pipe in empty_pipes:
+            self.pipes.remove(pipe)
+
     # assign task to pipes
     def task_all_the_pipes(self):
         def get_blocks_of_task(task):
@@ -1156,30 +1304,165 @@ class HardwareGraph:
         all_tasks = self.get_all_tasks()
         for task in all_tasks:
             pe = [block for block in get_blocks_of_task(task) if  block.type == "pe" ][0]
-            mem_reads = [block for block in get_blocks_of_task(task) if  block.type == "mem"  and (task, "read")]
-            mem_writes = [block for block in get_blocks_of_task(task) if  block.type == "mem"  and (task, "write")]
+            mem_reads = [block for block in get_blocks_of_task(task) if  block.type == "mem"  and (task, "read") in block.get_tasks_dir_work_ratio().keys()]
+            mem_writes = [block for block in get_blocks_of_task(task) if  block.type == "mem"  and (task, "write") in block.get_tasks_dir_work_ratio().keys()]
 
             # get all the paths leading from mem reads to pe
+            seen_pipes = []
             for mem in mem_reads:
                 pipes = self.get_pipes_between_two_blocks(pe, mem, "read")
-                self.task_the_pipes(task, pipes, "read")
+                pipes_to_consider = []
+                for pipe in pipes:
+                    if pipe not in seen_pipes:
+                        pipes_to_consider.append(pipe)
+                        seen_pipes.append(pipe)
+                if len(pipes_to_consider) == 0:
+                    continue
+                else:
+                    self.task_the_pipes(task, pipes_to_consider, "read")
 
             # get all the paths leading from mem reads to pe
+            seen_pipes = []
             for mem in mem_writes:
                 pipes = self.get_pipes_between_two_blocks(pe, mem, "write")
-                self.task_the_pipes(task, pipes, "write")
+                pipes_to_consider = []
+                for pipe in pipes:
+                    if pipe not in seen_pipes:
+                        pipes_to_consider.append(pipe)
+                        seen_pipes.append(pipe)
+                if len(pipes_to_consider) == 0:
+                    continue
+                else:
+                    self.task_the_pipes(task, pipes_to_consider, "write")
+
+
+    def get_pipe_dir(self, block):
+        #if block.type == "pe":
+        #    return ["same"]
+        #else:
+        return ["write", "read"]
+
+    def cluster_pipes(self):
+        self.pipe_clusters = []
+        for block in self.blocks:
+            block.reset_clusters()
+
+        def traffic_overlaps(blck_pipe, neigh_pipe):
+            blck_pipe_traffic = blck_pipe.get_traffic_names()
+            neigh_pipe_traffic = neigh_pipe.get_traffic_names()
+            traffic_non_overlap = list(set(blck_pipe_traffic) - set(neigh_pipe_traffic))
+            if "sr2" in neigh_pipe.slave.instance_name:
+                print("ok")
+
+            return  len(traffic_non_overlap) < len(blck_pipe_traffic)
+
+        assert(len(self.pipes) > 0),  "you need to assign pipes first"
+        pipe_cluster_dict = {}
+
+        # iterate through blocks and neighbours to generate clusters
+        for block in self.blocks:
+            pipe_cluster_dict[block] = {}
+            for neigh in block.get_neighs():
+                if neigh.type == "pe": continue
+                for dir in self.get_pipe_dir(block):
+                    if dir not in pipe_cluster_dict[block]: pipe_cluster_dict[block][dir] = {}
+
+                    # get the pipes
+                    block_pipes = block.get_pipes(dir)
+                    neigh_pipes = neigh.get_pipes(dir)
+
+                    if block_pipes == [] and block.type == "pe":
+                        pipe_cluster_dict[block][dir] = {}
+                        for neigh_pipe in neigh_pipes:
+                            if neigh_pipe.master == block and neigh_pipe.dir == dir:
+                                pipe_cluster_dict[block][dir][neigh_pipe] = []
+                    elif block.type == "mem":
+                        pipe_cluster_dict[block][dir] = {}
+                        pipe_cluster_dict[block][dir][None] = block_pipes
+                    elif block.type == "ic":
+                        if dir not in pipe_cluster_dict[block]:
+                            pipe_cluster_dict[block][dir] = {}
+                        for blck_pipe in block_pipes:
+                            for neigh_pipe in neigh_pipes:
+                                if not blck_pipe.slave == neigh_pipe.master:
+                                    continue
+                                if not(blck_pipe.dir == neigh_pipe.dir):
+                                    continue
+                                if traffic_overlaps(blck_pipe, neigh_pipe):
+                                    if neigh_pipe not in pipe_cluster_dict[block][dir].keys():
+                                        pipe_cluster_dict[block][dir][neigh_pipe] = []
+                                    if blck_pipe not in pipe_cluster_dict[block][dir][neigh_pipe]:
+                                        pipe_cluster_dict[block][dir][neigh_pipe].append(blck_pipe)
+
+        # now generates the clusters
+        for block, dir_outgoing_incoming_pipes in pipe_cluster_dict.items():
+            for dir, outgoing_pipe_incoming_pipes in dir_outgoing_incoming_pipes.items():
+                for outgoing_pipe, incoming_pipes in outgoing_pipe_incoming_pipes.items():
+                    pipe_cluster_ = PipeCluster(block, dir, outgoing_pipe, incoming_pipes, self.last_cluster_assigned_number)
+                    if outgoing_pipe:  # for pe and ic
+                        if outgoing_pipe.master.type == "pe":  # only push once
+                            pipe_cluster_.change_to_dummy(outgoing_pipe.master.get_tasks_of_block())
+                            if len(outgoing_pipe.master.get_pipe_clusters()) == 0:
+                                outgoing_pipe.master.set_pipe_cluster(pipe_cluster_)
+                        else:
+                            outgoing_pipe.master.set_pipe_cluster(pipe_cluster_)
+                    elif incoming_pipes: # for mem
+                        incoming_pipes[0].slave.set_pipe_cluster(pipe_cluster_)
+                    self.last_cluster_assigned_number += 1
+                    self.pipe_clusters.append(pipe_cluster_)
+
+        pass
+
+    def generate_pipes(self):
+        # assign number to pipes
+        self.last_pipe_assigned_number = 0
+        pes = self.get_blocks_by_type("pe")
+        mems = self.get_blocks_by_type("mem")
+
+        def seen_pipe(pipe__):
+            for pipe in self.pipes:
+                if pipe__.master == pipe.master and pipe__.slave == pipe.slave and pipe__.dir == pipe.dir:
+                    return True
+            return False
+
+        # iterate through all the blocks and specify their pipes
+        for pe in pes:
+            for mem  in mems:
+                master_to_slave_path = self.get_path_between_two_vertecies(pe, mem)
+                if len(master_to_slave_path) == 0:
+                    continue
+                # get pipes along the way
+                for idx in range(0, len(master_to_slave_path) - 1):
+                    block_master = master_to_slave_path[idx]
+                    block_slave = master_to_slave_path[idx + 1]
+                    for dir_ in ["write", "read"]:
+                        pipe_ = pipe(block_master, block_slave, dir_, self.last_pipe_assigned_number)
+                        if not seen_pipe(pipe_):
+                            self.pipes.append(pipe_)
+                            self.last_pipe_assigned_number +=1
+
+    def connect_pipes_to_blocks(self):
+        for pipe in self.pipes:
+            master_block = pipe.get_master()
+            slave_block = pipe.get_slave()
+            master_block.set_pipe(pipe)
+            slave_block.set_pipe(pipe)
 
     # assign pipes to different blocks (depending on which blocks the pipes are connected to)
-    def assign_pipes(self):
+    def pipe_design(self):
         for block in self.blocks:
             block.reset_pipes()
+            self.pipes = []
+            self.pipe_clusters = []
 
-        # assign number to pipes
-        self.pipes = []
-        self.last_pipe_assigned_number = 0
-        self.traverse_and_assign_pipes(self.get_root(), [])
+        # generate pipes everywhere
+        self.generate_pipes()
+        # assign tasks
         self.task_all_the_pipes()
-        pass
+        # filter pipes without tasks
+        self.filter_empty_pipes()
+        self.connect_pipes_to_blocks()
+        self.cluster_pipes()
 
     # ---------------------------
     # Functionality:
@@ -1211,9 +1494,9 @@ class HardwareGraph:
     # --------------------------
     def get_path_between_two_vertecies(self, v1, v2):
         path = self.get_path_helper(v1, v2, [], [])
-        if (len(path)) <= 0:
-            print("catch this error")
-        assert(len(path) > 0), "no path between the two nodes"
+        #if (len(path)) <= 0:
+        #    print("catch this error")
+        #assert(len(path) > 0), "no path between the two nodes"
         return path
 
     # ---------------------------

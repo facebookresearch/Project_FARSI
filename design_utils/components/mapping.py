@@ -211,20 +211,20 @@ class TaskToBlocksMap:  #which block(s) the task is  mapped to. a task is usuall
             if block.instance_name == block_dir[0].instance_name:
                 return block_dir[1]
 
-    # get channels of a block
-    def get_channels_of_block(self, block):
-        channels = []
-        blocks_with_channels = self.get_blocks_with_channel()
-        for block_, channel in blocks_with_channels:
-            if block_.instance_name == block.instance_name:
-                channels.append(channel)
-        return channels
-
     # get all the blocks that a task is mapped to .
     def get_blocks(self):
         return list(set([block_dir[0] for block_dir in (self.block_dir_workRatio_dict.keys())]))
 
+    def channel_blocks(self):
+        self.blocks_with_channels = []
+
     def get_blocks_with_channel(self):
+        return self.blocks_with_channels
+
+
+    def get_blocks_with_channel(self):
+        exit(0)
+        pass
         results = []
         for block_dir in (self.block_dir_workRatio_dict.keys()):
             block = block_dir[0]
@@ -232,22 +232,14 @@ class TaskToBlocksMap:  #which block(s) the task is  mapped to. a task is usuall
             if block_dir[0].type == "ic":
                 if (block, dir_) not in results:
                     results.append((block, dir_))
-                """
-                # active the following to enforce same channel across read/write 
-                if (block, "same") not in results:
-                    results.append((block, "same"))
-                """
             elif block_dir[0].type == "mem":
                 if (block, dir_) not in results:
                     results.append((block, dir_))
-                """
-                # active the following to enforce same channel across read/write 
-                if (block, "same") not in results:
-                    results.append((block, "same"))
-                """
             elif block_dir[0].type == "pe":
-                if (block, "same") not in results:
-                    results.append((block, "same"))
+                if (block, dir_) not in results:
+                    results.append((block, dir_))
+                #if (block, "same") not in results:
+                #    results.append((block, "same"))
 
         return results
 

@@ -134,11 +134,11 @@ move_blck_ranking_mode = "exact"  # exact, prob.  If exact, blocks are ranked (a
                                     # their distance to the goal. If prob, we sample probabilistically based on the
                                     # distance
 
-max_krnel_stagnation_ctr = 3
+max_krnel_stagnation_ctr = 1
 fitted_budget_ctr_threshold = 3  # how many times fitting the budget before terminating
 
 recently_cached_designs_queue_size = 10
-max_recently_seen_design_ctr = 5
+max_recently_seen_design_ctr = 2
 assert(recently_cached_designs_queue_size > max_recently_seen_design_ctr)
 # --------------------
 # DEBUGGING
@@ -177,7 +177,7 @@ DEBUG_MOVE =  True and not NO_VIS # if true, we print/collect relevant info abou
 regulate_move_tracking = (FARSI_memory_consumption == "low") # if true, we don't track and hence graph every move. This helps preventing memory pressure (and avoid getting killed by the OS)
 vis_move_trail_ctr_threshold = 20 # how often sample the moves (only applies if regulat_move_tracking enabled)
 
-cache_seen_designs = not(FARSI_memory_consumption == "low")# if True, we cache the designs that we have seen. This way we wont simulate them unnecessarily.
+cache_seen_designs = not(FARSI_memory_consumption == "low") # if True, we cache the designs that we have seen. This way we wont simulate them unnecessarily.
                           # This should be set to false if memory is an issue
 
 VIS_MOVE_TRAIL = DEBUG_MOVE and not NO_VIS
@@ -193,9 +193,9 @@ if hw_sampling["mode"] == "exact":
 
 #dice_factor_list = range(1, 150, 50)
 #dice_factor_list = [1]
-sw_model = "gables_inspired"  # [gables_inspired_exact, gables_inspired] the diff is that exact replicates the PEs to solve the PA DRVR preemption issue
-if not sw_model == "gables_inspired":
-    dice_factor_list = [1]
+sw_model = "gables_inspired_exact"  # [gables_inspired_exact, gables_inspired] the diff is that exact replicates the PEs to solve the PA DRVR preemption issue
+#if not sw_model == "gables_inspired":
+#    dice_factor_list = [1]
 
 if VIS_GR_PER_GEN: VIS_GR_PER_ITR = True
 
@@ -218,7 +218,7 @@ zero_sized_blocks = ["ic"]         # blocks to ignore for now  # TODO: figure ic
 
 
 
-DMA_mode = "serialized_read_write"  # [serialized_read_write, parallel_read_write]
+#DMA_mode = "serialized_read_write"  # [serialized_read_write, parallel_read_write]
 DMA_mode = "parallelized_read_write"  # [serialized_read_write, parallelized_read_write]
 
 # power  collection period (how often to divide energy). it's measured in seconds

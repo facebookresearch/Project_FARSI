@@ -302,7 +302,7 @@ def barplot_moves(move_profile):
     rects4 = ax.bar(x - .5 * (width), metric_dict["cost"], width, bottom=power_plus_latency_plus_area,
                     label='cost', color="purple")
 
-    #plt.yscale("log")
+    plt.yscale("log")
     plt.plot(x, height_list, marker='>', linewidth=.6, color="green", label="targeted metric", ms= 1)
     ax.set_ylabel('Distance to Goal(Budget) (%)', fontsize=15)
     ax.set_xlabel('Iteration ', fontsize=15)

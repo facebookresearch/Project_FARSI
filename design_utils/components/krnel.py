@@ -581,39 +581,55 @@ class Kernel:
         return cost_dict
 
     # return the kernels that currently are on the block and channel of the block.
-    def kernel_currently_uses_the_block_channel(self, block, channel_name):
-        return (block, channel_name) in self.__task_to_blocks_map.get_blocks_with_channel()
+    def kernel_currently_uses_the_block_pipe_cluster(self, block, task, pipe_cluster):
+        return pipe_cluster.is_task_present(task)
 
     # how many kernels using the block
-    def get_block_num_shared_krnels(self, block, channel_name, scheduled_kernels):
-        krnl_using_block_channl = list(filter(lambda krnl: krnl.kernel_currently_uses_the_block_channel(block, channel_name), scheduled_kernels))
+    def get_block_num_shared_krnels(self, block, pipe_cluster, scheduled_kernels):
+        krnl_using_block_channl = list(filter(lambda krnl: krnl.kernel_currently_uses_the_block_pipe_cluster(block, krnl.get_task(), pipe_cluster), scheduled_kernels))
         return len(krnl_using_block_channl)
 
     # creates a list of the blocks that are shared with other tasks in the current phase
     # Stores the numbers of tasks using the same resources to divide them among all later
     def get_blocks_num_shared_krnels(self, scheduled_kernels):
-        block_num_shared_blocks_dict = defaultdict(defaultdict)
-        for my_block, my_channel in self.__task_to_blocks_map.get_blocks_with_channel():
-            block_num_shared_blocks_dict[my_block][my_channel] = self.get_block_num_shared_krnels(my_block, my_channel, scheduled_kernels)
+        #block_num_shared_blocks_dict = defaultdict(defaultdict(defaultdict))
+        block_num_shared_blocks_dict = {}
+
+        blocks = self.get_blocks()
+        for block in blocks:
+            for pipe_cluster in block.get_pipe_clusters_of_task(self.get_task()):
+                dir = pipe_cluster.get_dir()
+                cluster_UN = pipe_cluster.get_unique_name() # cluster unique name
+                if block not in block_num_shared_blocks_dict.keys():
+                    block_num_shared_blocks_dict[block] = {}
+                if dir not in block_num_shared_blocks_dict[block].keys():
+                    block_num_shared_blocks_dict[block][dir] = {}
+                block_num_shared_blocks_dict[block][dir][cluster_UN] = self.get_block_num_shared_krnels(block, pipe_cluster, scheduled_kernels)
         return block_num_shared_blocks_dict
 
     # return the pipes that have kernels on them
-    def filter_in_active_pipes(self, pipes, scheduled_kernels):
+    def filter_in_active_pipes(self, incoming_pipes, outcoming_pipe, scheduled_kernels):
         active_pipes_with_duplicates = []
-        for pipe_ in pipes:
+        for in_pipe_ in incoming_pipes:
             for krnl in scheduled_kernels:
-                if  pipe_.is_task_present(krnl.__task_to_blocks_map.task):
-                    active_pipes_with_duplicates.append(pipe_)
+                if outcoming_pipe == None: # for memory
+                    task_present_on_outcoming_pipe = True
+                else:
+                    task_present_on_outcoming_pipe = outcoming_pipe.is_task_present(krnl.__task_to_blocks_map.task)
+
+                if  in_pipe_.is_task_present(krnl.__task_to_blocks_map.task) and task_present_on_outcoming_pipe:
+                    active_pipes_with_duplicates.append(in_pipe_)
 
         active_pipes = list(set(active_pipes_with_duplicates))
-        assert(len(active_pipes) <= len(pipes))
+        assert(len(active_pipes) <= len(incoming_pipes))
         return active_pipes
 
     # calculate what the work rate (BW or IPC) of each block is (for the kernel at hand)
     # This method assumes that each pipe gets an equal portion of the bandwidth, in other words,
     # equal pipe arbitration policy
-    def alotted_work_rate_equal_pipe(self, block, channel_name, scheduled_kernels):
-
+    def alotted_work_rate_equal_pipe(self, pipe_cluster, scheduled_kernels):
+        block = pipe_cluster.get_block_ref()
+        dir = pipe_cluster.get_dir()
         # helper function
         def pipes_serial_work_ratio(pipe, scheduled_kernels, mode = "equal_per_kernel"):
             mode = "proportional_to_kernel"
@@ -634,26 +650,27 @@ class Kernel:
             return serial_work_rate
 
         if block.type == "pe": # pipes are not important for PEs
-            allotted_work_rate = 1/self.block_num_shared_blocks_dict[block][channel_name]
+            allotted_work_rate = 1/self.block_num_shared_blocks_dict[block][dir][pipe_cluster.get_unique_name()]
         else:
             # get the pipes that kernel is running on and use bottleneck analysis
             # to find the work rate
-            block_pipes = block.get_pipes(block, channel_name)
-            block_pipes_currently_with_traffic = self.filter_in_active_pipes(block_pipes, scheduled_kernels)
+            incoming_pipes = pipe_cluster.get_incoming_pipes()
+            outgoing_pipe = pipe_cluster.get_outgoing_pipe()
+            pipes_with_traffic = self.filter_in_active_pipes(incoming_pipes,outgoing_pipe, scheduled_kernels)
             allotted_work_rate = 0
-            for pipe in block_pipes_currently_with_traffic:
+            for pipe in pipes_with_traffic:
                 pipe_serial_work_rate = pipes_serial_work_ratio(pipe, scheduled_kernels)
-                allotted_work_rate += (1/len(block_pipes_currently_with_traffic)) * pipe_serial_work_rate
+                allotted_work_rate += (1/len(pipes_with_traffic)) * pipe_serial_work_rate
         return allotted_work_rate
 
     # calculate the work rate (BW or IPC depending on the hardware block) of each kernel, while considering
     # sharing of the block across live kernels
-    def calc_allotted_work_rate_relative_to_other_kernles(self, mode, block, channel_name, scheduled_kernels):
+    def calc_allotted_work_rate_relative_to_other_kernles(self, mode, pipe_cluster, scheduled_kernels):
         assert(mode in ["equal_rate_per_kernel", "equal_rate_per_pipe"])
         if mode == "equal_rate_per_kernel":
-            return float(1./self.block_num_shared_blocks_dict[block][channel_name])
+            return float(1./self.block_num_shared_blocks_dict[pipe_cluster.get_ref_block()][pipe_cluster.dir][pipe_cluster.get_unique_name()])
         elif mode == "equal_rate_per_pipe":
-            return self.alotted_work_rate_equal_pipe(block, channel_name, scheduled_kernels)
+            return self.alotted_work_rate_equal_pipe(pipe_cluster, scheduled_kernels)
 
     def get_block_family_tasks_in_use(self, block):
         blocks_family_members = self.__task_to_blocks_map.get_block_family_members_allocated(block.instance_name)
@@ -672,17 +689,31 @@ class Kernel:
         # iterate through each block, channel.
         # (1) calculate the share of each kernel for the channel. (2) get their work ratio to normalize to
         # (3) use peak rate, share of each kernel and work ratio to generate final results
-        for block, channel_name in self.__task_to_blocks_map.get_blocks_with_channel():
-            # calculate share of each kernel
-            allocated_work_rate_relative_to_other_kernels = self.calc_allotted_work_rate_relative_to_other_kernles(mode,
-                                                                                                                   block, channel_name, scheduled_kernels)
-            if allocated_work_rate_relative_to_other_kernels == 0:  # when the channel in the block is not being used
-                continue
+        for block in self.get_blocks():
+            for pipe_cluster in block.get_pipe_clusters_of_task(self.get_task()):
+                # calculate share of each kernel
+                allocated_work_rate_relative_to_other_kernels = self.calc_allotted_work_rate_relative_to_other_kernles(mode, pipe_cluster, scheduled_kernels)
+                if allocated_work_rate_relative_to_other_kernels == 0:  # when the channel in the block is not being used
+                    continue
 
-            # get work ratio (so you can normalize to it)
-            work_ratio = self.__task_to_blocks_map.get_workRatio_by_block_name_and_family_member_names_and_channel_eliminating_fake(
-                block.instance_name, self.get_block_family_tasks_in_use(block), channel_name)
-            block_work_rate_norm_dict[block][channel_name] = float(block.get_peak_work_rate(self.get_power_knob_id()))*allocated_work_rate_relative_to_other_kernels/work_ratio
+                # get work ratio (so you can normalize to it)
+                dir = pipe_cluster.get_dir()
+                work_ratio = self.__task_to_blocks_map.get_workRatio_by_block_name_and_family_member_names_and_channel_eliminating_fake(
+                    block.instance_name, self.get_block_family_tasks_in_use(block), dir)
+
+                if "souurce" in self.get_task_name() or "siink" in self.get_task_name():
+                    block_work_rate_norm_dict[block][pipe_cluster] = 1
+                else:
+                    if work_ratio == 0:
+                        print("this should be looked at")
+                        work_ratio = self.__task_to_blocks_map.get_workRatio_by_block_name_and_family_member_names_and_channel_eliminating_fake(
+                            block.instance_name, self.get_block_family_tasks_in_use(block), dir)
+
+
+                    work_rate =  float(block.get_peak_work_rate(self.get_power_knob_id()))*allocated_work_rate_relative_to_other_kernels/work_ratio
+                    block_work_rate_norm_dict[block][pipe_cluster] = float(block.get_peak_work_rate(self.get_power_knob_id()))*allocated_work_rate_relative_to_other_kernels/work_ratio
+                    if block_work_rate_norm_dict[block][pipe_cluster] == 0:
+                        print("what")
 
         return block_work_rate_norm_dict
 
@@ -693,8 +724,8 @@ class Kernel:
         bottleneck_work_rate = 0
         # iterate through all the blocks/channels and ge the minimum work rate. Since
         # the data is normalized, minimum is the bottleneck
-        for block, channel_name_work_rate in block_work_rate_norm_dict.items():
-            for channel_name, work_rate in channel_name_work_rate.items():
+        for block, pipe_cluster_work_rate in block_work_rate_norm_dict.items():
+            for pipe_cluster, work_rate in pipe_cluster_work_rate.items():
                 if not block_bottleneck:
                     block_bottleneck = block
                     bottleneck_work_rate = work_rate
@@ -712,13 +743,19 @@ class Kernel:
     # process
     def calc_unnormalize_work_rate(self, block_work_rate_norm_dict, bottleneck_work_rate):
         block_att_work_rate_dict = defaultdict(dict)
-        for block, channel_name in block_work_rate_norm_dict.items():
-            for channel_name in channel_name.keys():
+        for block, pipe_cluster_work_rate in block_work_rate_norm_dict.items():
+            for pipe_cluster, work_rate in pipe_cluster_work_rate.items():
+                dir = pipe_cluster.get_dir()
                 work_ratio = self.__task_to_blocks_map.get_workRatio_by_block_name_and_family_member_names_and_channel_eliminating_fake(
-                    block.instance_name, self.get_block_family_tasks_in_use(block), channel_name)
-                block_att_work_rate_dict[block][channel_name] = bottleneck_work_rate*work_ratio
+                    block.instance_name, self.get_block_family_tasks_in_use(block), dir)
+
+                if "souurce" in self.get_task_name() or "siink" in self.get_task_name():
+                    work_ratio = 1
+                block_att_work_rate_dict[block][pipe_cluster] = bottleneck_work_rate*work_ratio
 
         return block_att_work_rate_dict
+
+
 
     def read_latency_per_request(self, mem, pe):
         pass
@@ -733,8 +770,9 @@ class Kernel:
         block_normalized_work_rate_consolidated = defaultdict(dict)
         assert config.DMA_mode in ["serialized_read_write", "parallelized_read_write"]
         if config.DMA_mode == "serialized_read_write":
-            for block, channel_wr in block_normalized_work_rate.items():
-                block_normalized_work_rate_consolidated[block]["same"] = 1/sum([1/norm_wr for  norm_wr in channel_wr.values()])
+            for block, pipe_cluster_work_rate in block_normalized_work_rate.items():
+                for pipe_cluster, work_rate in pipe_cluster_work_rate.items():
+                    block_normalized_work_rate_consolidated[block][pipe_cluster] = 1/sum([1/norm_wr for  norm_wr in pipe_cluster_work_rate.values()])
         elif config.DMA_mode == "parallelized_read_write":
             block_normalized_work_rate_consolidated = block_normalized_work_rate
 
@@ -756,24 +794,13 @@ class Kernel:
         self.kernel_phase_bottleneck_blocks_dict[self.phase_num] = self.cur_phase_bottleneck
         ref_block = self.get_ref_block()
 
-
         # unnormalized the results (unnormalizing means that actually provide the work rate as opposed
         # to normalizing it to the ref block (which is usally PE) work rate
         self.block_att_work_rate_dict = self.calc_unnormalize_work_rate(self.block_normalized_work_rate, bottleneck_work_rate)
 
-        """
-        print("need to delete this write now other wise it will be weird")
-        for blck,wr in self.block_att_work_rate_dict.items():
-            if blck.type == "mem" and 'read' in wr.keys():
-                time_taken = 64/wr['read']
-                pass
-        """
-
     # calculate the completion time for the kernel
     def calc_kernel_completion_time(self):
-        if self.block_att_work_rate_dict[self.get_ref_block()]['same'] == 0:
-            print("what")
-        return self.pe_s_work_left/self.block_att_work_rate_dict[self.get_ref_block()]['same']
+        return self.pe_s_work_left/self.block_att_work_rate_dict[self.get_ref_block()][self.get_ref_block().get_pipe_clusters()[0]]
 
     # launch the kernel
     # Variables:
@@ -821,8 +848,8 @@ class Kernel:
     def calc_work_consumed(self, time_step_size):
         # iterate through each blocks attainable work rate and calculate
         # how much work it can do for the kernel of interest
-        for block, work_ratio in self.block_att_work_rate_dict.items():
-            for channel_name, work_rate in self.block_att_work_rate_dict[block].items():
+        for block, pipe_clusters_work_rate in self.block_att_work_rate_dict.items():
+            for pipe_cluster, work_rate in pipe_clusters_work_rate.items():
                 if self.phase_num in self.block_phase_work_dict[block].keys():
                     self.block_phase_work_dict[block][self.phase_num] += work_rate* time_step_size
                 else:

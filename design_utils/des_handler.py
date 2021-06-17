@@ -636,8 +636,8 @@ class DesignHandler:
         self.inject_DMA_blocks()
 
     # generate and populate the queues that connect different hardware block, e.g., bus and memory, pe and bus, ...
-    def assign_pipes(self, ex_dp, workload_to_blocks_map):
-        ex_dp.get_hardware_graph().assign_pipes()
+    def pipe_design(self, ex_dp, workload_to_blocks_map):
+        ex_dp.get_hardware_graph().pipe_design()
 
     # -------------------------------------------
     # Functionality:
@@ -653,7 +653,7 @@ class DesignHandler:
 
         # generate task to hardware mapping
         workload_to_blocks_map = self.gen_workload_to_blocks_from_blocks(ex_dp.get_blocks())
-        self.assign_pipes(ex_dp, workload_to_blocks_map)  # populate the queues
+        self.pipe_design(ex_dp, workload_to_blocks_map)  # populate the queues
 
         # generate task schedules
         workload_to_pe_block_schedule = WorkloadToPEBlockSchedule()
@@ -834,7 +834,7 @@ class DesignHandler:
         self.load_tasks_to_read_mem_and_ic(ex_dp)
         ex_dp.sanity_check()
         ex_dp.hardware_graph.update_graph_without_prunning()
-        ex_dp.hardware_graph.assign_pipes()
+        ex_dp.hardware_graph.pipe_design()
         return ex_dp
 
     # ------------------------------
@@ -874,7 +874,7 @@ class DesignHandler:
         ex_dp = ExDesignPoint(hardware_graph)
         self.load_tasks_to_read_mem_and_ic(ex_dp)
         ex_dp.hardware_graph.update_graph()
-        ex_dp.hardware_graph.assign_pipes()
+        ex_dp.hardware_graph.pipe_design()
         return ex_dp
 
     # ------------------------------
@@ -1006,7 +1006,7 @@ class DesignHandler:
 
         else:
             raise Exception("transformation :" + move_to_apply.get_transformation_name() + " is not supported")
-        ex_dp.hardware_graph.assign_pipes()
+        ex_dp.hardware_graph.pipe_design()
         return ex_dp, succeeded
 
     # ------------------------------
