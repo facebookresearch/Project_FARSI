@@ -54,6 +54,8 @@ class IPLibraryElement():
 # any class that wants to read the database data needs to talk to this class
 class DataBase:
     def __init__(self, db_input, hw_sampling):
+        self.cached_blockL_to_block = {}
+        self.cached_block_to_blockL = {}
         self.db_input = db_input
         self.tasksL = self.db_input.tasksL   # task
         self.pe_mapsL = self.db_input.pe_mapsL  # pe maps
@@ -337,6 +339,28 @@ class DataBase:
 
     # ------------------------------
     # Functionality:
+    #       find all the compatible blocks for a specific task. This version is the fast version (using caching), however
+    #       it's a bit less intuitive
+    # Variables:
+    #       block_type: filter based on the type (pe, mem, ic)
+    #       tasks: all the tasks that the blocks need to compatible for.
+    # -------------------------------------------
+    def find_all_compatible_blocks_fast(self, block_type, tasks):
+        mappable_blocksL = self.find_all_mappable_blocksL_for_tasks(block_type, tasks)
+        assert(len(mappable_blocksL) > 0), "there should be at least one block for all the tasks to map to"
+        result = []
+        for mappable_blockL in mappable_blocksL:
+            if mappable_blockL in self.cached_blockL_to_block.keys(): # to improve performance, we look into caches
+                result.append(self.cached_blockL_to_block[mappable_blockL])
+            else:
+                casted = self.cast(mappable_blockL)
+                self.cached_blockL_to_block[mappable_blockL] = casted
+                self.cached_block_to_blockL[casted] = mappable_blockL
+                result.append(casted)
+        return result
+
+    # ------------------------------
+    # Functionality:
     #       find all the compatible blocks for a specific task
     # Variables:
     #       block_type: filter based on the type (pe, mem, ic)
@@ -346,8 +370,6 @@ class DataBase:
         mappable_blocksL = self.find_all_mappable_blocksL_for_tasks(block_type, tasks)
         assert(len(mappable_blocksL) > 0), "there should be at least one block for all the tasks to map to"
         return [self.cast(mappable_blockL) for mappable_blockL in mappable_blocksL]
-
-
 
     # get the block name (without type in name) generate a block object with it, and return it
     # Note that without type means that the name does not contains the type, and we add the type when we generate
@@ -626,6 +648,49 @@ class DataBase:
             return True
         else:
             return False
+
+
+    # ------------------------------
+    # Functionality:
+    #  find a block that is superior (from a specific metric perspective) comparing to the current block. This version
+    # is the fast version, where we use caching, however, it's a bit less intuitive
+    # Variables:
+    #   blck_to_imprv: block to improve upon
+    #   metric: metric to consider while choosing a block superiority. Chosen from power, area, performance.
+    # ------------------------------
+    def up_sample_down_sample_block_fast(self, blck_to_imprv, metric, sampling_dir, tasks=[]):
+        all_compatible_blocks = self.find_all_compatible_blocks_fast(blck_to_imprv.type, tasks)
+        if metric == "latency":
+            metric_to_sort = 'peak_work_rate'
+        elif metric == "power":
+            #metric_to_sort = 'work_over_energy'
+            metric_to_sort = 'one_over_power'
+        elif metric == "area":
+            metric_to_sort = 'one_over_area'
+        else:
+            print("metric: " + metric + " is not defined")
+
+        if sampling_dir > 0:
+            reversed = True
+        else:
+            reversed = False
+        srtd_comptble_blcks = sorted(all_compatible_blocks, key=attrgetter(metric_to_sort), reverse=reversed)  #
+        idx = 0
+
+        # find the block
+        results = []
+        for blck in srtd_comptble_blcks:
+            #if (getattr(blck, metric_to_sort) == getattr(blck_to_imprv, metric_to_sort)):
+            if sampling_dir < 0:  # need to reduce
+                if (getattr(blck, metric_to_sort) > getattr(blck_to_imprv, metric_to_sort)):
+                    results.append(blck)
+            elif sampling_dir > 0:  # need to reduce
+                if (getattr(blck, metric_to_sort) < getattr(blck_to_imprv, metric_to_sort)):
+                    results.append(blck)
+
+        if len(results) == 0:
+            results = srtd_comptble_blcks
+        return results
 
     # ------------------------------
     # Functionality:

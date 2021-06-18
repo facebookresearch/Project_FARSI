@@ -64,10 +64,6 @@ class HillClimbing:
         self.total_itr_ctr = 0  # Total iteration count (for termination purposes).
 
         self.vis_move_trail_ctr = 0
-        if config.regulate_move_tracking:
-            self.vis_move_trail_ctr_threshold =  config.vis_move_trail_ctr_threshold
-        else:
-            self.vis_move_trail_ctr_threshold = 1
         # Sanity checks (preventing bad configuration setup)
         if self.neigh_gen_mode not in ["all", "some"]: raise ValueError()
         # TODO: sel_cri needs to be fixed to include combinations of the objective functions
@@ -142,8 +138,8 @@ class HillClimbing:
         #new_ex_dp_pre_mod = copy.deepcopy(ex_dp)  # getting a copy before modifying
         #new_sim_dp_pre_mod = copy.deepcopy(sim_dp) # getting a copy before modifying
         new_ex_dp = copy.deepcopy(ex_dp)
-        new_sim_dp = copy.deepcopy(sim_dp)
-        new_des_tup = (new_ex_dp, new_sim_dp)
+        #new_sim_dp = copy.deepcopy(sim_dp)
+        new_des_tup = (new_ex_dp, sim_dp)
 
         # ------------------------
         # select (generate) a move
@@ -155,7 +151,7 @@ class HillClimbing:
         # iterate and continuously generate moves, until one passes some sanity check
         while not safety_chk_passed:
             move_to_try = self.sel_moves(new_des_tup, "dist_rank")
-            safety_chk_passed = move_to_try.safety_check(ex_dp)
+            safety_chk_passed = move_to_try.safety_check(new_ex_dp)
 
         #move_to_try.print_info()
 
@@ -980,7 +976,9 @@ class HillClimbing:
             OSA = OSASimulator(sim_dp, database)  # change
 
         # Does the actual simulation
+        t = time.time()
         OSA.simulate()
+        print("sim time" + str(time.time() -t))
         return sim_dp
 
     # ------------------------------
@@ -1102,8 +1100,8 @@ class HillClimbing:
         design_unique_code = ex_dp.get_hardware_graph().get_SOC_design_code()  # cache index
         if design_unique_code not in self.cached_SOC_sim.keys():
             sim_dp = self.eval_design(ex_dp, self.database)  # evaluate the designs
-            if config.cache_seen_designs:
-                self.cached_SOC_sim[design_unique_code] = (ex_dp, sim_dp)
+            #if config.cache_seen_designs: # this seems to be slower than just simulation, because of deepcopy
+            #    self.cached_SOC_sim[design_unique_code] = (ex_dp, sim_dp)
         else:
             ex_dp = self.cached_SOC_sim[design_unique_code][0]
             sim_dp = self.cached_SOC_sim[design_unique_code][1]
@@ -1111,7 +1109,7 @@ class HillClimbing:
 
         # collect the moves for debugging/visualization
         if config.DEBUG_MOVE:
-            if(self.vis_move_trail_ctr % self.vis_move_trail_ctr_threshold) == 0:
+            if (self.total_itr_ctr % config.vis_reg_ctr_threshold) == 0:
                 self.move_profile.append(move_to_try)  # for debugging
             self.last_move = move_to_try
             sim_dp.set_move_applied(move_to_try)
@@ -1158,9 +1156,9 @@ class HillClimbing:
 
             # visualization and sanity checks
             if config.VIS_MOVE_TRAIL:
-                if (self.vis_move_trail_ctr % self.vis_move_trail_ctr_threshold) == 0:
+                if (self.total_itr_ctr % config.vis_reg_ctr_threshold) == 0:
                     self.des_trail_list.append((copy.deepcopy(self.so_far_best_sim_dp), copy.deepcopy(des_tup_list[-1][1])))
-                self.last_des_trail = (copy.deepcopy(self.so_far_best_sim_dp), copy.deepcopy(des_tup_list[-1][1]))
+                    self.last_des_trail = (copy.deepcopy(self.so_far_best_sim_dp), copy.deepcopy(des_tup_list[-1][1]))
 
             #self.vis_move_ctr += 1
             if config.DEBUG_SANITY: des_tup[0].sanity_check()
@@ -1234,7 +1232,7 @@ class HillClimbing:
             this_itr_ex_sim_dp_dict = self.simple_SA()   # run simple simulated annealing
 
             # collect profiling information about moves and designs generated
-            if config.VIS_MOVE_TRAIL:
+            if config.VIS_MOVE_TRAIL and (self.total_itr_ctr% config.vis_reg_ctr_threshold) == 0:
                 plot.des_trail_plot(self.des_trail_list, self.move_profile, des_per_iteration)
                 plot.move_profile_plot(self.move_profile)
 
@@ -1245,9 +1243,10 @@ class HillClimbing:
             print("-------:):):):):)----------")
             print("Best design's latency: " + str(self.cur_best_sim_dp.dp_stats.get_system_complex_metric("latency")))
             print("Best design's power: " + str(self.cur_best_sim_dp.dp_stats.get_system_complex_metric("power")))
-            self.cur_best_sim_dp.move_applied.print_info()
+            if  not self.cur_best_sim_dp.move_applied == None:
+                self.cur_best_sim_dp.move_applied.print_info()
 
-            if config.VIS_GR_PER_ITR:
+            if config.VIS_GR_PER_ITR and (self.total_itr_ctr% config.vis_reg_ctr_threshold) == 0:
                 vis_hardware.vis_hardware(self.cur_best_sim_dp.get_dp_rep())
 
             # collect statistics about the design
@@ -1259,7 +1258,10 @@ class HillClimbing:
                 print("reason to terminate is:" + reason_to_terminate)
                 vis_hardware.vis_hardware(self.cur_best_sim_dp.get_dp_rep())
                 if not (self.last_des_trail == None):
-                    self.des_trail_list.append(self.last_des_trail)
+                    if self.last_des_trail == None:
+                        self.last_des_trail = (copy.deepcopy(self.so_far_best_sim_dp), copy.deepcopy(self.so_far_best_sim_dp))
+                    else:
+                        self.des_trail_list.append(self.last_des_trail)
                 if not (self.last_move == None):
                     self.move_profile.append(self.last_move)
                 plot.des_trail_plot(self.des_trail_list, self.move_profile, des_per_iteration)

@@ -301,6 +301,10 @@ class DesignHandler:
                                    # memory and processing elements (reconnect = prune and connnect)
         self.boost_SOC = False  # for multie SOC designs. Not activated yet.
         self.DMA_task_ctr = 0  # number of DMA engines used
+        if config.FARSI_performance == "fast":
+            self.get_immediate_block = self.get_immediate_block_fast
+        else:
+            self.get_immediate_block = self.get_immediate_block_slow
 
     # -------------------------------------------
     # Functionality:
@@ -909,12 +913,22 @@ class DesignHandler:
                 vis_hardware(ex_dp)
                 raise Exception("this design is not valid")
 
+    # Get the immediate supperior/inferior block according to the metric (and direction).
+    # This version is the fast version (by the use of caching), however, it's unintuive
+    # Variables:
+    #   metric_dir: -1 (increase) and 1 (decrease)
+    #   block: the block to improve/de-improve
+    def get_immediate_block_fast(self, block, metric, metric_dir, tasks):
+        imm_blck_non_unique = self.database.up_sample_down_sample_block_fast(block, metric, metric_dir, tasks)[0]  # get the first value
+        blkL = self.database.cached_block_to_blockL[imm_blck_non_unique]
+        imm_blck = self.database.cast(blkL)
+        return self.database.copy_SOC(imm_blck, block)
 
     # Get the immediate supperior/inferior block according to the metric (and direction)
     # Variables:
     #   metric_dir: -1 (increase) and 1 (decrease)
     #   block: the block to improve/de-improve
-    def get_immediate_block(self, block, metric, metric_dir, tasks):
+    def get_immediate_block_slow(self, block, metric, metric_dir, tasks):
         imm_blck = self.database.up_sample_down_sample_block(block, metric, metric_dir, tasks)[0]  # get the first value
         return self.database.copy_SOC(imm_blck, block)
 

@@ -445,11 +445,11 @@ if __name__ == "__main__":
     # set the study parameters
     # set the workload
     #workloads = {"audio_decoder"}
-    workloads = {"SLAM"}
-    #workloads = {"edge_detection"}
+    #workloads = {"SLAM"}
+    workloads = {"edge_detection"}
     #workloads = {"hpvm_cava"}
     #workloads ={"audio_decoder", "edge_detection", "hpvm_cava"}
-    # workloads = {"SOC_example"}
+    #workloads = {"partial_SOC_example_hard"}
     #workloads = {"simple_all_parallel"}
 
     # set the IP spawning params
@@ -465,10 +465,10 @@ if __name__ == "__main__":
                                 "tech_node_SF":tech_node_SF}
 
     # set software hardware database population
-    sw_hw_database_population = {"db_mode": "hardcoded", "hw_graph_mode": "generated_from_scratch",
-                                 "workloads": workloads, "misc_knobs": db_population_misc_knobs}
-    #sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_scratch",
+    #sw_hw_database_population = {"db_mode": "hardcoded", "hw_graph_mode": "generated_from_scratch",
     #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
+    sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_scratch",
+                                 "workloads": workloads, "misc_knobs": db_population_misc_knobs}
 
     # depending on the study/substudy type, invoke the appropriate function
     if study_type == "simple_run":

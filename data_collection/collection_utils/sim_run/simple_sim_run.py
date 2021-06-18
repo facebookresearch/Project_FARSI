@@ -63,7 +63,7 @@ if __name__ == "__main__":
     #workloads = {"audio_decoder"}
     #workloads = {"edge_detection"}
     #workloads = {"hpvm_cava"}
-    workloads = {"SOC_example"}
+    workloads = {"partial_SOC_example_hard"}
     sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "parse",
                                  "workloads": workloads, "misc_knobs":db_population_misc_knobs}
 

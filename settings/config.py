@@ -172,12 +172,18 @@ verification_result_file = "verification_result_file.csv"
 # MOVES
 
 FARSI_memory_consumption = "high"  # [low, high] if low is selected, we deactivate certain knobs to avoid using memory excessively
+FARSI_performance = "fast"  # ["slow", "fast"]  # if set to fast, we don't visualize as often and use certain fast versions
+                            # of functions to accomplish the tasks
+if FARSI_performance == "fast":
+    vis_reg_ctr_threshold = 20
+else:
+    vis_reg_ctr_threshold = 1
 
 DEBUG_MOVE =  True and not NO_VIS # if true, we print/collect relevant info about moves
 regulate_move_tracking = (FARSI_memory_consumption == "low") # if true, we don't track and hence graph every move. This helps preventing memory pressure (and avoid getting killed by the OS)
 vis_move_trail_ctr_threshold = 20 # how often sample the moves (only applies if regulat_move_tracking enabled)
 
-cache_seen_designs = not(FARSI_memory_consumption == "low") # if True, we cache the designs that we have seen. This way we wont simulate them unnecessarily.
+cache_seen_designs = not(FARSI_memory_consumption == "low") and False# if True, we cache the designs that we have seen. This way we wont simulate them unnecessarily.
                           # This should be set to false if memory is an issue
 
 VIS_MOVE_TRAIL = DEBUG_MOVE and not NO_VIS
