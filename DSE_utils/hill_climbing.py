@@ -58,6 +58,7 @@ class HillClimbing:
         #self.hot_krnl_pos = 0  # position of the kernel among the kernel list. Used to found and improve the
                                # corresponding occupying block.
 
+        self.min_cost_to_consider = .000001
         # Counters: to determine which control path the exploration should take (e.g., terminate, pick another block instead
         # of hotblock, ...).
         self.des_stag_ctr = 0  # Iteration count since seen last design improvement.
@@ -76,7 +77,7 @@ class HillClimbing:
                                          # count up
 
         self.recently_seen_design_ctr = 0
-        self.recently_cached_designs = []
+        self.recently_cached_designs = {}
         self.cleanup_ctr = 0  # use this to invoke the cleaner once we pass a threshold
 
         self.SA_current_breadth = -1  # which breadth is current move on
@@ -87,6 +88,9 @@ class HillClimbing:
                                      # simulation validation
 
         self.cached_SOC_sim = {} # cache of designs simulated already. index is a unique code base on allocation and mapping
+
+        self.move_s_krnel_selection = config.move_s_krnel_selection
+
 
     def set_check_point_folder(self, check_point_folder):
         self.check_point_folder = check_point_folder
@@ -390,15 +394,7 @@ class HillClimbing:
     def is_cleanup_iter(self):
         return (self.cleanup_ctr % (config.cleaning_threshold)) > (config.cleaning_threshold- config.cleaning_consecutive_iterations)
 
-    # ------------------------------
-    # Functionality:
-    #    pick which transformation to apply
-    # Variables:
-    #      hot_blck_synced: the block bottleneck
-    #      selected_metric: metric to focus on
-    #      selected_krnl: the kernel to focus on
-    # ------------------------------
-    def select_transformation(self, ex_dp, sim_dp, hot_blck_synced, selected_metric, selected_krnl, selected_dir):
+    def get_feasible_transformations(self, ex_dp, sim_dp, hot_blck_synced, selected_metric, selected_krnl, selected_dir):
         imm_block = self.dh.get_immediate_block(hot_blck_synced, selected_metric, selected_dir,  hot_blck_synced.get_tasks_of_block())
         task_synced = [task__ for task__ in hot_blck_synced.get_tasks_of_block() if task__.name == selected_krnl.get_task_name()][0]
         feasible_transformations = set(config.metric_trans_dict[selected_metric])
@@ -434,6 +430,19 @@ class HillClimbing:
         if len(list(feasible_transformations)) == 0:
             feasible_transformations = ["identity"]
 
+        return feasible_transformations
+
+    # ------------------------------
+    # Functionality:
+    #    pick which transformation to apply
+    # Variables:
+    #      hot_blck_synced: the block bottleneck
+    #      selected_metric: metric to focus on
+    #      selected_krnl: the kernel to focus on
+    # ------------------------------
+    def select_transformation(self, ex_dp, sim_dp, hot_blck_synced, selected_metric, selected_krnl, selected_dir):
+        feasible_transformations = self.get_feasible_transformations(ex_dp, sim_dp, hot_blck_synced, selected_metric,
+                                                                    selected_krnl, selected_dir)
         print(list(feasible_transformations))
         random.seed(datetime.now().microsecond)
         transformation = random.choice(list(feasible_transformations))
@@ -505,6 +514,71 @@ class HillClimbing:
 
         return kernel_improvement_cost_inverse
 
+    # calculate the cost impact of a kernel improvement
+    def get_swap_cost(self, sim_dp, krnl, selected_metric, dir):
+        def get_subtype_for_cost(block):
+            if block.type == "pe" and block.subtype == "ip":
+                return "ip"
+            if block.type == "pe" and block.subtype == "gpp":
+                if "A53" in block.instance_name or "ARM" in block.instance_name:
+                    return "arm"
+                if "G3" in block.instance_name:
+                    return "dsp"
+            else:
+                return block.type
+
+        hot_block = sim_dp.get_dp_stats().get_hot_block_of_krnel(krnl.get_task_name(), selected_metric)
+        hot_block_subtype = get_subtype_for_cost(hot_block)
+        current_cost = self.database.db_input.porting_effort[hot_block_subtype]
+        imm_block = self.dh.get_immediate_block(hot_block,selected_metric, dir,[krnl.get_task()])
+        imm_block_subtype = get_subtype_for_cost(imm_block)
+        imm_block_cost =  self.database.db_input.porting_effort[imm_block_subtype]
+        improvement_cost = (imm_block_cost - current_cost)
+        return improvement_cost
+
+    def get_migrate_cost(self):
+        return 0
+
+    def get_split_cost(self):
+        return 1
+
+    def get_migration_split_cost(self, transformation):
+        if transformation == "migrate":
+            return self.get_migrate_cost()
+        elif transformation == "split":
+            return self.get_split_cost()
+        else:
+            print("this transformation" + transformation + " is not supported for cost calculation")
+            exit(0)
+
+    # how much does it cost to improve the kernel for different transformations
+    def get_krnl_improvement_cost(self, ex_dp, sim_dp, krnls, selected_metric, move_dir):
+        # whether you can apply the transformation for the krnel's block
+        def get_transformation_cost(sim_dp, selected_metric, dir, krnl, transformation):
+            if transformation == "swap":
+                cost = self.get_swap_cost(sim_dp, krnl, selected_metric, move_dir)
+            elif transformation in ["split", "migrate"]:
+                cost = self.get_migration_split_cost(transformation)
+            if cost == 0:
+                cost = self.min_cost_to_consider
+            return cost
+
+        krnl_improvement_cost = {}
+        # iterate through the kernels, find their feasible transformations and
+        # find cost
+        for krnl in krnls:
+            hot_block = sim_dp.get_dp_stats().get_hot_block_of_krnel(krnl.get_task_name(), selected_metric)
+            imm_block = self.dh.get_immediate_block(hot_block, selected_metric, move_dir, [krnl.get_task()])
+            hot_blck_synced = self.dh.find_cores_hot_kernel_blck_bottlneck(ex_dp, hot_block)
+            feasible_trans = self.get_feasible_transformations(ex_dp, sim_dp, hot_blck_synced, selected_metric,
+                                              krnl,move_dir)
+            for trans in feasible_trans:
+                if trans == "identity":
+                    continue
+                cost = get_transformation_cost(sim_dp, selected_metric, move_dir, krnl, trans)
+                krnl_improvement_cost[(krnl, trans)] = cost
+        return krnl_improvement_cost
+
     # select a metric to improve on
     def select_metric(self, sim_dp):
         # prioritize metrics based on their distance contribution to goal
@@ -523,39 +597,86 @@ class HillClimbing:
             selected_metric = self.pick_from_prob_dict(metric_prob_dict_sorted)
         return selected_metric, metric_prob_dict
 
+    # select direction for the move
     def select_dir(self, sim_dp):
         move_dir = 1  # try to increase the metric value
         if not sim_dp.dp_stats.fits_budget(1):
             move_dir = -1  # try to reduce the metric value
         return move_dir
 
-    def select_kernel(self, sim_dp, selected_metric, move_dir):
+    # get each kernels_contribution to the metric of interest
+    def get_kernels_s_contribution(self, selected_metric, sim_dp):
         krnl_prob_dict = {}  # (kernel, metric_value)
         krnls = sim_dp.get_dp_stats().get_kernels()
         metric_total = sum([krnl.stats.get_metric(selected_metric) for krnl in krnls])
+
         # sort kernels based on their contribution to the metric of interest
         for krnl in krnls:
             krnl_prob_dict[krnl] = krnl.stats.get_metric(selected_metric)/metric_total
 
-        # only if cost and bottleneck should be considered simultenously
-        krnl_improvement_cost = self.get_swap_improvement_cost(sim_dp, krnls, selected_metric, move_dir)
-        for krnl, prob in krnl_prob_dict.items():
-            krnl_prob_dict[krnl] = prob * krnl_improvement_cost[krnl]
+        if not "bottleneck" in self.move_s_krnel_selection:
+            for krnl in krnls:
+                krnl_prob_dict[krnl] = 1
+        return krnl_prob_dict
+
+    # get each_kernels_improvement_ease (ease = 1/cost)
+    def get_kernels_s_improvement_ease(self, ex_dp, sim_dp, selected_metric, move_dir):
+        krnls = sim_dp.get_dp_stats().get_kernels()
+        krnl_trans_improvement_cost = self.get_krnl_improvement_cost(ex_dp, sim_dp, krnls, selected_metric, move_dir)
+        # normalize
+        # normalized and reverse (we need to reverse, so higher cost is worse, i.e., smaller)
+        krnl_trans_improvement_ease = {}
+        for krnl_trans, cost in krnl_trans_improvement_cost.items():
+            krnl_trans_improvement_ease[krnl_trans] = 1 / (cost)
+        max_ease = max(krnl_trans_improvement_ease.values())
+        for krnl_trans, ease in krnl_trans_improvement_ease.items():
+            krnl_trans_improvement_ease[krnl_trans] = ease / max_ease
+
+        krnl_improvement_ease = {}
+        for krnl in krnls:
+            krnl_improvement_ease[krnl] = 0
+
+        for krnl_trans, ease in krnl_trans_improvement_ease.items():
+            krnl, trans = krnl_trans
+            krnl_improvement_ease[krnl] = max(ease, krnl_improvement_ease[krnl])
+
+        if not "improvement_ease" in self.move_s_krnel_selection:
+            for krnl in krnls:
+                krnl_improvement_ease[krnl] = 1
+        return krnl_improvement_ease
+
+    # select the kernel for the move
+    def select_kernel(self, ex_dp, sim_dp, selected_metric, move_dir):
+        # get each kernel's contributions
+        krnl_contribution_dict = self.get_kernels_s_contribution(selected_metric, sim_dp)
+
+        # get each kernel's improvement cost
+        krnl_improvement_ease = self.get_kernels_s_improvement_ease(ex_dp, sim_dp, selected_metric, move_dir)
+
+        # combine the selections methods
+        # multiply the probabilities for a more complex metric
+        krnl_prob_dict = {}
+        for krnl in krnl_contribution_dict.keys():
+            krnl_prob_dict[krnl] = krnl_contribution_dict[krnl] * krnl_improvement_ease[krnl]
 
         # sort
         krnl_prob_dict_sorted = {k: v for k, v in sorted(krnl_prob_dict.items(), key=lambda item: item[1])}
+
         # quick sanity check
         if not(config.move_krnel_ranking_mode == "exact") and sum(krnl_prob_dict_sorted.values()) < .99:
             x = sum(krnl_prob_dict_sorted.values())
             print("This should not happen")
 
+        # get the worse kernel
         if config.move_krnel_ranking_mode == "exact":  # for area to allow us pick scenarios that are not necessarily the worst
             selected_krnl = list(krnl_prob_dict_sorted.keys())[
                 len(krnl_prob_dict_sorted.keys()) - 1 - self.krnel_rnk_to_consider]
         else:
             selected_krnl = self.pick_from_prob_dict(krnl_prob_dict_sorted)
+
         return selected_krnl, krnl_prob_dict
 
+    # select blocks for the move
     def select_block(self, sim_dp, ex_dp, selected_krnl, selected_metric):
         # get the hot block for the kernel. Hot means the most contributing block for the kernel/metric of interest
         hot_blck = sim_dp.get_dp_stats().get_hot_block_of_krnel(selected_krnl.get_task_name(), selected_metric)
@@ -592,7 +713,7 @@ class HillClimbing:
         if selected_metric == "power":
             print("what make sure now to del")
         move_dir = self.select_dir(sim_dp)
-        selected_krnl, krnl_prob_dict = self.select_kernel(sim_dp, selected_metric, move_dir)
+        selected_krnl, krnl_prob_dict = self.select_kernel(ex_dp, sim_dp, selected_metric, move_dir)
         selected_block, block_prob_dict = self.select_block(sim_dp, ex_dp, selected_krnl, selected_metric)
         transformation_name,transformation_batch_mode = self.select_transformation(ex_dp, sim_dp, selected_block, selected_metric, selected_krnl, move_dir)
 
@@ -733,7 +854,9 @@ class HillClimbing:
         return ()
 
     # find the best design from a list
-    def find_best_design(self, sim_dp_stat_ann_delta_energy_dict, best_sim_dp_stat_so_far):
+    def find_best_design(self, sim_stat_ex_dp_dict, sim_dp_stat_ann_delta_energy_dict, best_sim_dp_stat_so_far, best_ex_dp_so_far):
+        # two blocks are equal if they have the same generic instance name
+        # and have been scheduled the same tasks
         def blocks_are_equal(block_1, block_2):
             if not selected_block.get_generic_instance_name() == best_sim_selected_block.get_generic_instance_name():
                 return False
@@ -752,9 +875,10 @@ class HillClimbing:
 
         # get the best_sim info
         sim_dp = best_sim_dp_stat_so_far.dp
+        ex_dp = best_ex_dp_so_far
         best_sim_selected_metric, metric_prob_dict = self.select_metric(sim_dp)
         best_sim_move_dir = self.select_dir(sim_dp)
-        best_sim_selected_krnl, krnl_prob_dict = self.select_kernel(sim_dp, best_sim_selected_metric, best_sim_move_dir)
+        best_sim_selected_krnl, krnl_prob_dict = self.select_kernel(ex_dp, sim_dp, best_sim_selected_metric, best_sim_move_dir)
         best_sim_selected_block, block_prob_dict = self.select_block_without_sync(sim_dp, best_sim_selected_krnl, best_sim_selected_metric)
 
         if sorted_sim_dp_stat_ann_delta_energy_dict[0][1] < 0:
@@ -770,12 +894,14 @@ class HillClimbing:
                     if energy == 0:
                         sim_dp_to_select_from.append((sim_dp_stat, energy))
 
+
                 designs_to_consider = []
                 for sim_dp_stat, energy in sim_dp_to_select_from:
                     sim_dp = sim_dp_stat.dp
+                    ex_dp = sim_stat_ex_dp_dict[sim_dp_stat]
                     selected_metric, metric_prob_dict = self.select_metric(sim_dp)
                     move_dir = self.select_dir(sim_dp)
-                    selected_krnl, krnl_prob_dict = self.select_kernel(sim_dp, selected_metric, move_dir)
+                    selected_krnl, krnl_prob_dict = self.select_kernel(ex_dp, sim_dp, selected_metric, move_dir)
                     selected_block, block_prob_dict = self.select_block_without_sync(sim_dp, selected_krnl,
                                                                                      selected_metric)
                     if not selected_krnl.get_task_name() == best_sim_selected_krnl.get_task_name():
@@ -792,7 +918,16 @@ class HillClimbing:
     # use simulated annealing to pick the next design(s).
     # Use this link to understand simulated annealing (SA) http://www.cs.cmu.edu/afs/cs.cmu.edu/project/learn-43/lib/photoz/.g/we /glossary/anneal.html
     # cur_temp: current temperature for simulated annealing
-    def SA_design_selection(self, sim_dp_stat_list, best_sim_dp_so_far_stats, cur_temp):
+    def SA_design_selection(self, sim_stat_ex_dp_dict, sim_dp_stat_list, best_ex_dp_so_far, best_sim_dp_so_far_stats, cur_temp):
+
+        # get the kernel of interest using this for now to collect cached designs
+        best_sim_selected_metric, metric_prob_dict = self.select_metric(best_sim_dp_so_far_stats.dp)
+        best_sim_move_dir = self.select_dir(best_sim_dp_so_far_stats.dp)
+        best_sim_selected_krnl, _= self.select_kernel(best_ex_dp_so_far, best_sim_dp_so_far_stats.dp, best_sim_selected_metric, best_sim_move_dir)
+        if best_sim_selected_krnl.get_task_name() not in self.recently_cached_designs.keys():
+           self.recently_cached_designs[best_sim_selected_krnl.get_task_name()]  = []
+
+
         # get the worse case cost for normalizing the cost when calculating the distance
         best_cost = min([sim_dp.get_system_complex_metric("cost") for sim_dp in (sim_dp_stat_list + [best_sim_dp_so_far_stats])])
         self.database.set_ideal_metric_value("cost", "glass", best_cost)
@@ -832,7 +967,6 @@ class HillClimbing:
             best_sim_dp_so_far_stats.get_system_complex_metric("power")))
         print("energy :" + str(ann_energy_best_dp_so_far))
 
-
         sim_dp_to_look_at = [] # which designs to look at.
         # only look at the designs that meet the budget (if any), basically  prioritize these designs first
         if len(new_designs_meeting_budget) > 0:
@@ -852,28 +986,12 @@ class HillClimbing:
                 new_design_energy_all_metrics = sim_dp_stat.dist_to_goal(["power", "latency", "area"], "dampen")
                 sim_dp_stat_ann_delta_energy_dict_all_metrics[sim_dp_stat] = new_design_energy_all_metrics - ann_energy_best_dp_so_far_all_metrics
 
-                # deleteee this later
-                print(" des" + " latency:" + str(
-                    sim_dp_stat.get_system_complex_metric("latency")))
-                print(" des" +" power:" + str(
-                    sim_dp_stat.get_system_complex_metric("power")))
-                print("delta energy :" + str(new_design_energy))
-                print("*****")
-
-
         # changing the seed for random selection
         if config.DEBUG_FIX: random.seed(0)
         else: time.sleep(.00001), random.seed(datetime.now().microsecond)
 
-        # find the best design
-        sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics = sorted(sim_dp_stat_ann_delta_energy_dict_all_metrics.items(), key=lambda x: x[1])
-        if sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics[0][1] < 0 and not True:
-            design_improved = True
-            best_neighbour_stat = sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics[0][0]
-            best_neighbour_delta_energy = sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics[0][1]
-        else:
-            result, design_improved = self.find_best_design(sim_dp_stat_ann_delta_energy_dict, best_sim_dp_so_far_stats)
-            best_neighbour_stat, best_neighbour_delta_energy = result
+        result, design_improved = self.find_best_design(sim_stat_ex_dp_dict, sim_dp_stat_ann_delta_energy_dict, best_sim_dp_so_far_stats, best_ex_dp_so_far)
+        best_neighbour_stat, best_neighbour_delta_energy = result
 
         # if any negative (desired move) value is detected or there is a design in the new batch
         #  that meet the budget, but the previous best design didn't, we have at least one improved solution
@@ -893,7 +1011,7 @@ class HillClimbing:
                 self.krnel_rnk_to_consider = min(self.krnel_rnk_to_consider + 1, len(best_sim_dp_so_far_stats.get_kernels()) -1)
                 self.krnel_stagnation_ctr = 0
                 #self.recently_seen_design_ctr = 0
-        elif best_neighbour_stat.dp.dp_rep.get_hardware_graph().get_SOC_design_code() in self.recently_cached_designs:
+        elif best_neighbour_stat.dp.dp_rep.get_hardware_graph().get_SOC_design_code() in self.recently_cached_designs[best_sim_selected_krnl.get_task_name()]:
             # avoid circular exploration
             self.recently_seen_design_ctr += 1
             self.des_stag_ctr += 1
@@ -921,10 +1039,10 @@ class HillClimbing:
                 selected_sim_dp = best_neighbour_stat.dp
 
         # cache the best design
-        if len(self.recently_cached_designs) < config.recently_cached_designs_queue_size:
-            self.recently_cached_designs.append(selected_sim_dp.dp_rep.get_hardware_graph().get_SOC_design_code())
+        if len(self.recently_cached_designs[best_sim_selected_krnl.get_task_name()]) < config.recently_cached_designs_queue_size:
+            self.recently_cached_designs[best_sim_selected_krnl.get_task_name()].append(selected_sim_dp.dp_rep.get_hardware_graph().get_SOC_design_code())
         else:
-            self.recently_cached_designs[self.total_itr_ctr%config.recently_cached_designs_queue_size] = selected_sim_dp.dp_rep.get_hardware_graph().get_SOC_design_code()
+            self.recently_cached_designs[best_sim_selected_krnl.get_task_name()][self.total_itr_ctr%config.recently_cached_designs_queue_size] = selected_sim_dp.dp_rep.get_hardware_graph().get_SOC_design_code()
 
         return selected_sim_dp, found_an_improved_solution
 
@@ -934,13 +1052,19 @@ class HillClimbing:
     # Variables
     #       ex_sim_dp_dict: example_simulate_design_point_list. List of designs to pick from.
     # ------------------------------
-    def sel_next_dp(self, ex_sim_dp_dict, best_sim_dp_so_far, cur_temp):
+    def sel_next_dp(self, ex_sim_dp_dict, best_sim_dp_so_far, best_ex_dp_so_far, cur_temp):
         # convert to stats
         sim_dp_list = list(ex_sim_dp_dict.values())
         sim_dp_stat_list = [sim_dp.dp_stats for sim_dp in sim_dp_list]
+        sim_stat_ex_dp_dict = {}
+        for k, v in ex_sim_dp_dict.items():
+            sim_stat_ex_dp_dict[v.dp_stats] = k
+
 
         # find the ones that fit the expanded budget (note that budget radius shrinks)
-        selected_sim_dp, found_improved_solution = self.SA_design_selection(sim_dp_stat_list, best_sim_dp_so_far.dp_stats, cur_temp)
+        selected_sim_dp, found_improved_solution = self.SA_design_selection(sim_stat_ex_dp_dict, sim_dp_stat_list,
+                                                                            best_ex_dp_so_far, best_sim_dp_so_far.dp_stats,
+                                                                            cur_temp)
 
         if not found_improved_solution:
             selected_sim_dp = self.so_far_best_sim_dp
@@ -1106,7 +1230,6 @@ class HillClimbing:
             ex_dp = self.cached_SOC_sim[design_unique_code][0]
             sim_dp = self.cached_SOC_sim[design_unique_code][1]
 
-
         # collect the moves for debugging/visualization
         if config.DEBUG_MOVE:
             if (self.total_itr_ctr % config.vis_reg_ctr_threshold) == 0:
@@ -1238,7 +1361,7 @@ class HillClimbing:
 
             # select the next best design
             self.cur_best_ex_dp, self.cur_best_sim_dp = self.sel_next_dp(this_itr_ex_sim_dp_dict,
-                                                                         self.so_far_best_sim_dp, cur_temp)
+                                                                         self.so_far_best_sim_dp, self.so_far_best_ex_dp, cur_temp)
 
             print("-------:):):):):)----------")
             print("Best design's latency: " + str(self.cur_best_sim_dp.dp_stats.get_system_complex_metric("latency")))

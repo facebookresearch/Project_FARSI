@@ -106,6 +106,8 @@ metric_improvement_dir["power"] = -1  # direction of improvement is reduction, a
 metric_improvement_dir["energy"] = -1 # direction of improvement is reduction, and hence -1
 metric_improvement_dir["area"] = -1  # direction of improvement is reduction, and hence -1
 metric_improvement_dir["cost"] = -1 # direction of improvement is reduction, and hence -1
+move_s_krnel_selection = ["bottleneck", "improvement_ease"]   # options are :bottleneck, improvement_ease
+
 
 for metric in all_metrics:
     if (metric not in metric_improvement_dir.keys()) or\
@@ -119,7 +121,7 @@ for metric in all_metrics:
 metric_trans_dict = {"latency": ["split", "swap", "migrate"], "power": ["split", "swap", "migrate"],
                       "area": ["split", "swap", "migrate"]}
 
-cleaning_threshold = 12  # how often to activate cleaning
+cleaning_threshold = 120  # how often to activate cleaning
 cleaning_consecutive_iterations = 3  # how many consecutive iterations to clean
 
 move_metric_ranking_mode = "exact"  # exact, prob.  If exact, metrics are ranked (and hence selected) based on
@@ -137,7 +139,7 @@ move_blck_ranking_mode = "exact"  # exact, prob.  If exact, blocks are ranked (a
 max_krnel_stagnation_ctr = 1
 fitted_budget_ctr_threshold = 3  # how many times fitting the budget before terminating
 
-recently_cached_designs_queue_size = 10
+recently_cached_designs_queue_size = 20
 max_recently_seen_design_ctr = 2
 assert(recently_cached_designs_queue_size > max_recently_seen_design_ctr)
 # --------------------
@@ -183,7 +185,7 @@ DEBUG_MOVE =  True and not NO_VIS # if true, we print/collect relevant info abou
 regulate_move_tracking = (FARSI_memory_consumption == "low") # if true, we don't track and hence graph every move. This helps preventing memory pressure (and avoid getting killed by the OS)
 vis_move_trail_ctr_threshold = 20 # how often sample the moves (only applies if regulat_move_tracking enabled)
 
-cache_seen_designs = not(FARSI_memory_consumption == "low") and False# if True, we cache the designs that we have seen. This way we wont simulate them unnecessarily.
+cache_seen_designs = False and not(FARSI_memory_consumption == "low") # if True, we cache the designs that we have seen. This way we wont simulate them unnecessarily.
                           # This should be set to false if memory is an issue
 
 VIS_MOVE_TRAIL = DEBUG_MOVE and not NO_VIS

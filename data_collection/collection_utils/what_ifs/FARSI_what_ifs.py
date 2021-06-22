@@ -233,7 +233,7 @@ def simple_run(result_folder, sw_hw_database_population, system_workers=(1, 1)):
                       config.FARSI_simple_run_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
 
         # write the results in the specific folder
-        result_folder_modified = result_folder+ "/runs/" + ctr + "/"
+        result_folder_modified = result_folder+ "/runs/" + str(ctr) + "/"
         os.system("mkdir -p " + result_folder_modified)
         copy_DSE_data(result_folder_modified)
         write_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse.reason_to_terminate, case_study, result_folder_modified, unique_suffix,
