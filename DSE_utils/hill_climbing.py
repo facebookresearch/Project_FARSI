@@ -1,7 +1,8 @@
 #Copyright (c) Facebook, Inc. and its affiliates.
 #This source code is licensed under the MIT license found in the
 #LICENSE file in the root directory of this source tree.
-
+import _pickle as cPickle
+#import ujson
 from design_utils.components.hardware import *
 from design_utils.components.workload import *
 from design_utils.components.mapping import *
@@ -90,6 +91,7 @@ class HillClimbing:
         self.cached_SOC_sim = {} # cache of designs simulated already. index is a unique code base on allocation and mapping
 
         self.move_s_krnel_selection = config.move_s_krnel_selection
+        self.krnels_not_to_consider = []
 
 
     def set_check_point_folder(self, check_point_folder):
@@ -141,7 +143,8 @@ class HillClimbing:
         # Copy to avoid modifying the current designs.
         #new_ex_dp_pre_mod = copy.deepcopy(ex_dp)  # getting a copy before modifying
         #new_sim_dp_pre_mod = copy.deepcopy(sim_dp) # getting a copy before modifying
-        new_ex_dp = copy.deepcopy(ex_dp)
+        #new_ex_dp = copy.deepcopy(ex_dp)
+        new_ex_dp = cPickle.loads(cPickle.dumps(ex_dp, -1))
         #new_sim_dp = copy.deepcopy(sim_dp)
         new_des_tup = (new_ex_dp, sim_dp)
 
@@ -660,21 +663,30 @@ class HillClimbing:
             krnl_prob_dict[krnl] = krnl_contribution_dict[krnl] * krnl_improvement_ease[krnl]
 
         # sort
-        krnl_prob_dict_sorted = {k: v for k, v in sorted(krnl_prob_dict.items(), key=lambda item: item[1])}
+        #krnl_prob_dict_sorted = {k: v for k, v in sorted(krnl_prob_dict.items(), key=lambda item: item[1])}
+        krnl_prob_dict_sorted = sorted(krnl_prob_dict.items(), key=lambda item: item[1], reverse=True)
+
 
         # quick sanity check
+        """ 
         if not(config.move_krnel_ranking_mode == "exact") and sum(krnl_prob_dict_sorted.values()) < .99:
             x = sum(krnl_prob_dict_sorted.values())
             print("This should not happen")
+        """
 
         # get the worse kernel
         if config.move_krnel_ranking_mode == "exact":  # for area to allow us pick scenarios that are not necessarily the worst
-            selected_krnl = list(krnl_prob_dict_sorted.keys())[
-                len(krnl_prob_dict_sorted.keys()) - 1 - self.krnel_rnk_to_consider]
+            #selected_krnl = list(krnl_prob_dict_sorted.keys())[
+            #    len(krnl_prob_dict_sorted.keys()) - 1 - self.krnel_rnk_to_consider]
+            for krnl, prob in krnl_prob_dict_sorted:
+                if krnl.get_task_name() in self.krnels_not_to_consider:
+                    continue
+                selected_krnl = krnl
+                break
         else:
             selected_krnl = self.pick_from_prob_dict(krnl_prob_dict_sorted)
 
-        return selected_krnl, krnl_prob_dict
+        return selected_krnl, krnl_prob_dict, krnl_prob_dict_sorted
 
     # select blocks for the move
     def select_block(self, sim_dp, ex_dp, selected_krnl, selected_metric):
@@ -713,7 +725,7 @@ class HillClimbing:
         if selected_metric == "power":
             print("what make sure now to del")
         move_dir = self.select_dir(sim_dp)
-        selected_krnl, krnl_prob_dict = self.select_kernel(ex_dp, sim_dp, selected_metric, move_dir)
+        selected_krnl, krnl_prob_dict, krnl_prob_dict_sorted = self.select_kernel(ex_dp, sim_dp, selected_metric, move_dir)
         selected_block, block_prob_dict = self.select_block(sim_dp, ex_dp, selected_krnl, selected_metric)
         transformation_name,transformation_batch_mode = self.select_transformation(ex_dp, sim_dp, selected_block, selected_metric, selected_krnl, move_dir)
 
@@ -728,7 +740,7 @@ class HillClimbing:
             #config.VIS_GR_PER_GEN = False
 
         # log the data for future profiling/data collection/debugging
-        move_to_apply = move(transformation_name, transformation_batch_mode, move_dir, selected_metric, selected_block, selected_krnl)
+        move_to_apply = move(transformation_name, transformation_batch_mode, move_dir, selected_metric, selected_block, selected_krnl, krnl_prob_dict_sorted)
         move_to_apply.set_logs(sim_dp.dp_stats.get_system_complex_metric("cost"), "cost")
         move_to_apply.set_logs(krnl_prob_dict, "kernels")
         move_to_apply.set_logs(metric_prob_dict, "metrics")
@@ -854,7 +866,20 @@ class HillClimbing:
         return ()
 
     # find the best design from a list
-    def find_best_design(self, sim_stat_ex_dp_dict, sim_dp_stat_ann_delta_energy_dict, best_sim_dp_stat_so_far, best_ex_dp_so_far):
+    def find_best_design(self, sim_stat_ex_dp_dict, sim_dp_stat_ann_delta_energy_dict, sim_dp_stat_ann_delta_energy_dict_all_metrics, best_sim_dp_stat_so_far, best_ex_dp_so_far):
+        # for all metrics, we only return true if there is an improvement,
+        # it does not make sense to look at block equality (as energy won't be zero in cases that there is a difficult trade off)
+        if config.sel_next_dp == "all_metrics":
+            sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics = sorted(sim_dp_stat_ann_delta_energy_dict_all_metrics.items(),
+                                                              key=lambda x: x[1])
+
+            if sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics[0][1] < -.0000001: # a very small number
+                # if a better design (than the best exist), return
+                return sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics[0], True
+            else:
+                return sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics[0], False
+
+
         # two blocks are equal if they have the same generic instance name
         # and have been scheduled the same tasks
         def blocks_are_equal(block_1, block_2):
@@ -869,10 +894,6 @@ class HillClimbing:
                 task_diff = list(set(block_1_tasks) - set(block_2_tasks))
                 return len(task_diff) == 0
 
-        # sort the design base on distance
-        sorted_sim_dp_stat_ann_delta_energy_dict = sorted(sim_dp_stat_ann_delta_energy_dict.items(), key=lambda x: x[1])
-        #best_neighbour_stat, best_neighbour_delta_energy = sorted_sim_dp_stat_ann_delta_energy_dict[0]  # here we can be smarter
-
         # get the best_sim info
         sim_dp = best_sim_dp_stat_so_far.dp
         ex_dp = best_ex_dp_so_far
@@ -881,11 +902,17 @@ class HillClimbing:
         best_sim_selected_krnl, krnl_prob_dict = self.select_kernel(ex_dp, sim_dp, best_sim_selected_metric, best_sim_move_dir)
         best_sim_selected_block, block_prob_dict = self.select_block_without_sync(sim_dp, best_sim_selected_krnl, best_sim_selected_metric)
 
+        # sort the design base on distance
+        sorted_sim_dp_stat_ann_delta_energy_dict = sorted(sim_dp_stat_ann_delta_energy_dict.items(), key=lambda x: x[1])
+
+        #best_neighbour_stat, best_neighbour_delta_energy = sorted_sim_dp_stat_ann_delta_energy_dict[0]  # here we can be smarter
         if sorted_sim_dp_stat_ann_delta_energy_dict[0][1] < 0:
             # if a better design (than the best exist), return
             return sorted_sim_dp_stat_ann_delta_energy_dict[0], True
         elif sorted_sim_dp_stat_ann_delta_energy_dict[0][1] == 0:
+            # if no better design
             if len(sorted_sim_dp_stat_ann_delta_energy_dict[0]) == 1:
+                # if no better design (only one design means that our original design is the one)
                 return sorted_sim_dp_stat_ann_delta_energy_dict[0], False
             else:
                 # filter out the designs  which hasn't seen a distance improvement
@@ -920,10 +947,18 @@ class HillClimbing:
     # cur_temp: current temperature for simulated annealing
     def SA_design_selection(self, sim_stat_ex_dp_dict, sim_dp_stat_list, best_ex_dp_so_far, best_sim_dp_so_far_stats, cur_temp):
 
+        def get_kernel_not_to_consider(krnels_not_to_consider, move_applied):
+            krnl_prob_dict_sorted = move_applied.krnel_prob_dict_sorted
+            for krnl, prob in krnl_prob_dict_sorted:
+                if krnl.get_task_name() in krnels_not_to_consider:
+                    continue
+                return krnl.get_task_name()
+
+
         # get the kernel of interest using this for now to collect cached designs
         best_sim_selected_metric, metric_prob_dict = self.select_metric(best_sim_dp_so_far_stats.dp)
         best_sim_move_dir = self.select_dir(best_sim_dp_so_far_stats.dp)
-        best_sim_selected_krnl, _= self.select_kernel(best_ex_dp_so_far, best_sim_dp_so_far_stats.dp, best_sim_selected_metric, best_sim_move_dir)
+        best_sim_selected_krnl, _, _= self.select_kernel(best_ex_dp_so_far, best_sim_dp_so_far_stats.dp, best_sim_selected_metric, best_sim_move_dir)
         if best_sim_selected_krnl.get_task_name() not in self.recently_cached_designs.keys():
            self.recently_cached_designs[best_sim_selected_krnl.get_task_name()]  = []
 
@@ -942,7 +977,6 @@ class HillClimbing:
         # if any of the designs meet the budget or it's a cleanup iteration, include cost in distance calculation.
         # note that when we compare, we need to use the same dist_to_goal calculation, hence
         # ann_energy_best_dp_so_far needs to use the same calculation
-
         metric_to_target , metric_prob_dict = self.select_metric(best_sim_dp_so_far_stats.dp)
         include_cost_in_distance = best_sim_dp_so_far_stats.fits_budget(1) or (len(new_designs_meeting_budget) > 0) or self.is_cleanup_iter()
         if include_cost_in_distance:
@@ -956,16 +990,16 @@ class HillClimbing:
                                                                               "dampen")
         sim_dp_stat_ann_delta_energy_dict = {}
         sim_dp_stat_ann_delta_energy_dict_all_metrics = {}
-
         # deleteee the following debugging lines
         print("--------%%%%%%%%%%%---------------")
         print("--------%%%%%%%%%%%---------------")
-        print("all the designs tried")
         print("first the best design from the previous iteration")
         print(" des" + " latency:" + str(best_sim_dp_so_far_stats.get_system_complex_metric("latency")))
         print(" des" + " power:" + str(
             best_sim_dp_so_far_stats.get_system_complex_metric("power")))
         print("energy :" + str(ann_energy_best_dp_so_far))
+
+
 
         sim_dp_to_look_at = [] # which designs to look at.
         # only look at the designs that meet the budget (if any), basically  prioritize these designs first
@@ -990,13 +1024,24 @@ class HillClimbing:
         if config.DEBUG_FIX: random.seed(0)
         else: time.sleep(.00001), random.seed(datetime.now().microsecond)
 
-        result, design_improved = self.find_best_design(sim_stat_ex_dp_dict, sim_dp_stat_ann_delta_energy_dict, best_sim_dp_so_far_stats, best_ex_dp_so_far)
+        result, design_improved = self.find_best_design(sim_stat_ex_dp_dict, sim_dp_stat_ann_delta_energy_dict,
+                                                        sim_dp_stat_ann_delta_energy_dict_all_metrics, best_sim_dp_so_far_stats, best_ex_dp_so_far)
         best_neighbour_stat, best_neighbour_delta_energy = result
+
+        print("all the designs tried")
+        for el, energy in sim_dp_stat_ann_delta_energy_dict_all_metrics.items():
+            print("----------------")
+            sim_dp_ =  el.dp
+            if not sim_dp_.move_applied == None:
+                sim_dp_.move_applied.print_info()
+                print("energy" + str(energy))
+                print("design's latency: " + str(el.get_system_complex_metric("latency")))
+                print("design's power: " + str(el.get_system_complex_metric("power")))
+
 
         # if any negative (desired move) value is detected or there is a design in the new batch
         #  that meet the budget, but the previous best design didn't, we have at least one improved solution
-        found_an_improved_solution = any([(el<0) for el in sim_dp_stat_ann_delta_energy_dict.values()]) or \
-                                     (len(new_designs_meeting_budget)>0 and not(best_sim_dp_so_far_stats).fits_budget(1)) or design_improved
+        found_an_improved_solution = (len(new_designs_meeting_budget)>0 and not(best_sim_dp_so_far_stats).fits_budget(1)) or design_improved
 
 
         # for debugging. delete later
@@ -1009,9 +1054,11 @@ class HillClimbing:
             self.des_stag_ctr += 1
             if self.krnel_stagnation_ctr > config.max_krnel_stagnation_ctr:
                 self.krnel_rnk_to_consider = min(self.krnel_rnk_to_consider + 1, len(best_sim_dp_so_far_stats.get_kernels()) -1)
-                self.krnel_stagnation_ctr = 0
+                krnel_not_to_consider = get_kernel_not_to_consider(self.krnels_not_to_consider, best_sim_dp_so_far_stats.dp.move_applied)
+                self.krnels_not_to_consider.append(krnel_not_to_consider)
+                #self.krnel_stagnation_ctr = 0
                 #self.recently_seen_design_ctr = 0
-        elif best_neighbour_stat.dp.dp_rep.get_hardware_graph().get_SOC_design_code() in self.recently_cached_designs[best_sim_selected_krnl.get_task_name()]:
+        elif best_neighbour_stat.dp.dp_rep.get_hardware_graph().get_SOC_design_code() in self.recently_cached_designs[best_sim_selected_krnl.get_task_name()] and False:
             # avoid circular exploration
             self.recently_seen_design_ctr += 1
             self.des_stag_ctr += 1
@@ -1021,8 +1068,11 @@ class HillClimbing:
                 self.krnel_stagnation_ctr = 0
                 #self.recently_seen_design_ctr = 0
         else:
-            self.krnel_stagnation_ctr = 0
-            self.krnel_rnk_to_consider = 0
+            self.krnel_stagnation_ctr = max(0, self.krnel_stagnation_ctr -1)
+            if self.krnel_stagnation_ctr == 0:
+                if not len(self.krnels_not_to_consider) == 0:
+                    self.krnels_not_to_consider = self.krnels_not_to_consider[:-1]
+                self.krnel_rnk_to_consider = max(0, self.krnel_rnk_to_consider - 1)
             self.cleanup_ctr +=1
             self.des_stag_ctr = 0
             self.recently_seen_design_ctr = 0
@@ -1112,7 +1162,8 @@ class HillClimbing:
     #       ex_dp: example design point.
     # ------------------------------
     def generate_sample(self, ex_dp, hw_sampling):
-        new_ex_dp = copy.deepcopy(ex_dp)
+        #new_ex_dp = copy.deepcopy(ex_dp)
+        new_ex_dp = cPickle.loads(cPickle.dumps(ex_dp, -1))
         new_ex_dp.sample_hardware_graph(hw_sampling)
         return new_ex_dp
 
@@ -1246,6 +1297,13 @@ class HillClimbing:
             self.gen_verification_data(sim_dp, ex_dp)
         self.seen_SOC_design_codes.append(sim_dp.dp.get_hardware_graph().get_SOC_design_code())
 
+        # "delete this later"
+        print("------ depth ------")
+        if not sim_dp.move_applied == None:
+            sim_dp.move_applied.print_info()
+            print("design's latency: " + str(sim_dp.dp_stats.get_system_complex_metric("latency")))
+            print("design's power: " + str(sim_dp.dp_stats.get_system_complex_metric("power")))
+
         return (ex_dp, sim_dp)
 
     # ------------------------------
@@ -1282,6 +1340,8 @@ class HillClimbing:
                 if (self.total_itr_ctr % config.vis_reg_ctr_threshold) == 0:
                     self.des_trail_list.append((copy.deepcopy(self.so_far_best_sim_dp), copy.deepcopy(des_tup_list[-1][1])))
                     self.last_des_trail = (copy.deepcopy(self.so_far_best_sim_dp), copy.deepcopy(des_tup_list[-1][1]))
+                    #self.des_trail_list.append((cPickle.loads(cPickle.dumps(self.so_far_best_sim_dp, -1)),cPickle.loads(cPickle.dumps(des_tup_list[-1][1], -1))))
+                    #self.last_des_trail = (cPickle.loads(cPickle.dumps(self.so_far_best_sim_dp, -1)),cPickle.loads(cPickle.dumps(des_tup_list[-1][1], -1)))
 
             #self.vis_move_ctr += 1
             if config.DEBUG_SANITY: des_tup[0].sanity_check()
@@ -1383,6 +1443,7 @@ class HillClimbing:
                 if not (self.last_des_trail == None):
                     if self.last_des_trail == None:
                         self.last_des_trail = (copy.deepcopy(self.so_far_best_sim_dp), copy.deepcopy(self.so_far_best_sim_dp))
+                        #self.last_des_trail = (cPickle.loads(cPickle.dumps(self.so_far_best_sim_dp, -1)),cPickle.loads(cPickle.dumps(self.so_far_best_sim_dp)))
                     else:
                         self.des_trail_list.append(self.last_des_trail)
                 if not (self.last_move == None):
@@ -1523,7 +1584,7 @@ class HillClimbing:
         elif self.des_stag_ctr > self.DES_STAG_THRESHOLD:
             reason_to_terminate = "des_stag_ctr exceeded"
             should_terminate = True
-        elif self.krnel_rnk_to_consider >= len(self.so_far_best_sim_dp.get_kernels()) - 2:
+        elif len(self.krnels_not_to_consider) >= (len(self.so_far_best_sim_dp.get_kernels()) - 2):
             reason_to_terminate = "all kernels already targeted without improvement"
             should_terminate = True
         elif self.total_itr_ctr > self.TOTAL_RUN_THRESHOLD:

@@ -88,7 +88,7 @@ class Task:
     #       sample the task distribution work. Used for jitter modeling/incorporation.
     # ---------------
     def sample_self_task_work(self):
-        time.sleep(.005)
+        time.sleep(.00005)
         np.random.seed(datetime.now().microsecond)
         task_work = [task_work for task_work, work_prob in self.get_task_work_distribution()]
         work_prob = [work_prob for task_work, work_prob in self.get_task_work_distribution()]
@@ -387,14 +387,14 @@ class Task:
         return self.__parents + self.__children
 
     def is_task_dummy(self):
-        return "souurce" in self.name or "siink" in self.name
+        return "souurce" in self.name or "siink" in self.name or "dummy_last" in self.name
 
 
 # Task Graph for the workload.
 class TaskGraph:
     def __init__(self, tasks):
         self.__tasks = tasks
-        _ = [task_.calc_work_unit(512) for task_ in self.__tasks]
+        _ = [task_.calc_work_unit(64) for task_ in self.__tasks]
 
     # -----------
     # Functionality:

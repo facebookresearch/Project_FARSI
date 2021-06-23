@@ -57,6 +57,8 @@ num_neighs_to_try = 3 # how many neighs to try around a dp
 neigh_sel_mode = "best"  # neighbouring design selection mode (best, sometimes, best ...)
 dp_rank_obj = "latency"  # design point ranking object function(best, sometimes, best ...)
 
+sel_next_dp = "all_metrics"  # how to select the next desigh, ["all_metrics", "one_"metric"]
+
 
 # selection algorithm (picking the best neighbour)
 neigh_sel_algorithm = "annealing"
@@ -121,7 +123,7 @@ for metric in all_metrics:
 metric_trans_dict = {"latency": ["split", "swap", "migrate"], "power": ["split", "swap", "migrate"],
                       "area": ["split", "swap", "migrate"]}
 
-cleaning_threshold = 120  # how often to activate cleaning
+cleaning_threshold = 10220  # how often to activate cleaning
 cleaning_consecutive_iterations = 3  # how many consecutive iterations to clean
 
 move_metric_ranking_mode = "exact"  # exact, prob.  If exact, metrics are ranked (and hence selected) based on
@@ -136,8 +138,8 @@ move_blck_ranking_mode = "exact"  # exact, prob.  If exact, blocks are ranked (a
                                     # their distance to the goal. If prob, we sample probabilistically based on the
                                     # distance
 
-max_krnel_stagnation_ctr = 1
-fitted_budget_ctr_threshold = 3  # how many times fitting the budget before terminating
+max_krnel_stagnation_ctr = 0
+fitted_budget_ctr_threshold = 1  # how many times fitting the budget before terminating
 
 recently_cached_designs_queue_size = 20
 max_recently_seen_design_ctr = 2

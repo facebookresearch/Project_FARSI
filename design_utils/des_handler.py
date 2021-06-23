@@ -15,14 +15,14 @@ from error_handling.custom_error import  *
 import importlib
 from DSE_utils.exhaustive_DSE import *
 from visualization_utils.vis_hardware import *
-
+import _pickle as cPickle
 
 # This class allows us to modify the design. Each design is applied
 # a move to get transformed to another.
 # Move at the moment has 4 different parts (metric, kernel, block, transformation) that needs to be
 # set
 class move:
-    def __init__(self, transformation_name, batch_mode, dir, metric, blck, krnel):
+    def __init__(self, transformation_name, batch_mode, dir, metric, blck, krnel, krnl_prob_dict_sorted):
         self.transformation_name = transformation_name
         self.metric = metric
         self.batch_mode = batch_mode
@@ -43,6 +43,7 @@ class move:
         self.pre_move_ex = None
         self.moved_ex = None
         self.validity_meta_data = ""
+        self.krnel_prob_dict_sorted = krnl_prob_dict_sorted
 
     def set_logs(self, data, type_):
         if type_ == "cost":
@@ -303,8 +304,10 @@ class DesignHandler:
         self.DMA_task_ctr = 0  # number of DMA engines used
         if config.FARSI_performance == "fast":
             self.get_immediate_block = self.get_immediate_block_fast
+            self.get_equal_immediate_block_present = self.get_equal_immediate_block_present_fast
         else:
             self.get_immediate_block = self.get_immediate_block_slow
+            self.get_equal_immediate_block_present = self.get_equal_immediate_block_present_slow
 
     # -------------------------------------------
     # Functionality:
@@ -937,13 +940,32 @@ class DesignHandler:
     # Variables:
     #   metric_dir: -1 (increase) and 1 (decrease)
     #   block: the block to improve/de-improve
-    def get_equal_immediate_block_present(self, ex_dp, block, metric, metric_dir, tasks):
+    def get_equal_immediate_block_present_slow(self, ex_dp, block, metric, metric_dir, tasks):
         imm_blcks = self.database.equal_sample_up_sample_down_sample_block(block, metric, metric_dir, tasks)  # get the first value
         des_blocks = ex_dp.get_blocks()
         for block_ in imm_blcks:
             for des_block in des_blocks:
                 if block_.get_generic_instance_name() == des_block.get_generic_instance_name() and \
                         not (block.instance_name  == des_block.instance_name):
+                    return des_block
+
+        return block
+
+    def get_equal_immediate_block_present_fast(self, ex_dp, block, metric, metric_dir, tasks):
+        imm_blcks_non_unique = self.database.equal_sample_up_sample_down_sample_block_fast(block, metric, metric_dir,
+                                                                           tasks)  # get the first value
+        """
+        imm_blcks = []
+        for imm_blck_non_unique in imm_blcks_non_unique:
+            blkL = self.database.cached_block_to_blockL[imm_blck_non_unique]
+            imm_blcks.append(self.database.cast(blkL))
+        """
+
+        des_blocks = ex_dp.get_blocks()
+        for block_ in imm_blcks_non_unique:
+            for des_block in des_blocks:
+                if block_.get_generic_instance_name() == des_block.get_generic_instance_name() and \
+                        not (block.instance_name == des_block.instance_name):
                     return des_block
 
         return block
@@ -987,7 +1009,8 @@ class DesignHandler:
         ex_dp, sim_dp = des_tup
 
         #print("applying move  " +  move.name + " -----" )
-        pre_moved_ex = copy.deepcopy(ex_dp)  # this is just for move sanity checking
+        #pre_moved_ex = copy.deepcopy(ex_dp)  # this is just for move sanity checking
+        pre_moved_ex = cPickle.loads(cPickle.dumps(ex_dp, -1))
 
         if move_to_apply.get_transformation_name() == "swap":
             if not move_to_apply.get_block_ref().type == "ic": self.unload_buses(ex_dp)  # unload buses

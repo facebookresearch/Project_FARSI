@@ -1,7 +1,7 @@
 workload,last_task
-audio_decoder,siink
-edge_detection,siink
-hpvm_cava,siink
+audio_decoder,dummy_last
+edge_detection,rejectZeroCrossings
+hpvm_cava,descale_fxp_cloned
 simple_all_parallel,siink
 SOC_example,siink
 partial_SOC_example_hard,siink

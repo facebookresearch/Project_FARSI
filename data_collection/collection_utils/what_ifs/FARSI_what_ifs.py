@@ -446,9 +446,9 @@ if __name__ == "__main__":
     # set the workload
     #workloads = {"audio_decoder"}
     #workloads = {"SLAM"}
-    workloads = {"edge_detection"}
+    #workloads = {"edge_detection"}
     #workloads = {"hpvm_cava"}
-    #workloads ={"audio_decoder", "edge_detection", "hpvm_cava"}
+    workloads ={"audio_decoder", "edge_detection", "hpvm_cava"}
     #workloads = {"partial_SOC_example_hard"}
     #workloads = {"simple_all_parallel"}
 

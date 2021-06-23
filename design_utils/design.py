@@ -1,7 +1,7 @@
 #Copyright (c) Facebook, Inc. and its affiliates.
 #This source code is licensed under the MIT license found in the
 #LICENSE file in the root directory of this source tree.
-
+import _pickle as cPickle
 from design_utils.components.hardware import *
 from design_utils.components.workload import *
 from design_utils.components.mapping import *
@@ -509,7 +509,8 @@ class DPStatsContainer():
     def operate_on_dicionary_values(self, dictionaries, operator):
         res = {}
         for SOCs_latency in dictionaries:
-            res = copy.deepcopy(self.operate_on_two_dic_values(res, SOCs_latency, operator))
+            #res = copy.deepcopy(self.operate_on_two_dic_values(res, SOCs_latency, operator))
+            res = cPickle.loads(cPickle.dumps(self.operate_on_two_dic_values(res, SOCs_latency, operator), -1))
         return res
 
     # reduce the (list of) values based on a statistical  parameter (such as average)
@@ -1425,7 +1426,8 @@ class DPStats:
     def operate_on_dicionary_values(self, dictionaries, operator):
         res = {}
         for SOCs_latency in dictionaries:
-            res = copy.deepcopy(self.operate_on_two_dic_values(res, SOCs_latency, operator))
+            #res = copy.deepcopy(self.operate_on_two_dic_values(res, SOCs_latency, operator))
+            res = cPickle.loads(cPickle.dumps(self.operate_on_two_dic_values(res, SOCs_latency, operator), -1))
         return res
 
     # set the metric (power, area, ...) for the entire system complex
