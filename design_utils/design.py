@@ -770,6 +770,24 @@ class DPStatsContainer():
         return self.dp_rep.get_designs_SOCs()
 
     # check if dp_rep is meeting the budget
+    def workload_fits_budget_for_metric(self, workload, metric_name, budget_coeff):
+        for type, id in self.dp_rep.get_designs_SOCs():
+            if not all(self.fits_budget_for_metric_and_workload(type, id, metric_name, workload, 1)):
+                return False
+        return True
+
+
+
+    # check if dp_rep is meeting the budget
+    def workload_fits_budget(self, workload, budget_coeff):
+        for type, id in self.dp_rep.get_designs_SOCs():
+            for metric_name in self.database.get_budgetted_metric_names(type):
+                if not all(self.fits_budget_for_metric_and_workload(type, id, metric_name, workload, 1)):
+                    return False
+        return True
+
+
+    # check if dp_rep is meeting the budget
     def fits_budget(self, budget_coeff):
         for type, id in self.dp_rep.get_designs_SOCs():
             for metric_name in self.database.get_budgetted_metric_names(type):
@@ -778,11 +796,32 @@ class DPStatsContainer():
         return True
 
     # returns a list of values
+    def fits_budget_for_metric_and_workload(self, type, id, metric_name, workload, budget_coeff):
+       dist = self.normalized_distance_for_workload(type, id, metric_name, workload)
+       if not isinstance(dist, list):
+           dist = [dist]
+       return [dist_el<.001 for dist_el in dist]
+
+    # returns a list of values
     def fits_budget_for_metric(self, type, id, metric_name, budget_coeff):
        dist = self.normalized_distance(type, id, metric_name)
        if not isinstance(dist, list):
            dist = [dist]
        return [dist_el<.001 for dist_el in dist]
+
+    # normalized the metric to the budget
+    def normalized_distance_for_workload(self, type, id, metric_name, workload, dampening_coeff=1):
+        metric_val = self.get_SOC_metric_value(metric_name, type, id)
+        if isinstance(metric_val, dict):
+            value_list= []
+            for workload_, val in  metric_val.items():
+                if not (workload == workload_):
+                    continue
+                dict_ = self.database.get_ideal_metric_value(metric_name, type)
+                value_list.append((val - dict_[workload])/(dampening_coeff*dict_[workload]))
+            return value_list
+        else:
+            return [(metric_val - self.database.get_ideal_metric_value(metric_name, type))/ (dampening_coeff*self.database.get_ideal_metric_value(metric_name, type))]
 
     # normalized the metric to the budget
     def normalized_distance(self, type, id, metric_name, dampening_coeff=1):

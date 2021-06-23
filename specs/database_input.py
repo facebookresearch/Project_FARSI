@@ -95,6 +95,8 @@ class database_input_class():
         self.pe_mapsL: List[TaskToPEBlockMapL] = []
         self.souurce_memory_work = {}
         self.workloads_last_task = []
+        self.workload_tasks = {}
+        self.task_workload = {}
         self.misc_data  = {}
         self.hardware_graph = ""
         self.task_to_hardware_mapping = ""
@@ -104,6 +106,7 @@ class database_input_class():
             if len(imported_databases) > 1:
                 print("we have to fix the budets_dict collection here. support it and run")
                 exit(0)
+            self.workload_tasks[sw_hw_database_population["workloads"][0]] = []
             for imported_database in imported_databases:
                 self.blocksL.extend(imported_database.blocksL)
                 self.tasksL.extend(imported_database.tasksL)
@@ -114,6 +117,10 @@ class database_input_class():
                 self.other_values_dict = imported_database.other_values_dict
                 self.souurce_memory_work = imported_database.souurce_memory_work
                 self.misc_data["same_ip_tasks_list"] = imported_database.same_ip_tasks_list
+            self.workload_tasks[sw_hw_database_population["workloads"][0]] = [el.task_name for el in self.tasksL]
+            for el in self.tasksL:
+                self.task_workload[el.task_name] = sw_hw_database_population["workloads"][0]
+
         elif sw_hw_database_population["db_mode"] == "parse":
             for workload in sw_hw_database_population["workloads"]:
                 tasksL_, data_movement = gen_task_graph(os.path.join(config.database_data_dir, "parsing"), workload+"_database - ", sw_hw_database_population["misc_knobs"])
@@ -125,6 +132,10 @@ class database_input_class():
                 self.append_pe_scheduels(copy.deepcopy(pe_schedulesL_))
                 blah = data_movement
                 self.souurce_memory_work.update(data_movement['souurce'])
+                self.workload_tasks[workload] = [el.task_name for el in tasksL_]
+                for el in tasksL_:
+                    self.task_workload[el.task_name] = workload
+
                 #self.souurce_memory_work += sum([sum(list(data_movement[task].values())) for task in data_movement.keys() if task == "souurce"])
 
             self.workloads_last_task = collect_last_task(sw_hw_database_population["workloads"], os.path.join(config.database_data_dir, "parsing"), "misc_database - ")
@@ -150,6 +161,9 @@ class database_input_class():
             self.workloads_last_task = {"synthetic" : [taskL.task_name for taskL in tasksL_ if len(taskL.get_children()) == 0][0]}
             self.gen_config["full_potential_tasks_list"] = list(task_work_dict.keys())
             self.misc_data["same_ip_tasks_list"] = []
+
+            self.workload_tasks[sw_hw_database_population["workloads"][0]] = [el.task_name for el in self.tasksL]
+
             pass
         else:
             print("db_mode:" + sw_hw_database_population["db_mode"] + " is not supported" )

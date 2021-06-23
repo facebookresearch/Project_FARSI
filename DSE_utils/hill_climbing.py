@@ -607,12 +607,37 @@ class HillClimbing:
             move_dir = -1  # try to reduce the metric value
         return move_dir
 
+    def filter_in_kernels_meeting_budget(self, selected_metric, sim_dp):
+        krnls = sim_dp.get_dp_stats().get_kernels()
+
+        # filter the kernels whose workload already met the budget
+        workload_tasks = sim_dp.database.db_input.workload_tasks
+        task_workload = sim_dp.database.db_input.task_workload
+        workloads_to_consider = []
+        for workload in workload_tasks.keys():
+            if sim_dp.dp_stats.workload_fits_budget(workload, 1):
+                continue
+            workloads_to_consider.append(workload)
+
+        krnls_to_consider = []
+        for krnl in krnls:
+            if task_workload[krnl.get_task_name()] in workloads_to_consider:
+                krnls_to_consider.append(krnl)
+
+        return krnls_to_consider
+
     # get each kernels_contribution to the metric of interest
     def get_kernels_s_contribution(self, selected_metric, sim_dp):
         krnl_prob_dict = {}  # (kernel, metric_value)
-        krnls = sim_dp.get_dp_stats().get_kernels()
-        metric_total = sum([krnl.stats.get_metric(selected_metric) for krnl in krnls])
 
+
+        #krnls = sim_dp.get_dp_stats().get_kernels()
+        # filter it kernels whose workload meet the budget
+        krnls = self.filter_in_kernels_meeting_budget(selected_metric, sim_dp)
+        if krnls == []: # the design meets the budget, hence all kernels can be improved for cost improvement
+            krnls = sim_dp.get_dp_stats().get_kernels()
+
+        metric_total = sum([krnl.stats.get_metric(selected_metric) for krnl in krnls])
         # sort kernels based on their contribution to the metric of interest
         for krnl in krnls:
             krnl_prob_dict[krnl] = krnl.stats.get_metric(selected_metric)/metric_total
