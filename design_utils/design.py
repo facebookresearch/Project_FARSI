@@ -400,6 +400,10 @@ class SimDesignPointContainer:
                                # we use dp_rep, i.e., design point representative for this
 
         self.move_applied = None
+        self.dummy_tasks = [krnl.get_task() for krnl in self.dp.get_kernels() if (krnl.get_task()).is_task_dummy()]
+
+    def get_dummy_tasks(self):
+        return self.dummy_tasks
 
     # bootstrap the design from scratch
     def reset_design(self, workload_to_hardware_map=[], workload_to_hardware_schedule=[]):
@@ -966,7 +970,7 @@ class SimDesignPoint(ExDesignPoint):
             return "ram"
 
     # run cacti to get results
-    def run_and_collect_cacti_data(self, blk):
+    def run_and_collect_cacti_data(self, blk, database):
 
         if not blk.type == "mem":
             print("Only memory blocks supported in CACTI")
@@ -992,7 +996,16 @@ class SimDesignPoint(ExDesignPoint):
         return energy_per_byte, area
 
     # either run or look into the cached data (from CACTI) to get energy/area data
-    def collect_cacti_data(self, blk):
+    def collect_cacti_data(self, blk, database):
+        tech_node = {}
+        tech_node["energy"] = 1
+        tech_node["area"] = 1
+        sw_hw_database_population =  database.db_input.sw_hw_database_population
+        if "misc_knobs" in sw_hw_database_population.keys():
+            misc_knobs = sw_hw_database_population["misc_knobs"]
+            if "tech_node_SF" in misc_knobs.keys():
+                tech_node = misc_knobs["tech_node_SF"]
+
         if blk.type == "ic" :
             return 0,0
         elif blk.type == "mem":
@@ -1001,20 +1014,23 @@ class SimDesignPoint(ExDesignPoint):
             found_results, energy_per_byte, area = \
                 self.cacti_hndlr.cacti_data_container.find(list(zip(config.cacti_input_col_order,[mem_subtype, mem_bytes])))
             if not found_results:
-                energy_per_byte, area = self.run_and_collect_cacti_data(blk)
+                energy_per_byte, area = self.run_and_collect_cacti_data(blk, database)
+                energy_per_byte *= tech_node["energy"]
+                area *= tech_node["area"]
             return energy_per_byte, area
 
     # For each kernel, update the energy and power using cacti
-    def cacti_update_energy_area_of_kernel(self, krnl):
+    def cacti_update_energy_area_of_kernel(self, krnl, database):
         # for sanity check. delete later
-        stats_cpy = copy.deepcopy(krnl.stats.block_phase_energy_dict)
-        ratio_phase = {}
+        #stats_cpy = copy.deepcopy(krnl.stats.block_phase_energy_dict)
+        #stats_cpy = cPickle.loads(cPickle.dumps(krnl.stats.block_phase_energy_dict, -1))
+        #ratio_phase = {}
 
         for blk, phase_metric in krnl.block_phase_energy_dict.items():
             # only for memory and ic
             if blk.type not in ["mem", "ic"]:
                 continue
-            energy_per_byte, area = self.collect_cacti_data(blk)
+            energy_per_byte, area = self.collect_cacti_data(blk, database)
             for phase, metric in phase_metric.items():
                 krnl.block_phase_energy_dict[blk][phase] = krnl.block_phase_work_dict[blk][
                                                                phase] * energy_per_byte
@@ -1025,6 +1041,7 @@ class SimDesignPoint(ExDesignPoint):
         krnl.stats.phase_area_dict = krnl.aggregate_area_of_for_every_phase()
         krnl.set_stats()
 
+        """
         # for sanity check (delete later)
         for blk, phase_metric in krnl.block_phase_energy_dict.items():
             if blk.type == "mem":
@@ -1034,14 +1051,15 @@ class SimDesignPoint(ExDesignPoint):
                     for block in stats_cpy.keys():
                         if block.instance_name == blk.instance_name:
                             ratio_phase[phase] = stats_cpy[block][phase]/energy
-        return ratio_phase
+        """
+        return "_"
 
     # For each block, get energy area
     # at the moment, only setting up area. TODO: check whether energy matters
-    def cacti_update_energy_area_of_block(self, block, block_ratio):
+    def cacti_update_energy_area_of_block(self, block, block_ratio, database):
         if block.type not in ["mem", "ic"]:
             return
-        energy_per_byte, area = self.collect_cacti_data(block)
+        energy_per_byte, area = self.collect_cacti_data(block, database)
         block.set_area_directly(area)
         # for debugging
         if block.type == "ic":
@@ -1066,7 +1084,7 @@ class SimDesignPoint(ExDesignPoint):
                         if phase in kernel.stats.phase_energy_dict.keys():
                             self.SOC_phase_energy_dict[(SOC_type, SOC_id)][phase] += kernel.stats.phase_energy_dict[phase]
 
-    def correct_power_area_with_cacti(self):
+    def correct_power_area_with_cacti(self, database):
         # bellow dictionaries used for debugging purposes. You can delete them later
         krnl_ratio_phase = {}  # for debugging delete later
         block_ratio = {}
@@ -1074,11 +1092,11 @@ class SimDesignPoint(ExDesignPoint):
         # update in 3 stages
         # (1) fix kernel energy first
         for krnl in self.__kernels:
-            krnl_ratio_phase[krnl] = self.cacti_update_energy_area_of_kernel(krnl)
+            krnl_ratio_phase[krnl] = self.cacti_update_energy_area_of_kernel(krnl, database)
 
         # (2) fix the block's area
         for block in self.get_blocks():
-            self.cacti_update_energy_area_of_block(block, block_ratio)
+            self.cacti_update_energy_area_of_block(block, block_ratio, database)
 
         # (3) update/fix the entire design accordingly
         self.cacti_update_energy_area_of_design()

@@ -61,7 +61,7 @@ class OSASimulator:
             self.step(self.cur_tick_time)
 
         if config.use_cacti:
-            self.dp.correct_power_area_with_cacti()
+            self.dp.correct_power_area_with_cacti(self.database)
 
         # collect all the stats upon completion of simulation
         self.dp.collect_dp_stats(self.database)

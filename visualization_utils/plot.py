@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from copy import deepcopy
 import copy
 import matplotlib.cbook as cbook
-
+import _pickle as cPickle
 
 if config.simulation_method == "power_knobs":
     from specs.database_input_powerKnobs import *
@@ -94,7 +94,9 @@ def des_trail_plot(des_trail_list, move_profile, des_per_iteration):
                                   max(metric_bounds[metric][1], ref_des_metric_value, trans_des_metric_value))
             metric_ref_des_dict[metric].append(ref_des_metric_value)
             metric_trans_des_dict[metric].append((ref_des_metric_value + trans_des_metric_value))
-        res_list.append(copy.deepcopy(ref_des_metrics + transformed_des_metrics))
+
+        #res_list.append(copy.deepcopy(ref_des_metrics + transformed_des_metrics))
+        res_list.append(cPickle.loads(cPickle.dumps(ref_des_metrics + transformed_des_metrics, -1)))
 
     # soa = np.array([[0, 0, 0, 1, 3, 1], [1,1,1, 3,3,3]])
     soa = np.array(res_list)

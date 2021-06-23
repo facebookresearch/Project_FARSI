@@ -884,6 +884,10 @@ class Kernel:
                     print("energy can't be a negative value")
                     block.get_work_over_energy(self.get_power_knob_id())
                     exit(0)
+
+                #if block.type == "ic":
+                #    print("&&&&&&&&&&&&&&&&&&&& (((((((( YOU MUST UNCOMMENT THIS")
+                #    this_phase_energy = 0
                 self.block_phase_energy_dict[block][self.phase_num] = this_phase_energy
 
                 pass

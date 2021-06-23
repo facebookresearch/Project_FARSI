@@ -834,7 +834,7 @@ class HillClimbing:
                 move_to_apply.set_dest_block(imm_block_present)
             else:
                 pair = self.gen_block_match_cleanup_move(des_tup)
-                if len(pair) == 0 or True:
+                if len(pair) == 0:
                     move_to_apply.set_validity(False, "CostPairingException")
                 else:
                     ref_block = pair[0]
@@ -1609,7 +1609,7 @@ class HillClimbing:
         elif self.des_stag_ctr > self.DES_STAG_THRESHOLD:
             reason_to_terminate = "des_stag_ctr exceeded"
             should_terminate = True
-        elif len(self.krnels_not_to_consider) >= (len(self.so_far_best_sim_dp.get_kernels()) - 2):
+        elif len(self.krnels_not_to_consider) >= (len(self.so_far_best_sim_dp.get_kernels()) - len(self.so_far_best_sim_dp.get_dummy_tasks())):
             reason_to_terminate = "all kernels already targeted without improvement"
             should_terminate = True
         elif self.total_itr_ctr > self.TOTAL_RUN_THRESHOLD:

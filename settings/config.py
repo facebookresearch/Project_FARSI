@@ -62,7 +62,7 @@ sel_next_dp = "all_metrics"  # how to select the next desigh, ["all_metrics", "o
 
 # selection algorithm (picking the best neighbour)
 neigh_sel_algorithm = "annealing"
-SA_breadth = 2 # breath of the neighbour search
+SA_breadth = 1 # breath of the neighbour search
 SA_depth = 5 # depth of the neighbour search
 annealing_max_temp = 500
 annealing_temp_dec = 50
@@ -179,7 +179,7 @@ FARSI_memory_consumption = "high"  # [low, high] if low is selected, we deactiva
 FARSI_performance = "fast"  # ["slow", "fast"]  # if set to fast, we don't visualize as often and use certain fast versions
                             # of functions to accomplish the tasks
 if FARSI_performance == "fast":
-    vis_reg_ctr_threshold = 20
+    vis_reg_ctr_threshold = 60
 else:
     vis_reg_ctr_threshold = 1
 
@@ -260,7 +260,7 @@ transaction_base_simulation = False   # do not set to true. It doesn't work
 
 
 # CACTI
-use_cacti = False # if True, use cacti. You have to have cacti installed.j
+use_cacti = True # if True, use cacti. You have to have cacti installed.j
 cact_bin_addr = "/Users/behzadboro/Downloads/cacti/cacti"
 cacti_param_addr = "/Users/behzadboro/Downloads/cacti/farsi_gen.cfg"
 cacti_log_results = False # if true, we log cacti results as we collect them. this allows us to avoid rerunning

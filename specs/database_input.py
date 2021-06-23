@@ -121,11 +121,13 @@ class database_input_class():
             for el in self.tasksL:
                 self.task_workload[el.task_name] = sw_hw_database_population["workloads"][0]
 
+            self.sw_hw_database_population = sw_hw_database_population
+
         elif sw_hw_database_population["db_mode"] == "parse":
             for workload in sw_hw_database_population["workloads"]:
                 tasksL_, data_movement = gen_task_graph(os.path.join(config.database_data_dir, "parsing"), workload+"_database - ", sw_hw_database_population["misc_knobs"])
                 blocksL_, pe_mapsL_, pe_schedulesL_ = gen_hardware_library(os.path.join(config.database_data_dir, "parsing"), workload+"_database - ", workload, sw_hw_database_population["misc_knobs"])
-
+                self.sw_hw_database_population = sw_hw_database_population
                 self.append_tasksL(copy.deepcopy(tasksL_))
                 self.append_blocksL(copy.deepcopy(blocksL_))
                 self.append_pe_mapsL(copy.deepcopy(pe_mapsL_))
