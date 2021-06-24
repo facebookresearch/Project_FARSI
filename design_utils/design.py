@@ -916,6 +916,7 @@ class SimDesignPoint(ExDesignPoint):
         self.dp_stats = None   # design point statistics
         self.block_phase_work_dict = {}  # work done by the block as the system goes through different phases
         self.block_phase_utilization_dict = {}  # utilization done by the block as the system goes through different phases
+        self.pipe_cluster_path_phase_work_rate_dict = {}
         self.parallel_kernels = {}
 
 
@@ -928,6 +929,8 @@ class SimDesignPoint(ExDesignPoint):
             self.block_phase_work_dict[block] = {}
             self.block_phase_utilization_dict[block] = {}
 
+        for pipe_cluster in self.get_hardware_graph().get_pipe_clusters():
+            self.pipe_cluster_path_phase_work_rate_dict[pipe_cluster] = pipe_cluster.get_path_phase_work_rate()
 
 
     # Log the BW data about all the connections it the system
@@ -1564,6 +1567,10 @@ class DPStats:
     # get utilization associated with the phases of the execution
     def get_SOC_s_sim_utilization(self, SOC_type, SOC_id):
         return self.dp.block_phase_utilization_dict
+
+    def get_SOC_s_pipe_cluster_path_phase_work_rate(self, SOC_type, SOC_id):
+        return self.dp.pipe_cluster_path_phase_work_rate_dict
+
 
     # get work associated with the phases of the execution
     def get_SOC_s_sim_work(self, SOC_type, SOC_id):

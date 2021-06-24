@@ -752,10 +752,52 @@ class Kernel:
                 if "souurce" in self.get_task_name() or "siink" in self.get_task_name():
                     work_ratio = 1
                 block_att_work_rate_dict[block][pipe_cluster] = bottleneck_work_rate*work_ratio
+                self.update_pipe_cluster_work_rate(pipe_cluster, bottleneck_work_rate)
 
         return block_att_work_rate_dict
 
 
+    def update_pipe_cluster_work_rate(self, pipe_cluster, bottleneck_work_rate):
+        if pipe_cluster.cluster_type == "dummy":
+            return
+            #incoming_pipes = []
+            #outgoing_pipe = []
+        else:
+            incoming_pipes = pipe_cluster.get_incoming_pipes()
+            outgoing_pipe = pipe_cluster.get_outgoing_pipe()
+
+        dir_ = pipe_cluster.get_dir()
+        if dir_ == "read":
+            family_tasks = self.get_task().get_parents()
+        elif dir_ == "write":
+            family_tasks = self.get_task().get_children()
+        else:
+            print("this mode is no suppported")
+
+        pipe_ref_block = pipe_cluster.get_block_ref()
+        for in_pipe in incoming_pipes:
+            path = (in_pipe, outgoing_pipe)
+            pipe_master = in_pipe.get_master()
+            if dir_ == "write":
+                master_tasks = [el.get_child() for el in in_pipe.get_traffic() if el.get_parent().name == self.get_task_name()]
+            else:
+                master_tasks = [el.get_parent() for el in in_pipe.get_traffic() if el.get_child().name == self.get_task_name()]
+            work_ratio =0
+            for family_task in family_tasks:
+                if family_task in master_tasks:
+                    work_ratio += self.__task_to_blocks_map.get_workRatio_by_block_name_and_family_member_names_and_channel_eliminating_fake(
+                        pipe_ref_block.instance_name, [(family_task.name, dir_)], dir_)
+            if "souurce" in self.get_task_name():
+                pipe_cluster.set_path_phase_work_rate(path, self.phase_num + 2, 0)
+            else:
+                if self.phase_num == -1:
+                    phase_num = self.phase_num + 2
+                else:
+                    phase_num = self.phase_num +1
+                if "siink" in self.get_task_name():
+                    pipe_cluster.set_path_phase_work_rate(path, phase_num, 0)
+                else:
+                    pipe_cluster.set_path_phase_work_rate(path, phase_num, work_ratio*bottleneck_work_rate)
 
     def read_latency_per_request(self, mem, pe):
         pass

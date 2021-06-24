@@ -845,12 +845,21 @@ class traffic:
         self.dir = dir  # direction (read/write/loop)
 
 
+    def get_child(self):
+        return self.child
+
+    def get_parent(self):
+        return self.parent
+
+
+
 # physical channels inside the the router
 class PipeCluster:
     def __init__(self, ref_block, dir, outgoing_pipe, incoming_pipes, unique_name):
         self.ref_block = ref_block
         self.dir = dir
         self.cluster_type = "regular"
+        self.path_phase_work_rate = {}
         if outgoing_pipe == None:
             self.outgoing_pipe = None
         else:
@@ -923,6 +932,22 @@ class PipeCluster:
 
 
         return "block:" + self.get_block_ref().instance_name + " incoming_pipes:" +str(incoming_pipes) + "  outgoing_pipes:"+str(outgoing)
+
+
+    def set_path_phase_work_rate(self, path, phase_num, work_rate):
+        in_pipe, out_pipe = path
+        if in_pipe not in self.incoming_pipes or out_pipe not in [self.outgoing_pipe]:
+            print("pipe should already exist")
+            exit(0)
+        else:
+            if path not in self.path_phase_work_rate.keys():
+                self.path_phase_work_rate[path] = {}
+            if phase_num not in self.path_phase_work_rate[path].keys():
+                self.path_phase_work_rate[path][phase_num] = 0
+            self.path_phase_work_rate[path][phase_num] += work_rate
+
+    def get_path_phase_work_rate(self):
+        return self.path_phase_work_rate
 
 # A pipe is a queue that connects blocks
 class pipe:
@@ -1341,6 +1366,9 @@ class HardwareGraph:
         #    return ["same"]
         #else:
         return ["write", "read"]
+
+    def get_pipe_clusters(self):
+        return self.pipe_clusters
 
     def cluster_pipes(self):
         self.pipe_clusters = []

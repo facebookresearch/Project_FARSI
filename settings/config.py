@@ -63,7 +63,7 @@ sel_next_dp = "all_metrics"  # how to select the next desigh, ["all_metrics", "o
 # selection algorithm (picking the best neighbour)
 neigh_sel_algorithm = "annealing"
 SA_breadth = 1 # breath of the neighbour search
-SA_depth = 5 # depth of the neighbour search
+SA_depth = 20 # depth of the neighbour search
 annealing_max_temp = 500
 annealing_temp_dec = 50
 annealing_dampening_coef = 10  # how much to dampen the metric that has  met the design objectives
@@ -165,10 +165,11 @@ data_folder = "data"
 PA_output_folder = data_folder+"/"+"PA_output"
 sim_progress_folder = data_folder+"/"+"sim_progress"
 RUN_VERIFICATION_PER_GEN = False# every new desi, generate the verification data
-RUN_VERIFICATION_PER_NEW_CONFIG = False
+RUN_VERIFICATION_PER_NEW_CONFIG = True
 RUN_VERIFICATION_PER_IMPROVMENT = False and not (RUN_VERIFICATION_PER_GEN or RUN_VERIFICATION_PER_NEW_CONFIG) # every improvement, generate verification
                                                                          # don't want to double generate, hence the second
                                                                          # predicate clause
+RUN_VERIFICATION_AT_ALL = RUN_VERIFICATION_PER_IMPROVMENT or RUN_VERIFICATION_PER_NEW_CONFIG or RUN_VERIFICATION_PER_GEN
 
 VIS_SIM_PROG = RUN_VERIFICATION_PER_GEN or RUN_VERIFICATION_PER_IMPROVMENT or RUN_VERIFICATION_PER_NEW_CONFIG  # visualize the simulation progression
 
@@ -260,7 +261,7 @@ transaction_base_simulation = False   # do not set to true. It doesn't work
 
 
 # CACTI
-use_cacti = True # if True, use cacti. You have to have cacti installed.j
+use_cacti = False and not RUN_VERIFICATION_AT_ALL # if True, use cacti. You have to have cacti installed.j
 cact_bin_addr = "/Users/behzadboro/Downloads/cacti/cacti"
 cacti_param_addr = "/Users/behzadboro/Downloads/cacti/farsi_gen.cfg"
 cacti_log_results = False # if true, we log cacti results as we collect them. this allows us to avoid rerunning
