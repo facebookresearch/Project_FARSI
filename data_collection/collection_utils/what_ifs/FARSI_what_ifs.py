@@ -186,7 +186,7 @@ def simple_run(result_folder, sw_hw_database_population, system_workers=(1, 1)):
     case_study = "simple_run"
     current_process_id = system_workers[0]
     total_process_cnt = system_workers[1]
-    # starting_exploration_mode = config.exploration_mode
+    starting_exploration_mode = "from_scratch"
     print('cast study:' + case_study)
     # -------------------------------------------
     # set parameters
@@ -444,11 +444,11 @@ if __name__ == "__main__":
 
     # set the study parameters
     # set the workload
+    workloads = {"edge_detection"}
+    # workloads = {"hpvm_cava"}
     #workloads = {"audio_decoder"}
     #workloads = {"SLAM"}
-    #workloads = {"edge_detection"}
-    #workloads = {"hpvm_cava"}
-    workloads ={"audio_decoder", "edge_detection", "hpvm_cava"}
+    #workloads ={"audio_decoder", "edge_detection", "hpvm_cava"}
     #workloads = {"partial_SOC_example_hard"}
     #workloads = {"simple_all_parallel"}
 
@@ -457,7 +457,7 @@ if __name__ == "__main__":
     ip_freq_range = {"incr":9, "upper_bound":11}
     mem_freq_range = {"incr":9, "upper_bound":11}
     ic_freq_range = {"incr":9, "upper_bound":11}
-    tech_node_SF = {"perf":1, "energy":.056, "area":.038}   # technology node scaling factor
+    tech_node_SF = {"perf":1, "energy":.064, "area":.0374}   # technology node scaling factor
     db_population_misc_knobs = {"ip_freq_correction_ratio": 1, "gpp_freq_correction_ratio": 1,
                                 "ip_spawn": {"ip_loop_unrolling": ip_loop_unrolling, "ip_freq_range": ip_freq_range},
                                 "mem_spawn": {"mem_freq_range":mem_freq_range},
@@ -469,6 +469,9 @@ if __name__ == "__main__":
     #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
     sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_scratch",
                                  "workloads": workloads, "misc_knobs": db_population_misc_knobs}
+    #sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_check_point",
+    #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
+
 
     # depending on the study/substudy type, invoke the appropriate function
     if study_type == "simple_run":

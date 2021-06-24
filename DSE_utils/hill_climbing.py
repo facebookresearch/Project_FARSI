@@ -973,6 +973,8 @@ class HillClimbing:
     def SA_design_selection(self, sim_stat_ex_dp_dict, sim_dp_stat_list, best_ex_dp_so_far, best_sim_dp_so_far_stats, cur_temp):
 
         def get_kernel_not_to_consider(krnels_not_to_consider, move_applied):
+            if move_applied == None:
+                return None
             krnl_prob_dict_sorted = move_applied.krnel_prob_dict_sorted
             for krnl, prob in krnl_prob_dict_sorted:
                 if krnl.get_task_name() in krnels_not_to_consider:
@@ -1080,7 +1082,8 @@ class HillClimbing:
             if self.krnel_stagnation_ctr > config.max_krnel_stagnation_ctr:
                 self.krnel_rnk_to_consider = min(self.krnel_rnk_to_consider + 1, len(best_sim_dp_so_far_stats.get_kernels()) -1)
                 krnel_not_to_consider = get_kernel_not_to_consider(self.krnels_not_to_consider, best_sim_dp_so_far_stats.dp.move_applied)
-                self.krnels_not_to_consider.append(krnel_not_to_consider)
+                if not krnel_not_to_consider == None:
+                    self.krnels_not_to_consider.append(krnel_not_to_consider)
                 #self.krnel_stagnation_ctr = 0
                 #self.recently_seen_design_ctr = 0
         elif best_neighbour_stat.dp.dp_rep.get_hardware_graph().get_SOC_design_code() in self.recently_cached_designs[best_sim_selected_krnl.get_task_name()] and False:
