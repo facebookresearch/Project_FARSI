@@ -1411,8 +1411,8 @@ class HillClimbing:
     # ------------------------------
     def explore_one_design(self):
         self.so_far_best_ex_dp = self.init_ex_dp
-        self.so_far_best_sim_dp = self.eval_design(self.so_far_best_ex_dp, self.database)
-        self.init_sim_dp = self.eval_design(self.so_far_best_ex_dp, self.database)
+        self.init_sim_dp = self.so_far_best_sim_dp = self.eval_design(self.so_far_best_ex_dp, self.database)
+        #self.init_sim_dp = self.eval_design(self.so_far_best_ex_dp, self.database)
 
         # visualize/checkpoint/PA generation
         vis_hardware.vis_hardware(self.so_far_best_sim_dp.get_dp_rep())

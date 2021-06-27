@@ -929,9 +929,6 @@ class SimDesignPoint(ExDesignPoint):
             self.block_phase_work_dict[block] = {}
             self.block_phase_utilization_dict[block] = {}
 
-        for pipe_cluster in self.get_hardware_graph().get_pipe_clusters():
-            self.pipe_cluster_path_phase_work_rate_dict[pipe_cluster] = pipe_cluster.get_path_phase_work_rate()
-
 
     # Log the BW data about all the connections it the system
     def dump_mem_bus_connection_bw(self, result_folder):  # batch means that all the blocks of similar type have similar props
@@ -1179,6 +1176,13 @@ class DPStats:
         self.SOC_metric_dict = defaultdict(lambda: defaultdict(dict))  # dictionary containing various metrics for the SOC
         self.system_complex_metric_dict = defaultdict(lambda: defaultdict(dict))  # dictionary containing the system complex metrics
         self.database = database
+        self.pipe_cluster_path_phase_work_rate_dict = {}
+        for pipe_cluster in self.dp.get_hardware_graph().get_pipe_clusters():
+            self.pipe_cluster_path_phase_work_rate_dict[pipe_cluster] = pipe_cluster.get_path_phase_work_rate()
+
+        self.pipe_cluster_path_phase_latency_dict = {}
+        for pipe_cluster in self.dp.get_hardware_graph().get_pipe_clusters():
+            self.pipe_cluster_path_phase_latency_dict[pipe_cluster] = pipe_cluster.get_path_phase_latency()
 
         use_slack_management_estimation = config.use_slack_management_estimation
         # collect the data
@@ -1569,7 +1573,10 @@ class DPStats:
         return self.dp.block_phase_utilization_dict
 
     def get_SOC_s_pipe_cluster_path_phase_work_rate(self, SOC_type, SOC_id):
-        return self.dp.pipe_cluster_path_phase_work_rate_dict
+        return self.pipe_cluster_path_phase_work_rate_dict
+
+    def get_SOC_s_pipe_cluster_path_phase_latency(self, SOC_type, SOC_id):
+        return self.pipe_cluster_path_phase_latency_dict
 
 
     # get work associated with the phases of the execution

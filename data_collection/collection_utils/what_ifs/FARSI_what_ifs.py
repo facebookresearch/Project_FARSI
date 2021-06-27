@@ -447,7 +447,7 @@ if __name__ == "__main__":
     workloads = {"edge_detection"}
     # workloads = {"hpvm_cava"}
     #workloads = {"audio_decoder"}
-    #workloads = {"SLAM"}
+    workloads = {"SLAM"}
     #workloads ={"audio_decoder", "edge_detection", "hpvm_cava"}
     #workloads = {"partial_SOC_example_hard"}
     #workloads = {"simple_all_parallel"}
@@ -465,10 +465,13 @@ if __name__ == "__main__":
                                 "tech_node_SF":tech_node_SF}
 
     # set software hardware database population
-    #sw_hw_database_population = {"db_mode": "hardcoded", "hw_graph_mode": "generated_from_scratch",
-    #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
-    sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_scratch",
+    # for SLAM
+    sw_hw_database_population = {"db_mode": "hardcoded", "hw_graph_mode": "generated_from_scratch",
                                  "workloads": workloads, "misc_knobs": db_population_misc_knobs}
+    # for paper workloads
+    #sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_scratch",
+    #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
+    # for check pointed
     #sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_check_point",
     #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
 

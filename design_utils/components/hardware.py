@@ -72,7 +72,7 @@ class Block:
     block_numbers_seen = []
     def __init__(self, db_input, hw_sampling, instance_name, type, subtype,
                  peak_work_rate_distribution, work_over_energy_distribution, work_over_area_distribution,
-                 one_over_area_distribution, leakage_power="", power_knobs="",
+                 one_over_area_distribution, clock_freq, bus_width, leakage_power="", power_knobs="",
                  SOC_type="", SOC_id=""):
         self.db_input = db_input  # data base input
         self.__instance_name = instance_name  # name of the block instance
@@ -84,6 +84,8 @@ class Block:
                                                                          # is different depending on the block.
                                                                          # concretely, for PE work rate is IPC
                                                                          # and for memory/buses its Bandwidth
+        self.clock_freq = clock_freq
+        self.bus_width = bus_width
         self.work_over_energy_distribution = work_over_energy_distribution  # work over energy
         self.work_over_area_distribution = work_over_area_distribution  # work over area
         self.one_over_area_distribution = one_over_area_distribution
@@ -860,6 +862,7 @@ class PipeCluster:
         self.dir = dir
         self.cluster_type = "regular"
         self.path_phase_work_rate = {}
+        self.path_phase_latency = {}
         if outgoing_pipe == None:
             self.outgoing_pipe = None
         else:
@@ -870,6 +873,10 @@ class PipeCluster:
         else:
             self.incoming_pipes = incoming_pipes
         self.unique_name = unique_name
+
+        self.pathlets = []
+        for in_pipe in incoming_pipes:
+            self.pathlets.append(pathlet(in_pipe, outgoing_pipe, self.dir))
 
     def change_to_dummy(self, tasks):
         self.cluster_type = "dummy"
@@ -885,6 +892,9 @@ class PipeCluster:
     # the block at the center of the cluster (with source (incoming) pipes  and dest (outgoing) pipe)
     def get_block_ref(self):
         return self.ref_block
+
+    def get_pathlets(self):
+        return self.pathlets
 
     # incoming pipes
     def get_incoming_pipes(self):
@@ -933,9 +943,10 @@ class PipeCluster:
 
         return "block:" + self.get_block_ref().instance_name + " incoming_pipes:" +str(incoming_pipes) + "  outgoing_pipes:"+str(outgoing)
 
-
+    # for path's within the pipe cluster set the work rate
     def set_path_phase_work_rate(self, path, phase_num, work_rate):
-        in_pipe, out_pipe = path
+        in_pipe = path.get_in_pipe()
+        out_pipe = path.get_out_pipe()
         if in_pipe not in self.incoming_pipes or out_pipe not in [self.outgoing_pipe]:
             print("pipe should already exist")
             exit(0)
@@ -948,6 +959,40 @@ class PipeCluster:
 
     def get_path_phase_work_rate(self):
         return self.path_phase_work_rate
+
+    def get_path_last_phase_work_rate(self):
+        path_last_phase_work_rate = {}
+        for path, phase_work_rate in self.get_path_phase_work_rate().items():
+            last_phase = sorted(phase_work_rate.keys())[-1]
+            path_last_phase_work_rate[path] = phase_work_rate[last_phase]
+        return path_last_phase_work_rate, last_phase
+
+    def set_path_latency(self, path, phase_num, latency):
+        if path not in self.path_phase_latency.keys():
+            self.path_phase_latency[path] = {}
+        if phase_num not in self.path_phase_latency[path].keys():
+            self.path_phase_latency[path][phase_num] = 0
+        self.path_phase_latency[path][phase_num] = latency
+
+    def get_path_phase_latency(self):
+        return self.path_phase_latency
+
+
+class pathlet:
+    def __init__(self, in_pipe, out_pipe, dir_):
+        self.in_pipe = in_pipe
+        self.out_pipe = out_pipe
+        self.dir = dir_
+
+    def get_out_pipe(self):
+        return self.out_pipe
+
+    def get_in_pipe(self):
+        return self.in_pipe
+
+    def get_dir(self):
+        return self.dir
+
 
 # A pipe is a queue that connects blocks
 class pipe:

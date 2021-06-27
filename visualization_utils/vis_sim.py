@@ -250,7 +250,7 @@ def plot_sim_data(dp_stats, ex_dp, result_folder):
                 block_name = '_'.join(pipe_cluster.get_block_ref().instance_name.split("_")[-3:])
                 dir_ = pipe_cluster.get_dir()
                 for path, phase_work_rate in pipe_phase_work_rate.items():
-                    in_pipe, out_pipe  = path
+                    in_pipe, out_pipe  = path.get_in_pipe(), path.get_out_pipe()
                     if in_pipe.get_master().type == "pe":
                         master_name = '_'.join(in_pipe.get_master().instance_name.split("_")[:3])
                     else:
@@ -294,6 +294,74 @@ def plot_sim_data(dp_stats, ex_dp, result_folder):
 
             ax.legend(prop={'size': 8}, ncol=1, loc='best')
             fig.tight_layout()
-            plt.savefig(result_folder + "/FARSI_estimated_path_bandwidth_"+dir__ + str(type) + str(id))
+            plt.savefig(result_folder + "/FARSI_estimated_pathlet_bandwidth_"+dir__ + str(type) + str(id))
+
+    # draw pathlet latency
+    for dir__ in ["write", "read"]:
+        # plot  bandwidth:
+        fig, ax = plt.subplots()
+        ax.set_ylabel('pathlet latency (in cycles)', fontsize=15)
+        ax.set_xlabel('Phase', fontsize=15)
+        ax.set_title('Path latency for ' + dir__, fontsize=15)
+        ctr = 0
+        markers = ["o", ">", "1", "8", "s", "p"]
+        seen = []
+        seen_values = {}
+        for type, id in ex_dp.get_designs_SOCs():
+            for pipe_cluster, path_phase_latency in dp_stats.get_SOC_s_pipe_cluster_path_phase_latency(type,
+                                                                                                           id).items():
+                if pipe_cluster.cluster_type == "dummy" or not pipe_cluster.get_dir() == dir__:
+                    continue
+                if not pipe_cluster.get_block_ref().type  == "ic":
+                    continue
+                block_name = '_'.join(pipe_cluster.get_block_ref().instance_name.split("_")[-3:])
+                dir_ = pipe_cluster.get_dir()
+                for path, phase_latency in path_phase_latency.items():
+                    in_pipe, out_pipe  = path.get_in_pipe(), path.get_out_pipe()
+                    if in_pipe.get_master().type == "pe":
+                        master_name = '_'.join(in_pipe.get_master().instance_name.split("_")[:3])
+                    else:
+                        master_name = '_'.join(in_pipe.get_master().instance_name.split("_")[-3:])
+                    if out_pipe == None:
+                        slave_name == "non"
+                    else:
+                        if out_pipe.get_slave().type == "pe":
+                            slave_name = '_'.join(out_pipe.get_slave().instance_name.split("_")[:3])
+                        else:
+                            slave_name = '_'.join(out_pipe.get_slave().instance_name.split("_")[-3:])
+                    name = master_name + "__" + block_name + "__" + slave_name + "__" + dir_
+                    if name in seen:
+                        continue
+                    seen.append(name)
+                    phases = list(phase_latency.keys())
+                    latencies= [x  for x in list(phase_latency.values())]
+                    x = []
+                    y = []
+                    for phase in list(phase_latency.keys()):
+                        latency = phase_latency[phase]
+                        begin_t, end_t = phase_begin_end[phase]
+                        x.append(begin_t)
+                        x.append(end_t)
+                        y.append(latency)
+                        y.append(latency)
+                    values = '_'.join([str((el[0], el[1])) for el in zip(phases, latencies)])
+                    if values in seen_values.keys():
+                        ctr_ = seen_values[values]
+                        plt.plot(x, y, marker=markers[ctr % len(markers)], linewidth=4,
+                                 color=my_cmap[ctr_ % len(my_cmap)], ms=1,
+                                 label=name)
+                    else:
+                        seen_values[values] = ctr
+                        plt.plot(x, y, marker=markers[ctr % len(markers)], linewidth=4,
+                                 color=my_cmap[ctr % len(my_cmap)], ms=1,
+                                 label=name)
+                        ctr += 1
+                    for a, b in zip(x, y):
+                        plt.text(a, b, str(b))
+
+            ax.legend(prop={'size': 8}, ncol=1, loc='best')
+            fig.tight_layout()
+            plt.savefig(result_folder + "/FARSI_estimated_pathlet_latency_"+dir__ + str(type) + str(id))
+
 
     plt.close('all')

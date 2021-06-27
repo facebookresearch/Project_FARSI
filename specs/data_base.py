@@ -94,7 +94,10 @@ class DataBase:
         if len(argv) == 0 and isinstance(obj, BlockL):
             return Block(self.db_input, self.hw_sampling, obj.block_instance_name, obj.block_type, obj.block_subtype,
                          self.get_block_peak_work_rate_distribution(obj), self.get_block_work_over_energy_distribution(obj),
-                         self.get_block_work_over_area_distribution(obj), self.get_block_one_over_area_distribution(obj), self.get_block_leakage_power(obj),
+                         self.get_block_work_over_area_distribution(obj), self.get_block_one_over_area_distribution(obj),
+                         obj.clock_freq,
+                         obj.bus_width,
+                         self.get_block_leakage_power(obj),
                          self.get_block_power_knobs(obj))
         elif len(argv) == 0 and isinstance(obj, TaskL):
             return Task(obj.task_name, self.get_task_work(obj))

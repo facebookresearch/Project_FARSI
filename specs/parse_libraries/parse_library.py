@@ -123,6 +123,32 @@ def get_full_file_name(partial_name, file_list):
     print("file with the name of :" + partial_name + " doesnt exist")
 
 
+def get_block_clock_freq(library_dir, input_file_name):
+    input_file_addr = os.path.join(library_dir, input_file_name)
+
+    df = pd.read_csv(input_file_addr)
+
+    # eval the expression
+    def evaluate(value):
+        replaced_value_1 = value.replace("^", "**")
+        replaced_value_2 = replaced_value_1.replace("=", "")
+        return eval(replaced_value_2)
+
+    misc_data = {}
+    for index, row in df.iterrows():
+        temp_dict = row.to_dict()
+        misc_data[list(temp_dict.values())[0]] = evaluate(list(temp_dict.values())[1])
+
+    hardware_sub_type = ["sram", "dram", "ip", "gpp", "ic"]
+    block_sub_type_clock_freq = {}
+    for key in misc_data.keys() :
+       if "clock" in key:
+           for type in hardware_sub_type:
+               if type in key:
+                   block_sub_type_clock_freq[type] = misc_data[key]
+
+    return block_sub_type_clock_freq
+
 # ------------------------------
 # Functionality:
 #   parse the task graph csv and generate FARSI digestible task graph
@@ -489,6 +515,7 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
     hardware_library_dict = {}
     # parse IPs
     gpps = parse_block_based_on_types(library_dir, Block_char_file_name, ("pe", "gpp"))
+    ip_template = parse_block_based_on_types(library_dir, Block_char_file_name, ("pe", "ip")) # this is just to collect clock freq for ips
     srams = parse_block_based_on_types(library_dir, Block_char_file_name, ("mem", "sram"))
     drams = parse_block_based_on_types(library_dir, Block_char_file_name, ("mem", "dram"))
     mems = {**drams, **srams}
@@ -535,6 +562,8 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
                 hardware_library_dict[IP_name]["mappable_tasks"] = [task_name]
                 hardware_library_dict[IP_name]["type"] = "pe"
                 hardware_library_dict[IP_name]["sub_type"] = "gpp"
+                hardware_library_dict[IP_name]["clock_freq"] = gpps[IP_name]["Freq"]
+                hardware_library_dict[IP_name]["BitWidth"] = gpps[IP_name]["BitWidth"]
                 #print("taskname: " + str(task_name) + ", subtype: gpp, power is"+ str(hardware_library_dict[IP_name]["work_rate"]/hardware_library_dict[IP_name]["work_over_energy"] ))
             else:
                 loop_itr_range_ = gen_loop_itr_range(task_name, task_itr_cnt, misc_knobs)
@@ -549,6 +578,8 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
                     hardware_library_dict[IP_name_refined]["mappable_tasks"] = [task_name]
                     hardware_library_dict[IP_name_refined]["type"] = "pe"
                     hardware_library_dict[IP_name_refined]["sub_type"] = "ip"
+                    hardware_library_dict[IP_name_refined]["clock_freq"] = ip_template["IP"]["Freq"]*ip_freq
+                    hardware_library_dict[IP_name_refined]["BitWidth"] = ip_template["IP"]["BitWidth"]
                     #print("taskname: " + str(task_name) + ", subtype: ip, power is"+ str(hardware_library_dict[IP_name]["work_rate"]/hardware_library_dict[IP_name]["work_over_energy"] ))
 
     for blck_name, blck_value in mems.items():
@@ -564,6 +595,8 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
             hardware_library_dict[IP_name_refined]["mappable_tasks"] = 'all'
             hardware_library_dict[IP_name_refined]["type"] = "mem"
             hardware_library_dict[IP_name_refined]["sub_type"] = blck_value['Subtype']
+            hardware_library_dict[IP_name_refined]["clock_freq"] = freq*blck_value["Freq"]
+            hardware_library_dict[IP_name_refined]["BitWidth"] = blck_value["BitWidth"]
     for blck_name, blck_value in ics.items():
         ic_freq_range = gen_ip_freq_range(misc_knobs, "ic")
         for freq in ic_freq_range:
@@ -576,6 +609,8 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
             hardware_library_dict[IP_name_refined]["mappable_tasks"] = 'all'
             hardware_library_dict[IP_name_refined]["type"] = "ic"
             hardware_library_dict[IP_name_refined]["sub_type"] = "ic"
+            hardware_library_dict[IP_name_refined]["clock_freq"] = freq*blck_value["Freq"]
+            hardware_library_dict[IP_name_refined]["BitWidth"] = blck_value["BitWidth"]
 
     return hardware_library_dict
 
@@ -669,7 +704,7 @@ def gen_task_to_hw_mapping(library_dir, prefix = "") :
 # Functionality:
 #   generate the hardware library
 # ------------------------------
-def gen_hardware_library(library_dir, prefix, workload, misc_knobs={}):
+def gen_hardware_library(library_dir, prefix, workload, block_sub_type_clock, misc_knobs={}):
     blocksL: List[BlockL] = []  # collection of all the blocks
     pe_mapsL: List[TaskToPEBlockMapL] = []
     pe_schedulesL: List[TaskScheduleL] = []
@@ -683,6 +718,7 @@ def gen_hardware_library(library_dir, prefix, workload, misc_knobs={}):
     IP_area_file_name = get_full_file_name(prefix +  "Task PE Area.csv", file_list)
     task_itr_cnt_file_name = get_full_file_name(prefix+ "Task Itr Count.csv", file_list)
     Block_char_file_name = get_full_file_name("misc_database - "+ "Block Characteristics.csv", file_list)
+    common_block_char_file_name =  get_full_file_name("misc_database - "+ "Common Hardware.csv", file_list)
 
     # get the time profile
     #task_perf_file_addr = os.path.join(library_dir, IP_perf_file_name)
@@ -698,14 +734,6 @@ def gen_hardware_library(library_dir, prefix, workload, misc_knobs={}):
     hardware_library_dict = parse_hardware_library(library_dir, IP_perf_file_name,
                                                    IP_energy_file_name, IP_area_file_name,
                                                    Block_char_file_name, task_itr_cnt_file_name, workload, misc_knobs)
-    #gpps = parse_block_based_on_types(library_dir, Block_char_file_name, ("pe", "gpp"))
-    #gpp_names = list(gpps.keys())
-    #srams = parse_block_based_on_types(library_dir, Block_char_file_name, ("mem", "sram"))
-    #drams = parse_block_based_on_types(library_dir, Block_char_file_name, ("mem", "dram"))
-    #mems = {**drams, **srams}
-    #mems = parse_block_based_on_types(library_dir, Block_char_file_name, ("mem", "mem"))
-    #ics  = parse_block_based_on_types(library_dir, Block_char_file_name, ("ic", "ic"))
-
     block_suptype = "gpp"  # default.
     for IP_name, values in hardware_library_dict.items():
         block_subtype = values['sub_type']
@@ -715,7 +743,8 @@ def gen_hardware_library(library_dir, prefix, workload, misc_knobs={}):
                    peak_work_rate_distribution = {hardware_library_dict[IP_name]["work_rate"]:1},
                    work_over_energy_distribution = {hardware_library_dict[IP_name]["work_over_energy"]:1},
                    work_over_area_distribution = {hardware_library_dict[IP_name]["work_over_area"]:1},
-                   one_over_area_distribution = {hardware_library_dict[IP_name]["one_over_area"]:1}))
+                   one_over_area_distribution = {hardware_library_dict[IP_name]["one_over_area"]:1},
+                   clock_freq=hardware_library_dict[IP_name]["clock_freq"], bus_width=hardware_library_dict[IP_name]["BitWidth"]))
 
         if block_type == "pe":
             for mappable_tasks in hardware_library_dict[IP_name]["mappable_tasks"]:

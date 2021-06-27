@@ -752,52 +752,86 @@ class Kernel:
                 if "souurce" in self.get_task_name() or "siink" in self.get_task_name():
                     work_ratio = 1
                 block_att_work_rate_dict[block][pipe_cluster] = bottleneck_work_rate*work_ratio
-                self.update_pipe_cluster_work_rate(pipe_cluster, bottleneck_work_rate)
+                #self.update_pipe_cluster_work_rate(pipe_cluster, bottleneck_work_rate)
 
         return block_att_work_rate_dict
 
+    # update paths (inpipe-outpipe) work rate
+    def update_pipe_clusters_path_work_rate(self):
+        for block in self.get_blocks():
+            for pipe_cluster in block.get_pipe_clusters():
+                self.update_pipe_cluster_path_work_rate(pipe_cluster, self.cur_phase_bottleneck_work_rate)
 
-    def update_pipe_cluster_work_rate(self, pipe_cluster, bottleneck_work_rate):
-        if pipe_cluster.cluster_type == "dummy":
-            return
-            #incoming_pipes = []
-            #outgoing_pipe = []
-        else:
-            incoming_pipes = pipe_cluster.get_incoming_pipes()
-            outgoing_pipe = pipe_cluster.get_outgoing_pipe()
+    # update paths (inpipe-outpipe) work rate
+    def update_pipe_clusters_path_latency(self):
+        for block in self.get_blocks():
+            for pipe_cluster in block.get_pipe_clusters():
+                if pipe_cluster.cluster_type == "dummy":
+                    return
+                path_work_rate, last_phase = pipe_cluster.get_path_last_phase_work_rate() # last phase work_rate
 
-        dir_ = pipe_cluster.get_dir()
-        if dir_ == "read":
-            family_tasks = self.get_task().get_parents()
-        elif dir_ == "write":
-            family_tasks = self.get_task().get_children()
-        else:
-            print("this mode is no suppported")
+                #fleet_cnt = block.
+                sum_work_rate = max(sum(path_work_rate.values()),.000000000000000000001) # max is there to avoid division by 0
+                for path, work_rate in path_work_rate.items():
+                    latency =  work_rate/sum_work_rate
+                    pipe_cluster.set_path_latency(path, last_phase, latency)
 
-        pipe_ref_block = pipe_cluster.get_block_ref()
-        for in_pipe in incoming_pipes:
-            path = (in_pipe, outgoing_pipe)
-            pipe_master = in_pipe.get_master()
+    # update each path's (inpipe-outpipe) workrate
+    def update_pipe_cluster_path_work_rate(self, pipe_cluster, bottleneck_work_rate):
+        def get_family_tasks(dir_):
+            if dir_ == "read":
+                family_tasks = self.get_task().get_parents()
+            elif dir_ == "write":
+                family_tasks = self.get_task().get_children()
+            else:
+                print("this mode is no suppported")
+            return family_tasks
+
+        def get_masters_relevant_tasks(in_pipe, dir_):
             if dir_ == "write":
                 master_tasks = [el.get_child() for el in in_pipe.get_traffic() if el.get_parent().name == self.get_task_name()]
             else:
                 master_tasks = [el.get_parent() for el in in_pipe.get_traffic() if el.get_child().name == self.get_task_name()]
-            work_ratio =0
-            for family_task in family_tasks:
-                if family_task in master_tasks:
-                    work_ratio += self.__task_to_blocks_map.get_workRatio_by_block_name_and_family_member_names_and_channel_eliminating_fake(
-                        pipe_ref_block.instance_name, [(family_task.name, dir_)], dir_)
+            return master_tasks
+
+        def get_path_work_rate_and_phase(path, work_ratio, bottleneck_work_rate):
             if "souurce" in self.get_task_name():
-                pipe_cluster.set_path_phase_work_rate(path, self.phase_num + 2, 0)
+                return 0, self.phase_num + 1
             else:
                 if self.phase_num == -1:
                     phase_num = self.phase_num + 2
                 else:
                     phase_num = self.phase_num +1
                 if "siink" in self.get_task_name():
-                    pipe_cluster.set_path_phase_work_rate(path, phase_num, 0)
+                    return 0, phase_num
                 else:
-                    pipe_cluster.set_path_phase_work_rate(path, phase_num, work_ratio*bottleneck_work_rate)
+                    return work_ratio*bottleneck_work_rate, phase_num
+
+        # don't need to deal with dummy clusters
+        if pipe_cluster.cluster_type == "dummy":
+            return
+
+        # get cluster info
+        dir_ = pipe_cluster.get_dir()
+        family_tasks = get_family_tasks(dir_)
+        pipe_ref_block = pipe_cluster.get_block_ref()
+
+        # iterate through incoming pipes, calculate work ratio and update workrate
+        for pathlet_ in pipe_cluster.get_pathlets():
+            in_pipe = pathlet_.get_in_pipe()
+            out_pipe = pathlet_.get_in_pipe()
+            work_ratio =0
+            #pipe_master = in_pipe.get_master()
+            master_tasks = get_masters_relevant_tasks(in_pipe, dir_)
+            # calculate work ratio
+            for family_task in family_tasks:
+                if family_task in master_tasks:
+                    work_ratio += self.__task_to_blocks_map.get_workRatio_by_block_name_and_family_member_names_and_channel_eliminating_fake(
+                        pipe_ref_block.instance_name, [(family_task.name, dir_)], dir_)
+
+            #update work rate
+            work_rate, phase_number = get_path_work_rate_and_phase(pathlet_, work_ratio, bottleneck_work_rate)
+            pipe_cluster.set_path_phase_work_rate(pathlet_, phase_number, work_rate)
 
     def read_latency_per_request(self, mem, pe):
         pass
@@ -832,13 +866,14 @@ class Kernel:
         self.block_normalized_work_rate = self.consolidate_channels(self.block_normalized_work_rate_unconsolidated)
 
         # identify the block bottleneck
-        self.cur_phase_bottleneck, bottleneck_work_rate = self.calc_block_s_bottleneck(self.block_normalized_work_rate)
+        self.cur_phase_bottleneck, self.cur_phase_bottleneck_work_rate = self.calc_block_s_bottleneck(self.block_normalized_work_rate)
+
         self.kernel_phase_bottleneck_blocks_dict[self.phase_num] = self.cur_phase_bottleneck
         ref_block = self.get_ref_block()
 
         # unnormalized the results (unnormalizing means that actually provide the work rate as opposed
         # to normalizing it to the ref block (which is usally PE) work rate
-        self.block_att_work_rate_dict = self.calc_unnormalize_work_rate(self.block_normalized_work_rate, bottleneck_work_rate)
+        self.block_att_work_rate_dict = self.calc_unnormalize_work_rate(self.block_normalized_work_rate, self.cur_phase_bottleneck_work_rate)
 
     # calculate the completion time for the kernel
     def calc_kernel_completion_time(self):

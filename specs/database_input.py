@@ -106,7 +106,7 @@ class database_input_class():
             if len(imported_databases) > 1:
                 print("we have to fix the budets_dict collection here. support it and run")
                 exit(0)
-            self.workload_tasks[sw_hw_database_population["workloads"][0]] = []
+            #self.workload_tasks[sw_hw_database_population["workloads"][0]] = []
             for imported_database in imported_databases:
                 self.blocksL.extend(imported_database.blocksL)
                 self.tasksL.extend(imported_database.tasksL)
@@ -117,9 +117,9 @@ class database_input_class():
                 self.other_values_dict = imported_database.other_values_dict
                 self.souurce_memory_work = imported_database.souurce_memory_work
                 self.misc_data["same_ip_tasks_list"] = imported_database.same_ip_tasks_list
-            self.workload_tasks[sw_hw_database_population["workloads"][0]] = [el.task_name for el in self.tasksL]
+            self.workload_tasks[list(sw_hw_database_population["workloads"])[0]] = [el.task_name for el in self.tasksL]
             for el in self.tasksL:
-                self.task_workload[el.task_name] = sw_hw_database_population["workloads"][0]
+                self.task_workload[el.task_name] = list(sw_hw_database_population["workloads"])[0]
 
             self.sw_hw_database_population = sw_hw_database_population
 
