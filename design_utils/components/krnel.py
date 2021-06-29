@@ -757,44 +757,144 @@ class Kernel:
         return block_att_work_rate_dict
 
     # update paths (inpipe-outpipe) work rate
-    def update_pipe_clusters_path_work_rate(self):
+    def update_pipe_clusters_pathlet_work_rate(self):
         for block in self.get_blocks():
             for pipe_cluster in block.get_pipe_clusters():
-                self.update_pipe_cluster_path_work_rate(pipe_cluster, self.cur_phase_bottleneck_work_rate)
+                self.update_pipe_cluster_pathlet_work_rate(pipe_cluster, self.cur_phase_bottleneck_work_rate)
+
+
+
+
+    # latency taken for an ic to arbiterate between different requests
+    def get_arbiteration_latency(self, pathlet_, pipe_cluster, scheduled_kernels):
+        traversal_dir_latency = {} # forward/backward latency
+        block_ref = pipe_cluster.get_block_ref()
+        if not block_ref.type == "ic" :
+            traversal_dir_latency["backward"] = 0
+            traversal_dir_latency["forward"] = 0
+            return traversal_dir_latency
+
+        arbiteration_latency = 0
+        dir_ = pathlet_.get_dir()
+        pipes_with_traffic = self.filter_in_active_pipes(pipe_cluster.get_incoming_pipes(),
+                                                         pipe_cluster.get_outgoing_pipe(), scheduled_kernels)
+
+        pathlets_work_rate, last_phase = pipe_cluster.get_pathlet_last_phase_work_rate()  # last phase work_rate
+        sum_work_rate = max(sum(pathlets_work_rate.values()), .000000000000000000001)  # max is there to avoid division by 0
+
+        for pathlet__, work_rate in pathlets_work_rate.items():
+            if pathlet__ == pathlet_:
+                arbiteration_latency = sum_work_rate/max(work_rate,.0000000000000001)
+
+        # determine the forward/backward path latency
+        if dir_ == "write":
+            traversal_dir_latency["backward"] = 0
+            traversal_dir_latency["forward"] = arbiteration_latency
+        if dir_ == "read":
+            traversal_dir_latency["backward"] = 0
+            traversal_dir_latency["forward"] = arbiteration_latency
+
+        return traversal_dir_latency
+    # latency taken for an ic to generate the fleets of a request
+    def get_pathlet_flee_cnt(self, block_ref, pathlet_):
+        dir_ = pathlet_.get_dir()
+        family_tasks = self.get_family_tasks_on_the_pipe_cluster(dir_)
+        work = 0
+        # iterate and add work_unit for all the pathlets
+        in_pipe = pathlet_.get_in_pipe()
+        #TODO: for now only pe to ic fleet generation is accounted for,
+        # but I believe if there is bus width descrpeency between adjacent blocks,
+        # fleets might be generated
+        if in_pipe.get_slave().type == "mem":
+            print("ok")
+        if not (in_pipe.get_master().type == "pe" and dir_ == "write")  or not (in_pipe.get_slave().type == "mem" and dir_ == "read"):
+            return 0
+        master_tasks = self.get_masters_relevant_tasks_on_the_pipe_cluster(in_pipe, dir_)
+        # calculate work ratio
+        for family_task in family_tasks:
+            if family_task in master_tasks:
+                work += self.get_task().get_self_to_family_task_work_unit(family_task)
+
+        fleet_cnt = (work/block_ref.get_block_bus_width())
+        return fleet_cnt
+
+    def get_fleet_generation_latency(self, pathlet_, pipe_cluster, schedulued_kernels):
+        #if self.task_name in self.
+
+        traversal_dir_latency = {} # forward/backward latency
+        block_ref = pipe_cluster.get_block_ref()
+        if not block_ref.type == "ic" or not block_ref.type == "mem":
+            traversal_dir_latency["backward"] = 0
+            traversal_dir_latency["forward"] = 0
+            return traversal_dir_latency
+
+        dir_ = pathlet_.get_dir()
+        fleet_generation_latency = 0
+        for pathlet_ in pipe_cluster.get_pathlets():
+            fleet_generation_latency += self.get_pathlet_flee_cnt(block_ref, pathlet_)
+
+        # determine the forward/backward path latency
+        if dir_ == "write":
+            traversal_dir_latency["backward"] = 0
+            traversal_dir_latency["forward"] = fleet_generation_latency
+        if dir_ == "read":
+            traversal_dir_latency["backward"] = 0
+            traversal_dir_latency["forward"] = 0
+
+        return traversal_dir_latency
+
+    def get_hop_latency(self, pipe_cluster):
+        block_ref = pipe_cluster.get_block_ref()
+        dir_ = pipe_cluster.get_dir()
+
+        # determine the forward/backward path latency
+        traversal_dir_latency = {} # forward/backward latency
+        if dir_ == "write":
+            traversal_dir_latency["backward"] = 0
+            traversal_dir_latency["forward"] = 1
+        if dir_ == "read":
+            traversal_dir_latency["backward"] = 0 # at the moment, our back ward hop is zero matching platform architect's default
+            traversal_dir_latency["forward"] = 1
+        return traversal_dir_latency
+
 
     # update paths (inpipe-outpipe) work rate
-    def update_pipe_clusters_path_latency(self):
+    def update_pipe_clusters_pathlet_latency(self, scheduled_kernels):
+        if "souurce" in self.get_task_name() or "siink" in self.get_task_name() or "dummy_last" in self.get_task_name():
+            return
         for block in self.get_blocks():
             for pipe_cluster in block.get_pipe_clusters():
                 if pipe_cluster.cluster_type == "dummy":
                     return
-                path_work_rate, last_phase = pipe_cluster.get_path_last_phase_work_rate() # last phase work_rate
+                for pathlet_ in pipe_cluster.get_pathlets():
+                    hop_latency = self.get_hop_latency(pipe_cluster)
+                    arbiteration_latency = self.get_arbiteration_latency(pathlet_, pipe_cluster, scheduled_kernels)
+                    fleet_generation_latency = self.get_fleet_generation_latency(pathlet_, pipe_cluster, scheduled_kernels)
+                    latency_in_cycles_dict = {"hop": hop_latency, "arbiteration": arbiteration_latency, "fleet_generation": fleet_generation_latency}
+                    _, last_phase = pipe_cluster.get_pathlet_last_phase_work_rate()  # last phase work_rate
+                pipe_cluster.set_pathlet_latency(pathlet_, last_phase, latency_in_cycles_dict)
 
-                #fleet_cnt = block.
-                sum_work_rate = max(sum(path_work_rate.values()),.000000000000000000001) # max is there to avoid division by 0
-                for path, work_rate in path_work_rate.items():
-                    latency =  work_rate/sum_work_rate
-                    pipe_cluster.set_path_latency(path, last_phase, latency)
+    def get_family_tasks_on_the_pipe_cluster(self, dir_):
+        if dir_ == "read":
+            family_tasks = self.get_task().get_parents()
+        elif dir_ == "write":
+            family_tasks = self.get_task().get_children()
+        else:
+            print("this mode is no suppported")
+        return family_tasks
+
+    def get_masters_relevant_tasks_on_the_pipe_cluster(self, in_pipe, dir_):
+        if dir_ == "write":
+            master_tasks = [el.get_child() for el in in_pipe.get_traffic() if
+                            el.get_parent().name == self.get_task_name()]
+        else:
+            master_tasks = [el.get_parent() for el in in_pipe.get_traffic() if
+                            el.get_child().name == self.get_task_name()]
+        return master_tasks
 
     # update each path's (inpipe-outpipe) workrate
-    def update_pipe_cluster_path_work_rate(self, pipe_cluster, bottleneck_work_rate):
-        def get_family_tasks(dir_):
-            if dir_ == "read":
-                family_tasks = self.get_task().get_parents()
-            elif dir_ == "write":
-                family_tasks = self.get_task().get_children()
-            else:
-                print("this mode is no suppported")
-            return family_tasks
-
-        def get_masters_relevant_tasks(in_pipe, dir_):
-            if dir_ == "write":
-                master_tasks = [el.get_child() for el in in_pipe.get_traffic() if el.get_parent().name == self.get_task_name()]
-            else:
-                master_tasks = [el.get_parent() for el in in_pipe.get_traffic() if el.get_child().name == self.get_task_name()]
-            return master_tasks
-
-        def get_path_work_rate_and_phase(path, work_ratio, bottleneck_work_rate):
+    def update_pipe_cluster_pathlet_work_rate(self, pipe_cluster, bottleneck_work_rate):
+        def get_pathlet_work_rate_and_phase(path, work_ratio, bottleneck_work_rate):
             if "souurce" in self.get_task_name():
                 return 0, self.phase_num + 1
             else:
@@ -813,7 +913,7 @@ class Kernel:
 
         # get cluster info
         dir_ = pipe_cluster.get_dir()
-        family_tasks = get_family_tasks(dir_)
+        family_tasks = self.get_family_tasks_on_the_pipe_cluster(dir_)
         pipe_ref_block = pipe_cluster.get_block_ref()
 
         # iterate through incoming pipes, calculate work ratio and update workrate
@@ -822,7 +922,7 @@ class Kernel:
             out_pipe = pathlet_.get_in_pipe()
             work_ratio =0
             #pipe_master = in_pipe.get_master()
-            master_tasks = get_masters_relevant_tasks(in_pipe, dir_)
+            master_tasks = self.get_masters_relevant_tasks_on_the_pipe_cluster(in_pipe, dir_)
             # calculate work ratio
             for family_task in family_tasks:
                 if family_task in master_tasks:
@@ -830,8 +930,8 @@ class Kernel:
                         pipe_ref_block.instance_name, [(family_task.name, dir_)], dir_)
 
             #update work rate
-            work_rate, phase_number = get_path_work_rate_and_phase(pathlet_, work_ratio, bottleneck_work_rate)
-            pipe_cluster.set_path_phase_work_rate(pathlet_, phase_number, work_rate)
+            work_rate, phase_number = get_pathlet_work_rate_and_phase(pathlet_, work_ratio, bottleneck_work_rate)
+            pipe_cluster.set_pathlet_phase_work_rate(pathlet_, phase_number, work_rate)
 
     def read_latency_per_request(self, mem, pe):
         pass

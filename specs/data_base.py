@@ -767,6 +767,47 @@ class DataBase:
 
         return results
 
+    def up_sample_down_sample_block_fast_multi_metric(self, blck_to_imprv, metric_dir, tasks=[]):
+        all_compatible_blocks = self.find_all_compatible_blocks_fast(blck_to_imprv.type, tasks)
+        metrics_to_sort = []
+        for metric,dir in metric_dir.keys():
+            if metric == "latency":
+                metric_to_sort = 'peak_work_rate'
+            elif metric == "power":
+                #metric_to_sort = 'work_over_energy'
+                metric_to_sort = 'one_over_power'
+            elif metric == "area":
+                metric_to_sort = 'one_over_area'
+            else:
+                print("metric: " + metric + " is not defined")
+            metrics_to_sort.append((metric_to_sort, -1*dir))
+
+
+        sampling_dir = metric_dir[0][1]
+        metric_sign = {}
+        for metric,dir in metric_dir:
+            metric_sign[metric] =-1*dir
+
+
+        #srtd_comptble_blcks = sorted(all_compatible_blocks, key=attrgetter(metric_to_sort), reverse=reversed)  #
+        srtd_comptble_blcks = sorted(all_compatible_blocks, key=lambda blk: (getattr(blk, metrics_to_sort[0][1]*metrics_to_sort[0][0]),
+                                                                             metrics_to_sort[1][1]*getattr(blk, metrics_to_sort[1]),
+                                                                             metrics_to_sort[2][1]*getattr(blk, metrics_to_sort[2])))
+        idx = 0
+
+        # find the block
+        results = []
+        for blck in srtd_comptble_blcks:
+            #if (getattr(blck, metric_to_sort) == getattr(blck_to_imprv, metric_to_sort)):
+            if sampling_dir < 0:  # need to reduce
+                if (getattr(blck, metric_to_sort) >= getattr(blck_to_imprv, metric_to_sort)):
+                    results.append(blck)
+            elif sampling_dir > 0:  # need to reduce
+                if (getattr(blck, metric_to_sort) <= getattr(blck_to_imprv, metric_to_sort)):
+                    results.append(blck)
+
+        return results
+
     def equal_sample_up_sample_down_sample_block_fast(self, blck_to_imprv, metric, sampling_dir, tasks=[]):
         all_compatible_blocks = self.find_all_compatible_blocks_fast(blck_to_imprv.type, tasks)
         if metric == "latency":
@@ -783,7 +824,9 @@ class DataBase:
             reversed = True
         else:
             reversed = False
+
         srtd_comptble_blcks = sorted(all_compatible_blocks, key=attrgetter(metric_to_sort), reverse=reversed)  #
+        #srtd_comptble_blcks = sorted(all_compatible_blocks, key=lambda blk: (getattr(blk, metrics_to_sort[0]), getattr(blk, metrics_to_sort[1]), getattr(blk, metrics_to_sort[2])), reverse=reversed)  #
         idx = 0
 
         # find the block

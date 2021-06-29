@@ -677,7 +677,6 @@ class HillClimbing:
     def select_kernel(self, ex_dp, sim_dp, selected_metric, move_dir):
         # get each kernel's contributions
         krnl_contribution_dict = self.get_kernels_s_contribution(selected_metric, sim_dp)
-
         # get each kernel's improvement cost
         krnl_improvement_ease = self.get_kernels_s_improvement_ease(ex_dp, sim_dp, selected_metric, move_dir)
 
@@ -791,6 +790,18 @@ class HillClimbing:
             move_to_apply.set_dest_block(imm_block)
 
             move_to_apply.set_tasks(move_to_apply.get_block_ref().get_tasks_of_block())
+            if move_to_apply.get_block_ref().subtype == "ip" and imm_block.subtype == "gpp":
+                imm_block = self.dh.get_immediate_block(move_to_apply.get_block_ref(),
+                                                        move_to_apply.get_metric(), move_to_apply.get_dir(),
+                                                        move_to_apply.get_block_ref().get_tasks_of_block())  # immediate block either superior or
+                print("this does not make sense. definitely delete later")
+                #exit(0)
+            if move_to_apply.get_block_ref().subtype == "sram" and imm_block.subtype == "dram":
+                imm_block = self.dh.get_immediate_block(move_to_apply.get_block_ref(),
+                                                        move_to_apply.get_metric(), move_to_apply.get_dir(),
+                                                        move_to_apply.get_block_ref().get_tasks_of_block())  # immediate block either superior or
+                print("this does not make sense. definitely delete later")
+
         elif move_to_apply.get_transformation_name() in ["split"]:
             # select tasks to migrate
             migrant_tasks = self.dh.migrant_selection(ex_dp, move_to_apply.get_block_ref(), move_to_apply.get_kernel_ref(),
@@ -1064,6 +1075,7 @@ class HillClimbing:
                 print("energy" + str(energy))
                 print("design's latency: " + str(el.get_system_complex_metric("latency")))
                 print("design's power: " + str(el.get_system_complex_metric("power")))
+                print("design's area: " + str(el.get_system_complex_metric("area")))
 
 
         # if any negative (desired move) value is detected or there is a design in the new batch
@@ -1331,6 +1343,7 @@ class HillClimbing:
             sim_dp.move_applied.print_info()
             print("design's latency: " + str(sim_dp.dp_stats.get_system_complex_metric("latency")))
             print("design's power: " + str(sim_dp.dp_stats.get_system_complex_metric("power")))
+            print("design's area: " + str(sim_dp.dp_stats.get_system_complex_metric("area")))
 
         return (ex_dp, sim_dp)
 
@@ -1454,6 +1467,7 @@ class HillClimbing:
             print("-------:):):):):)----------")
             print("Best design's latency: " + str(self.cur_best_sim_dp.dp_stats.get_system_complex_metric("latency")))
             print("Best design's power: " + str(self.cur_best_sim_dp.dp_stats.get_system_complex_metric("power")))
+            print("Best design's area: " + str(self.cur_best_sim_dp.dp_stats.get_system_complex_metric("area")))
             if  not self.cur_best_sim_dp.move_applied == None:
                 self.cur_best_sim_dp.move_applied.print_info()
 

@@ -219,8 +219,10 @@ class database_input_class():
         self.misc_data["area_error_margin"] = 2.1739130434782608e-10
             #self.misc_data["byte_error_margin"]/ self.misc_data["ref_mem_work_over_area"]  # to tolerate the error caused by work_ratio
             #                                                                           # (use byte_error_margin for this calculation)
+
+        arm_clock =[el.clock_freq for el in self.blocksL if el.block_subtype == "gpp"][0]
         self.misc_data["arm_work_over_energy"] = self.misc_data["ref_gpp_dhrystone_value"]/self.misc_data["arm_power_over_clock"]
-        self.misc_data["ref_gpp_work_rate"] = self.misc_data["arm_work_rate"] = self.misc_data["ref_gpp_dhrystone_value"] * self.misc_data["arm_clock"]
+        self.misc_data["ref_gpp_work_rate"] = self.misc_data["arm_work_rate"] = self.misc_data["ref_gpp_dhrystone_value"] * arm_clock
         self.misc_data["dsp_work_rate"] = self.misc_data["dsp_speed_up_coef"] * self.misc_data["ref_gpp_work_rate"]
         self.misc_data["ip_work_rate"] = self.misc_data["ip_speed_up_coef"]*self.misc_data["ref_gpp_work_rate"]
         self.misc_data["dsp_work_over_energy"] = self.misc_data["dsp_speed_up_coef"] * self.misc_data["ref_gpp_dhrystone_value"] / self.misc_data["dsp_power_over_clock"]

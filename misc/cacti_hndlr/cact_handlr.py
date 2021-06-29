@@ -19,10 +19,14 @@ class CactiHndlr():
         self.input_cfg = ""
         self.output_cfg = ""
         self.cur_mem_type = ""
+        self.cur_cell_type = ""
         self.input_col_order = input_col_order
         self.cacti_data_log_file = cacti_data_log_file
         self.output_col_order = output_col_order
         self.cacti_data_container = CactiDataContainer(cacti_data_log_file, input_col_order, output_col_order)
+
+    def set_cur_cell_type(self, cell_type):
+        self.cur_cell_type = cell_type
 
     def set_cur_mem_size(self, cur_mem_size):
         self.cur_mem_size = math.ceil(cur_mem_size)
@@ -37,8 +41,10 @@ class CactiHndlr():
         file1 = open(param_file_copy_name, "a")  # append mode
         size_cmd = "-size (bytes) " + str(self.cur_mem_size)
         cur_mem_type_cmd = "-cache type \"" + self.cur_mem_type + "\""
+        cell_type_cmd = "-Data array cell type - \"" + self.cur_cell_type+ "\""
         file1.write(size_cmd + "\n")
         file1.write(cur_mem_type_cmd + "\n")
+        file1.write(cell_type_cmd + "\n")
         file1.close()
 
         self.input_cfg = param_file_copy_name
@@ -80,7 +86,7 @@ class CactiHndlr():
 
     def collect_cati_data(self):
         self.run_cacti()
-        results = self.parse_and_find(["Dynamic read energy (nJ)", "Area (mm2)"])
+        results = self.parse_and_find(["Dynamic read energy (nJ)", "Dynamic write energy (nJ)", "Area (mm2)"])
         os.system("rm " + self.output_cfg)
         return results
 

@@ -1,9 +1,4 @@
 variable_name,value
-ref_dram_clock,=50*10^6
-ref_sram_clock,=50*10^6
-ref_ic_clock,=50*10^6
-ref_gpp_clock,=2*10^9
-arm_clock,=2*10^9
 ref_gpp_dhrystone_value,2.3
 arm_power_over_clock,=40.8*10^-12
 arm_fix_area,=.71*10^-6

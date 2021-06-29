@@ -704,7 +704,7 @@ def gen_task_to_hw_mapping(library_dir, prefix = "") :
 # Functionality:
 #   generate the hardware library
 # ------------------------------
-def gen_hardware_library(library_dir, prefix, workload, block_sub_type_clock, misc_knobs={}):
+def gen_hardware_library(library_dir, prefix, workload, misc_knobs={}):
     blocksL: List[BlockL] = []  # collection of all the blocks
     pe_mapsL: List[TaskToPEBlockMapL] = []
     pe_schedulesL: List[TaskScheduleL] = []

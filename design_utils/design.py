@@ -969,6 +969,14 @@ class SimDesignPoint(ExDesignPoint):
         elif mem_subtype == "sram":
             return "ram"
 
+    # Conversion of  memory type (naming) from FARSI to CACTI
+    def FARSI_to_cacti_cell_type_converter(self, mem_subtype):
+        if mem_subtype == "dram":
+            #return "lp-dram"
+            return "comm-dram"
+        elif mem_subtype == "sram":
+            return "itrs-lop"
+
     # run cacti to get results
     def run_and_collect_cacti_data(self, blk, database):
 
@@ -979,13 +987,16 @@ class SimDesignPoint(ExDesignPoint):
         # prime cacti
         mem_bytes = blk.get_area_in_bytes()
         subtype = blk.subtype
-        #subtype = "dram"  # TODO: change later to sram/dram
+        #subtype = "sram"  # TODO: change later to sram/dram
         mem_subtype = self.FARSI_to_cacti_mem_type_converter(subtype)
+        cell_type = self.FARSI_to_cacti_cell_type_converter(subtype)
         self.cacti_hndlr.set_cur_mem_type(mem_subtype)
         self.cacti_hndlr.set_cur_mem_size(mem_bytes)
+        self.cacti_hndlr.set_cur_cell_type(cell_type)
         # run cacti
         cacti_area_energy_results = self.cacti_hndlr.collect_cati_data()
         energy_per_byte = float(cacti_area_energy_results['Dynamic read energy (nJ)']) * (10 ** -9) / 16
+        energy_per_byte += float(cacti_area_energy_results['Dynamic write energy (nJ)']) * (10 ** -9) / 16
         area = float(cacti_area_energy_results['Area (mm2)']) * (10 ** -6)
 
         # log values
@@ -1011,6 +1022,7 @@ class SimDesignPoint(ExDesignPoint):
         elif blk.type == "mem":
             mem_bytes = blk.get_area_in_bytes()
             mem_subtype = self.FARSI_to_cacti_mem_type_converter(blk.subtype)
+            #mem_subtype = "ram" #choose from ["main memory", "ram"]
             found_results, energy_per_byte, area = \
                 self.cacti_hndlr.cacti_data_container.find(list(zip(config.cacti_input_col_order,[mem_subtype, mem_bytes])))
             if not found_results:
@@ -1176,13 +1188,13 @@ class DPStats:
         self.SOC_metric_dict = defaultdict(lambda: defaultdict(dict))  # dictionary containing various metrics for the SOC
         self.system_complex_metric_dict = defaultdict(lambda: defaultdict(dict))  # dictionary containing the system complex metrics
         self.database = database
-        self.pipe_cluster_path_phase_work_rate_dict = {}
+        self.pipe_cluster_pathlet_phase_work_rate_dict = {}
         for pipe_cluster in self.dp.get_hardware_graph().get_pipe_clusters():
-            self.pipe_cluster_path_phase_work_rate_dict[pipe_cluster] = pipe_cluster.get_path_phase_work_rate()
+            self.pipe_cluster_pathlet_phase_work_rate_dict[pipe_cluster] = pipe_cluster.get_pathlet_phase_work_rate()
 
-        self.pipe_cluster_path_phase_latency_dict = {}
+        self.pipe_cluster_pathlet_phase_latency_dict = {}
         for pipe_cluster in self.dp.get_hardware_graph().get_pipe_clusters():
-            self.pipe_cluster_path_phase_latency_dict[pipe_cluster] = pipe_cluster.get_path_phase_latency()
+            self.pipe_cluster_pathlet_phase_latency_dict[pipe_cluster] = pipe_cluster.get_pathlet_phase_latency()
 
         use_slack_management_estimation = config.use_slack_management_estimation
         # collect the data
@@ -1572,12 +1584,14 @@ class DPStats:
     def get_SOC_s_sim_utilization(self, SOC_type, SOC_id):
         return self.dp.block_phase_utilization_dict
 
-    def get_SOC_s_pipe_cluster_path_phase_work_rate(self, SOC_type, SOC_id):
-        return self.pipe_cluster_path_phase_work_rate_dict
+    def get_SOC_s_pipe_cluster_pathlet_phase_work_rate(self, SOC_type, SOC_id):
+        return self.pipe_cluster_pathlet_phase_work_rate_dict
+
+    def get_SOC_s_pipe_cluster_pathlet_phase_latency(self, SOC_type, SOC_id):
+        return self.pipe_cluster_pathlet_phase_latency_dict
 
     def get_SOC_s_pipe_cluster_path_phase_latency(self, SOC_type, SOC_id):
-        return self.pipe_cluster_path_phase_latency_dict
-
+        return self.pipe_cluster_pathlet_phase_latency_dict
 
     # get work associated with the phases of the execution
     def get_SOC_s_sim_work(self, SOC_type, SOC_id):

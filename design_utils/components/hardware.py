@@ -128,6 +128,11 @@ class Block:
         self.area_task_dir_list = []
         self.task_mem_map_dict  = {}  # memory map associated with different tasks for memory
 
+    def get_block_bus_width(self):
+        return self.bus_width
+
+    def get_block_freq(self):
+        return self.clock_freq
     # ---------------
     # Functionality:
     #   Return peak_work_rate. Note that work-rate definition varies based on the
@@ -861,8 +866,8 @@ class PipeCluster:
         self.ref_block = ref_block
         self.dir = dir
         self.cluster_type = "regular"
-        self.path_phase_work_rate = {}
-        self.path_phase_latency = {}
+        self.pathlet_phase_work_rate = {}
+        self.pathlet_phase_latency = {}
         if outgoing_pipe == None:
             self.outgoing_pipe = None
         else:
@@ -944,39 +949,42 @@ class PipeCluster:
         return "block:" + self.get_block_ref().instance_name + " incoming_pipes:" +str(incoming_pipes) + "  outgoing_pipes:"+str(outgoing)
 
     # for path's within the pipe cluster set the work rate
-    def set_path_phase_work_rate(self, path, phase_num, work_rate):
-        in_pipe = path.get_in_pipe()
-        out_pipe = path.get_out_pipe()
+    def set_pathlet_phase_work_rate(self, pathlet, phase_num, work_rate):
+        in_pipe = pathlet.get_in_pipe()
+        out_pipe = pathlet.get_out_pipe()
         if in_pipe not in self.incoming_pipes or out_pipe not in [self.outgoing_pipe]:
             print("pipe should already exist")
             exit(0)
         else:
-            if path not in self.path_phase_work_rate.keys():
-                self.path_phase_work_rate[path] = {}
-            if phase_num not in self.path_phase_work_rate[path].keys():
-                self.path_phase_work_rate[path][phase_num] = 0
-            self.path_phase_work_rate[path][phase_num] += work_rate
+            if pathlet not in self.pathlet_phase_work_rate.keys():
+                self.pathlet_phase_work_rate[pathlet] = {}
+            if phase_num not in self.pathlet_phase_work_rate[pathlet].keys():
+                self.pathlet_phase_work_rate[pathlet][phase_num] = 0
+            self.pathlet_phase_work_rate[pathlet][phase_num] += work_rate
 
-    def get_path_phase_work_rate(self):
-        return self.path_phase_work_rate
+    def get_pathlet_phase_work_rate(self):
+        return self.pathlet_phase_work_rate
 
-    def get_path_last_phase_work_rate(self):
-        path_last_phase_work_rate = {}
-        for path, phase_work_rate in self.get_path_phase_work_rate().items():
+    def get_pathlet_last_phase_work_rate(self):
+        pathlet_last_phase_work_rate = {}
+        for pathlet, phase_work_rate in self.get_pathlet_phase_work_rate().items():
             last_phase = sorted(phase_work_rate.keys())[-1]
-            path_last_phase_work_rate[path] = phase_work_rate[last_phase]
-        return path_last_phase_work_rate, last_phase
+            pathlet_last_phase_work_rate[pathlet] = phase_work_rate[last_phase]
+        return pathlet_last_phase_work_rate, last_phase
 
-    def set_path_latency(self, path, phase_num, latency):
-        if path not in self.path_phase_latency.keys():
-            self.path_phase_latency[path] = {}
-        if phase_num not in self.path_phase_latency[path].keys():
-            self.path_phase_latency[path][phase_num] = 0
-        self.path_phase_latency[path][phase_num] = latency
+    def set_pathlet_latency(self, pathlet, phase_num, latency_dict):
+        if pathlet not in self.pathlet_phase_latency.keys():
+            self.pathlet_phase_latency[pathlet] = {}
+        for latency_typ, trv_dir_val in latency_dict.items():
+            for trv_dir, val in trv_dir_val.items():
+                if trv_dir not in self.pathlet_phase_latency[pathlet].keys():
+                    self.pathlet_phase_latency[pathlet][trv_dir] = {}
+                    if phase_num not in self.pathlet_phase_latency[pathlet][trv_dir].keys():
+                        self.pathlet_phase_latency[pathlet][trv_dir][phase_num] = 0
+                    self.pathlet_phase_latency[pathlet][trv_dir][phase_num] += val
 
-    def get_path_phase_latency(self):
-        return self.path_phase_latency
-
+    def get_pathlet_phase_latency(self):
+        return self.pathlet_phase_latency
 
 class pathlet:
     def __init__(self, in_pipe, out_pipe, dir_):
