@@ -409,27 +409,81 @@ class HillClimbing:
         equal_imm_block_present_for_migration = self.dh.get_equal_immediate_block_present(ex_dp, hot_blck_synced,
                                                                 selected_metric, selected_dir, [task_synced])
 
+        hot_block_type = hot_blck_synced.type
+        hot_block_subtype = hot_blck_synced.subtype
+        parallelism_exist = self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp, task_synced, hot_blck_synced)
+        all_transformations = config.metric_trans_dict[selected_metric]
+
+        if parallelism_exist:
+           if selected_metric == "latency":
+               if selected_dir == -1:
+                   feasible_transformations = ["migrate", "split"]
+               else:
+                   feasible_transformations = ["migrate", "swap"]
+           if selected_metric == "power":
+               if selected_dir == -1:
+                   feasible_transformations = ["migrate", "swap", "split_swap"]
+               else:
+                   feasible_transformations = all_transformations
+           if selected_metric == "area":
+               if selected_dir == -1:
+                   if hot_block_subtype == "pe":
+                       feasible_transformations = ["migrate", "swap"]
+                   else:
+                       feasible_transformations = ["migrate", "swap", "split_swap"]
+               else:
+                   feasible_transformations = all_transformations
+
+        if not parallelism_exist:
+           if selected_metric == "latency":
+               if selected_dir == -1:
+                   feasible_transformations = ["swap", "split_swap"]
+               else:
+                   feasible_transformations = ["swap", "migrate"]
+           if selected_metric == "power":
+               if selected_dir == -1:
+                   feasible_transformations = ["migrate", "swap", "split_swap"]
+               else:
+                   feasible_transformations = ["migrate", "swap", "split_swap"]
+           if selected_metric == "area":
+               if selected_dir == -1:
+                    feasible_transformations = ["migrate", "swap",]
+               else:
+                   feasible_transformations = ["migrate", "swap", "split"]
+
         # filter transformations accordingly
         if equal_imm_block_present_for_migration == hot_blck_synced:
             # if can't find a block that is at least as good as the current block, can't migrate
-            feasible_transformations =  set(list(feasible_transformations - set(['migrate'])))
+            feasible_transformations =  set(list(set(feasible_transformations) - set(['migrate'])))
 
         if len(hot_blck_synced.get_tasks_of_block()) == 1:  # can't split an accelerator
-            feasible_transformations =  set(list(feasible_transformations - set(['split', 'swap_split'] )))
+            feasible_transformations =  set(list(set(feasible_transformations) - set(['split', 'split_swap'] )))
         if imm_block.get_generic_instance_name() == hot_blck_synced.get_generic_instance_name():
             # if can't swap improve, get rid of swap
-            feasible_transformations = set(list(feasible_transformations - set(['swap'])))
-        if hot_blck_synced.type in ["ic", "mem"]  and selected_metric == "latency" and selected_dir  == -1:
-            # if no other task to run in parallel with, don't split
-            if not (self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp, task_synced, hot_blck_synced)):
-                feasible_transformations = set(list(feasible_transformations - set(['split', 'migrate', 'swap_split'])))
+            feasible_transformations = set(list(set(feasible_transformations) - set(['swap'])))
+
+        """
+        if (self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp, task_synced, hot_blck_synced)):
+            if selected_metric == "latency" and selected_dir == -1:
+                # take advantage of parallelism when exists
+                feasible_transformations = set(list(feasible_transformations - set(['swap', 'split_swap'])))
+        if not (self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp, task_synced, hot_blck_synced)):
+            # no parallelism
+            # only customize to reduce latency
+            if selected_metric == "latency" and selected_dir == -1:
+                feasible_transformations = set(list(feasible_transformations - set(['split', 'migrate'])))
+            # no split when area is too high, as it inevitably increases the area
+            if selected_metric == "area" and selected_dir == -1:
+                feasible_transformations = set(list(feasible_transformations - set(['split'])))
+        """
+
         if hot_blck_synced.type in ["ic"]:
             # we don't cover migrate for ICs at the moment
             # TODO: add this feature later
-            feasible_transformations = set(list(feasible_transformations - set(['migrate', 'split_swap'])))
+            feasible_transformations = set(list(set(feasible_transformations) - set(['migrate', 'split_swap'])))
 
         # if no valid transformation left, issue the identity transformation (where nothing changes and a simple copying is done)
-        if len(list(feasible_transformations)) == 0:
+        if len(list(set(feasible_transformations))) == 0:
             feasible_transformations = ["identity"]
 
         return feasible_transformations
@@ -784,7 +838,8 @@ class HillClimbing:
         # prepare for the move
         # ------------------------
         if move_to_apply.get_transformation_name() == "identity":
-            move_to_apply.set_validity(False, "NoValidTransformationException")
+            pass
+            #move_to_apply.set_validity(False, "NoValidTransformationException")
         if move_to_apply.get_transformation_name() == "swap":
             self.dh.unload_read_mem(ex_dp)  # unload memories
             if not move_to_apply.get_block_ref().type == "ic":
@@ -992,9 +1047,14 @@ class HillClimbing:
     # cur_temp: current temperature for simulated annealing
     def SA_design_selection(self, sim_stat_ex_dp_dict, sim_dp_stat_list, best_ex_dp_so_far, best_sim_dp_so_far_stats, cur_temp):
 
-        def get_kernel_not_to_consider(krnels_not_to_consider, move_applied):
+        def get_kernel_not_to_consider(krnels_not_to_consider, cur_best_move_applied, random_move_applied):
+            if cur_best_move_applied == None: # only none for the first iteration
+                move_applied = random_move_applied
+            else:
+                move_applied = cur_best_move_applied
             if move_applied == None:
                 return None
+
             krnl_prob_dict_sorted = move_applied.krnel_prob_dict_sorted
             for krnl, prob in krnl_prob_dict_sorted:
                 if krnl.get_task_name() in krnels_not_to_consider:
@@ -1085,7 +1145,7 @@ class HillClimbing:
                 print("design's latency: " + str(el.get_system_complex_metric("latency")))
                 print("design's power: " + str(el.get_system_complex_metric("power")))
                 print("design's area: " + str(el.get_system_complex_metric("area")))
-
+                print("design's sub area: " + str(el.get_system_complex_area_stacked_dram()))
 
         # if any negative (desired move) value is detected or there is a design in the new batch
         #  that meet the budget, but the previous best design didn't, we have at least one improved solution
@@ -1102,7 +1162,7 @@ class HillClimbing:
             self.des_stag_ctr += 1
             if self.krnel_stagnation_ctr > config.max_krnel_stagnation_ctr:
                 self.krnel_rnk_to_consider = min(self.krnel_rnk_to_consider + 1, len(best_sim_dp_so_far_stats.get_kernels()) -1)
-                krnel_not_to_consider = get_kernel_not_to_consider(self.krnels_not_to_consider, best_sim_dp_so_far_stats.dp.move_applied)
+                krnel_not_to_consider = get_kernel_not_to_consider(self.krnels_not_to_consider, best_sim_dp_so_far_stats.dp.move_applied, sim_dp_to_look_at[-1].dp.move_applied)
                 if not krnel_not_to_consider == None:
                     self.krnels_not_to_consider.append(krnel_not_to_consider)
                 #self.krnel_stagnation_ctr = 0
@@ -1353,6 +1413,7 @@ class HillClimbing:
             print("design's latency: " + str(sim_dp.dp_stats.get_system_complex_metric("latency")))
             print("design's power: " + str(sim_dp.dp_stats.get_system_complex_metric("power")))
             print("design's area: " + str(sim_dp.dp_stats.get_system_complex_metric("area")))
+            print("design's sub area: " + str(sim_dp.dp_stats.get_system_complex_area_stacked_dram()))
 
         return (ex_dp, sim_dp)
 
@@ -1477,7 +1538,8 @@ class HillClimbing:
             print("-------:):):):):)----------")
             print("Best design's latency: " + str(self.cur_best_sim_dp.dp_stats.get_system_complex_metric("latency")))
             print("Best design's power: " + str(self.cur_best_sim_dp.dp_stats.get_system_complex_metric("power")))
-            print("Best design's area: " + str(self.cur_best_sim_dp.dp_stats.get_system_complex_metric("area")))
+            print("Best design's sub area: " + str(self.cur_best_sim_dp.dp_stats.get_system_complex_area_stacked_dram()))
+
             if  not self.cur_best_sim_dp.move_applied == None:
                 self.cur_best_sim_dp.move_applied.print_info()
 

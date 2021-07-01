@@ -1034,6 +1034,8 @@ class DesignHandler:
         #pre_moved_ex = copy.deepcopy(ex_dp)  # this is just for move sanity checking
         pre_moved_ex = cPickle.loads(cPickle.dumps(ex_dp, -1))
 
+        if move_to_apply.get_transformation_name() == "identity":
+            return ex_dp, True
         if move_to_apply.get_transformation_name() == "swap":
             if not move_to_apply.get_block_ref().type == "ic": self.unload_buses(ex_dp)  # unload buses
             else: self.unload_read_buses(ex_dp)  # unload buses
@@ -1064,9 +1066,16 @@ class DesignHandler:
             if succeeded:
                 current_blocks = ex_dp.get_blocks()
                 new_block = list(set(current_blocks) - set(previous_designs_blocks))[0]
+
+                # we need to do this, because sometimes the migrant tasks are swap and hence the new block gets the
+                # other migrant tasks
+                if len(new_block.get_tasks_of_block()) == 1:
+                    block_to_swap = new_block
+                else:
+                    block_to_swap = move_to_apply.get_block_ref()
                 if config.DEBUG_SANITY:ex_dp.sanity_check() # sanity check
-                succeeded = self.swap_block(new_block, move_to_apply.get_des_block())
-                succeeded = self.mig_tasks_of_src_to_dest(ex_dp, new_block,
+                succeeded = self.swap_block(block_to_swap, move_to_apply.get_des_block())
+                succeeded = self.mig_tasks_of_src_to_dest(ex_dp, block_to_swap,
                                                           move_to_apply.get_des_block(), move_to_apply.get_tasks())
                 self.unload_buses(ex_dp)  # unload buses
                 self.unload_read_mem(ex_dp)  # unload memories

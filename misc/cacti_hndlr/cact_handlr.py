@@ -121,9 +121,9 @@ class CactiDataContainer():
         for k,v in KVs:
             df_temp = self.find_one_kv(df_, (k,v))
             if isinstance(df_temp, bool)  and df_temp == False:  # if can't be found
-                return False, "_", "_"
+                return False, "_", "_", "_"
             elif df_temp.empty:
-                return False, "_", "_"
+                return False, "_", "_", "_"
             df_ =  df_temp
 
         if len(df_.index) > 1:  # number of rows >1 means more than one equal value

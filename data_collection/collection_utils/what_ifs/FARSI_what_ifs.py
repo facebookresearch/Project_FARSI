@@ -444,8 +444,8 @@ if __name__ == "__main__":
 
     # set the study parameters
     # set the workload
-    workloads = {"edge_detection"}
-    #workloads = {"hpvm_cava"}
+    #workloads = {"edge_detection"}
+    workloads = {"hpvm_cava"}
     #workloads = {"audio_decoder"}
     #workloads = {"SLAM"}
     #workloads ={"audio_decoder", "edge_detection", "hpvm_cava"}

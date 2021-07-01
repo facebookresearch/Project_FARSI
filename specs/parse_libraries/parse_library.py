@@ -506,6 +506,9 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
         if len(result) > max_spawn_ip_by_loop_itr:
             result = copy.deepcopy(result[:max_spawn_ip_by_loop_itr-1])
 
+        # add the maximum as well
+        if max_num_itr not in result:
+            result.append(max_num_itr)
         return result
         # return the range
 

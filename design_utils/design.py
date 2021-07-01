@@ -479,9 +479,11 @@ class DPStatsContainer():
         self.dp_rep = dp_rep #self.dp_container[0] # which design to use as representative (for plotting and so on
         self.__kernels = self.sim_dp_container.design_point_list[0].get_kernels()
         self.SOC_area_dict = defaultdict(lambda: defaultdict(dict))  # area of all blocks within each SOC
+        self.SOC_area_subtype_dict = defaultdict(lambda: defaultdict(dict))  # area of all blocks within each SOC
         self.system_complex_area_dict = defaultdict()
         self.SOC_metric_dict = defaultdict(lambda: defaultdict(dict))
         self.system_complex_metric_dict = defaultdict(lambda: defaultdict(dict))
+        self.system_complex_area_dram_non_dram = defaultdict(lambda: defaultdict(dict))
         self.database = database # hw/sw database
         self.latency_list =[]  # list of latency values associated with each design point
         self.power_list =[]   # list of power values associated with each design point
@@ -716,11 +718,20 @@ class DPStatsContainer():
             area_list.append(dp.dp_stats.get_SOC_area_base_on_type(type_, SOC_type, SOC_id))
         return self.reduce(area_list)
 
+    def calc_SOC_area_base_on_subtype(self, subtype_, SOC_type, SOC_id):
+        area_list = []
+        for dp in self.sim_dp_container.design_point_list:
+            area_list.append(dp.dp_stats.get_SOC_area_base_on_subtype(subtype_, SOC_type, SOC_id))
+        return self.reduce(area_list)
+
+
     def set_SOC_metric_value(self,metric_type, SOC_type, SOC_id):
         assert(metric_type in config.all_metrics), metric_type + " is not supported"
         if metric_type == "area":
             for block_type in ["mem", "ic", "pe"]:
                 self.SOC_area_dict[block_type][SOC_type][SOC_id] = self.calc_SOC_area_base_on_type(block_type, SOC_type, SOC_id)
+            for block_subtype in ["dram", "sram", "ic", "ip", "gpp"]:
+                self.SOC_area_subtype_dict[block_subtype][SOC_type][SOC_id] = self.calc_SOC_area_base_on_subtype(block_subtype, SOC_type, SOC_id)
         self.SOC_metric_dict[metric_type][SOC_type][SOC_id] =  self.calc_SOC_metric_value(metric_type, SOC_type, SOC_id)
 
     def set_system_complex_metric(self, metric_type):
@@ -732,6 +743,17 @@ class DPStatsContainer():
                 for type_, id_ in type_id_list:
                     self.system_complex_area_dict[block_type] = sum([self.get_SOC_area_base_on_type(block_type, type_, id_)
                                                              for type_, id_ in type_id_list])
+
+            self.system_complex_area_dram_non_dram["non_dram"] = 0
+            for block_subtype in ["sram", "ic", "gpp", "ip"]:
+                for type_, id_ in type_id_list:
+                    self.system_complex_area_dram_non_dram["non_dram"] += sum([self.get_SOC_area_base_on_subtype(block_subtype, type_, id_)
+                                                             for type_, id_ in type_id_list])
+            for block_subtype in ["dram"]:
+                for type_, id_ in type_id_list:
+                    self.system_complex_area_dram_non_dram["dram"] = sum([self.get_SOC_area_base_on_subtype(block_subtype, type_, id_)
+                                                             for type_, id_ in type_id_list])
+
         if metric_type in ["area", "energy", "cost"]:
             self.system_complex_metric_dict[metric_type] = sum([self.get_SOC_metric_value(metric_type, type_, id_)
                                                                 for type_, id_ in type_id_list])
@@ -761,10 +783,20 @@ class DPStatsContainer():
         assert(block_type in ["pe", "ic", "mem"]), "block_type" + block_type + " is not supported"
         return self.SOC_area_dict[block_type][SOC_type][SOC_id]
 
+    def get_SOC_area_base_on_subtype(self, block_subtype, SOC_type, SOC_id):
+        assert(block_subtype in ["dram", "sram", "gpp", "ip", "ic"]), "block_subtype" + block_subtype + " is not supported"
+        if block_subtype not in self.SOC_area_subtype_dict.keys():  # this element does not exist
+            return 0
+        return self.SOC_area_subtype_dict[block_subtype][SOC_type][SOC_id]
+
     # return the metric of interest for the system complex. metric_type is the metric you are interested in.
     # Note that system complex can contain multiple SOCs.
     def get_system_complex_metric(self, metric_type):
         return self.system_complex_metric_dict[metric_type]
+
+    def get_system_complex_area_stacked_dram(self):
+        return self.system_complex_area_dram_non_dram
+
 
     # get system_complex area. type_ is selected from ("pe", "mem", "ic")
     def get_system_complex_area_base_on_type(self, type_):
@@ -808,10 +840,10 @@ class DPStatsContainer():
 
     # returns a list of values
     def fits_budget_for_metric_and_workload(self, type, id, metric_name, workload, budget_coeff):
-       dist = self.normalized_distance_for_workload(type, id, metric_name, workload)
-       if not isinstance(dist, list):
-           dist = [dist]
-       return [dist_el<.001 for dist_el in dist]
+        dist = self.normalized_distance_for_workload(type, id, metric_name, workload)
+        if not isinstance(dist, list):
+            dist = [dist]
+        return [dist_el<.001 for dist_el in dist]
 
 
     # returns a list of values
@@ -821,8 +853,14 @@ class DPStatsContainer():
            dist = [dist]
        return [dist_el<.001 for dist_el in dist]
 
+    def normalized_distance_for_workload(self, type, id, metric_name, dampening_coeff=1):
+        if config.dram_stacked:
+            return self.normalized_distance_for_workload_for_stacked_dram(type, id, metric_name, dampening_coeff)
+        else:
+            return self.normalized_distance_for_workload_for_non_stacked_dram(type, id, metric_name, dampening_coeff)
+
     # normalized the metric to the budget
-    def normalized_distance_for_workload(self, type, id, metric_name, workload, dampening_coeff=1):
+    def normalized_distance_for_workload_for_non_stacked_dram(self, type, id, metric_name, workload, dampening_coeff=1):
         metric_val = self.get_SOC_metric_value(metric_name, type, id)
         if isinstance(metric_val, dict):
             value_list= []
@@ -835,8 +873,38 @@ class DPStatsContainer():
         else:
             return [(metric_val - self.database.get_ideal_metric_value(metric_name, type))/ (dampening_coeff*self.database.get_ideal_metric_value(metric_name, type))]
 
-    # normalized the metric to the budget
+    def normalized_distance_for_workload_for_stacked_dram(self, type, id, metric_name, workload, dampening_coeff=1):
+        metric_val = self.get_SOC_metric_value(metric_name, type, id)
+        if metric_name == 'latency':
+            value_list= []
+            for workload_, val in  metric_val.items():
+                if not (workload == workload_):
+                    continue
+                dict_ = self.database.get_ideal_metric_value(metric_name, type)
+                value_list.append((val - dict_[workload_])/(dampening_coeff*dict_[workload_]))
+            return value_list
+        elif metric_name == "area":
+            # get area aggregation of all the SOC minus dram and normalize it
+            subtypes_no_dram = ["gpp", "ip", "ic", "sram"]
+            area_no_dram = 0
+            for el in subtypes_no_dram:
+                area_no_dram += self.get_SOC_area_base_on_subtype(el, type, id)
+            area_no_dram_norm = (area_no_dram - self.database.get_ideal_metric_value(metric_name, type))/ (dampening_coeff*self.database.get_ideal_metric_value(metric_name, type))
+            # get dram area and normalize it
+            area_dram = self.get_SOC_area_base_on_subtype("dram", type, id)
+            area_dram_norm = [(area_dram - self.database.get_ideal_metric_value(metric_name, type))/ (dampening_coeff*self.database.get_ideal_metric_value(metric_name, type))]
+            return  [area_no_dram_norm, area_dram]
+        else:
+            return [(metric_val - self.database.get_ideal_metric_value(metric_name, type))/ (dampening_coeff*self.database.get_ideal_metric_value(metric_name, type))]
+
     def normalized_distance(self, type, id, metric_name, dampening_coeff=1):
+        if config.dram_stacked:
+           return self.normalized_distance_for_stacked_dram(type, id, metric_name, dampening_coeff)
+        else:
+            return self.normalized_distance_for_non_stacked_dram(type, id, metric_name, dampening_coeff)
+
+    # normalized the metric to the budget
+    def normalized_distance_for_non_stacked_dram(self, type, id, metric_name, dampening_coeff=1):
         metric_val = self.get_SOC_metric_value(metric_name, type, id)
         if isinstance(metric_val, dict):
             value_list= []
@@ -846,6 +914,31 @@ class DPStatsContainer():
             return value_list
         else:
             return [(metric_val - self.database.get_ideal_metric_value(metric_name, type))/ (dampening_coeff*self.database.get_ideal_metric_value(metric_name, type))]
+
+    def normalized_distance_for_stacked_dram(self, type, id, metric_name, dampening_coeff=1):
+        metric_val = self.get_SOC_metric_value(metric_name, type, id)
+        if metric_name == 'latency':
+            value_list= []
+            for workload, val in  metric_val.items():
+                dict_ = self.database.get_ideal_metric_value(metric_name, type)
+                value_list.append((val - dict_[workload])/(dampening_coeff*dict_[workload]))
+            return value_list
+        elif metric_name == "area":
+            # get area aggregation of all the SOC minus dram and normalize it
+            subtypes_no_dram = ["gpp", "ip", "ic", "sram"]
+            area_no_dram = 0
+            for el in subtypes_no_dram:
+                area_no_dram += self.get_SOC_area_base_on_subtype(el, type, id)
+            area_no_dram_norm = (area_no_dram - self.database.get_ideal_metric_value(metric_name, type))/ (dampening_coeff*self.database.get_ideal_metric_value(metric_name, type))
+            # get dram area and normalize it
+            area_dram = self.get_SOC_area_base_on_subtype("dram", type, id)
+            area_dram_norm = [(area_dram - self.database.get_ideal_metric_value(metric_name, type))/ (dampening_coeff*self.database.get_ideal_metric_value(metric_name, type))]
+            return  [area_no_dram_norm, area_dram]
+        else:
+            return [(metric_val - self.database.get_ideal_metric_value(metric_name, type))/ (dampening_coeff*self.database.get_ideal_metric_value(metric_name, type))]
+
+
+
 
     # normalized to the budget
     def dist_to_goal_per_metric(self, metric_name, mode):
@@ -1001,18 +1094,19 @@ class SimDesignPoint(ExDesignPoint):
         self.cacti_hndlr.set_cur_mem_type(mem_subtype)
         self.cacti_hndlr.set_cur_mem_size(mem_bytes)
         self.cacti_hndlr.set_cur_cell_type(cell_type)
+
         # run cacti
         cacti_area_energy_results = self.cacti_hndlr.collect_cati_data()
-        energy_per_byte = float(cacti_area_energy_results['Dynamic read energy (nJ)']) * (10 ** -9) / 16
-        energy_per_byte += float(cacti_area_energy_results['Dynamic write energy (nJ)']) * (10 ** -9) / 16
+        read_energy_per_byte = float(cacti_area_energy_results['Dynamic read energy (nJ)']) * (10 ** -9) / 16
+        write_energy_per_byte = float(cacti_area_energy_results['Dynamic write energy (nJ)']) * (10 ** -9) / 16
         area = float(cacti_area_energy_results['Area (mm2)']) * (10 ** -6)
 
         # log values
         self.cacti_hndlr.cacti_data_container.insert(list(zip(config.cacti_input_col_order +
                                                               config.cacti_output_col_order,
-                                                              [mem_subtype, mem_bytes, energy_per_byte, area])))
+                                                              [mem_subtype, mem_bytes, read_energy_per_byte, write_energy_per_byte, area])))
 
-        return energy_per_byte, area
+        return read_energy_per_byte, write_energy_per_byte, area
 
     # either run or look into the cached data (from CACTI) to get energy/area data
     def collect_cacti_data(self, blk, database):
@@ -1026,34 +1120,34 @@ class SimDesignPoint(ExDesignPoint):
                 tech_node = misc_knobs["tech_node_SF"]
 
         if blk.type == "ic" :
-            return 0,0,1
+            return 0,0,0,1
         elif blk.type == "mem":
             mem_bytes = max(blk.get_area_in_bytes(), config.cacti_min_memory_size_in_bytes) # to make sure we don't go smaller than cacti's minimum size
             mem_subtype = self.FARSI_to_cacti_mem_type_converter(blk.subtype)
             #mem_subtype = "ram" #choose from ["main memory", "ram"]
-            found_results, energy_per_byte, area = \
+            found_results, read_energy_per_byte, write_energy_per_byte, area = \
                 self.cacti_hndlr.cacti_data_container.find(list(zip(config.cacti_input_col_order,[mem_subtype, mem_bytes])))
             if not found_results:
-                energy_per_byte, area = self.run_and_collect_cacti_data(blk, database)
-                energy_per_byte *= tech_node["energy"]
+                read_energy_per_byte, write_energy_per_byte, area = self.run_and_collect_cacti_data(blk, database)
+                read_energy_per_byte *= tech_node["energy"]
+                write_energy_per_byte *= tech_node["energy"]
                 area *= tech_node["area"]
             area_per_byte = area/mem_bytes
-            return energy_per_byte, area, area_per_byte
+            return read_energy_per_byte, write_energy_per_byte, area, area_per_byte
+
     # For each kernel, update the energy and power using cacti
     def cacti_update_energy_area_of_kernel(self, krnl, database):
-        # for sanity check. delete later
-        #stats_cpy = copy.deepcopy(krnl.stats.block_phase_energy_dict)
-        #stats_cpy = cPickle.loads(cPickle.dumps(krnl.stats.block_phase_energy_dict, -1))
-        #ratio_phase = {}
-
+        # iterate through block/phases, collect data and insert them up
         for blk, phase_metric in krnl.block_phase_energy_dict.items():
             # only for memory and ic
             if blk.type not in ["mem", "ic"]:
                 continue
-            energy_per_byte, area, area_per_byte = self.collect_cacti_data(blk, database)
+            read_energy_per_byte, write_energy_per_byte, area, area_per_byte = self.collect_cacti_data(blk, database)
             for phase, metric in phase_metric.items():
-                krnl.block_phase_energy_dict[blk][phase] = krnl.block_phase_work_dict[blk][
-                                                               phase] * energy_per_byte
+                krnl.block_phase_energy_dict[blk][phase] = krnl.block_phase_read_dict[blk][
+                                                               phase] * read_energy_per_byte
+                krnl.block_phase_energy_dict[blk][phase] += krnl.block_phase_write_dict[blk][
+                                                               phase] * write_energy_per_byte
                 krnl.block_phase_area_dict[blk][phase] = area
 
         # apply aggregates, which is iterate through every phase, scratch their values, and aggregates all the block energies
@@ -1066,10 +1160,10 @@ class SimDesignPoint(ExDesignPoint):
 
     # For each block, get energy area
     # at the moment, only setting up area. TODO: check whether energy matters
-    def cacti_update_energy_area_of_block(self, block, database):
+    def cacti_update_area_of_block(self, block, database):
         if block.type not in ["mem", "ic"]:
             return
-        energy_per_byte, area, area_per_byte = self.collect_cacti_data(block, database)
+        read_energy_per_byte, write_energy_per_byte, area, area_per_byte = self.collect_cacti_data(block, database)
         block.set_area_directly(area)
         #block.update_area_energy_power_rate(energy_per_byte, area_per_byte)
 
@@ -1101,7 +1195,7 @@ class SimDesignPoint(ExDesignPoint):
 
         # (2) fix the block's area
         for block in self.get_blocks():
-            self.cacti_update_energy_area_of_block(block, database)
+            self.cacti_update_area_of_block(block, database)
 
         # (3) update/fix the entire design accordingly
         self.cacti_update_energy_area_of_design()
@@ -1176,6 +1270,7 @@ class DPStats:
         self.dp = sim_dp  # simulated design point object
         self.__kernels = self.dp.get_kernels()  # design kernels
         self.SOC_area_dict = defaultdict(lambda: defaultdict(dict))  # area of pes
+        self.SOC_area_subtype_dict = defaultdict(lambda: defaultdict(dict))  # area of pes
         self.system_complex_area_dict = defaultdict()  # system complex area values (for memory, PEs, buses)
         self.power_duration_list = defaultdict(lambda: defaultdict(dict))  # power and duration of the power list
         self.SOC_metric_dict = defaultdict(lambda: defaultdict(dict))  # dictionary containing various metrics for the SOC
@@ -1359,6 +1454,16 @@ class DPStats:
                          and block.SOC_id == SOC_id and block.type == type_])
         return total_area
 
+
+    # get total area of an soc (type is not supported yet)
+    def calc_SOC_area_base_on_subtype(self, subtype_, SOC_type, SOC_id):
+        blocks = self.dp.get_workload_to_hardware_map().get_blocks()
+        total_area = 0
+        for block in blocks:
+            if block.SOC_type == SOC_type and block.SOC_id == SOC_id and block.subtype == subtype_:
+                total_area += block.get_area()
+        return total_area
+
     # get total area of an soc
     # Variables:
     #       SOC_type:the type of SOC you need information for
@@ -1467,6 +1572,9 @@ class DPStats:
             self.SOC_metric_dict[metric_type][SOC_type][SOC_id] = self.calc_SOC_area(SOC_type, SOC_id)
             for block_type in ["pe", "mem", "ic"]:
                 self.SOC_area_dict[block_type][SOC_type][SOC_id] = self.calc_SOC_area_base_on_type(block_type, SOC_type, SOC_id)
+            for block_subtype in ["sram", "dram", "ic", "gpp", "ip"]:
+                self.SOC_area_subtype_dict[block_subtype][SOC_type][SOC_id] = self.calc_SOC_area_base_on_subtype(block_subtype, SOC_type, SOC_id)
+
         elif metric_type == "cost":
             #self.SOC_metric_dict[metric_type][SOC_type][SOC_id] = self.calc_SOC_area(SOC_type, SOC_id)
             self.SOC_metric_dict[metric_type][SOC_type][SOC_id] = self.calc_SOC_dev_cost(SOC_type, SOC_id)
@@ -1534,6 +1642,11 @@ class DPStats:
     def get_SOC_area_base_on_type(self, block_type, SOC_type, SOC_id):
         assert(block_type in ["pe", "ic", "mem"]), "block_type" + block_type + " is not supported"
         return self.SOC_area_dict[block_type][SOC_type][SOC_id]
+
+    def get_SOC_area_base_on_subtype(self, block_subtype, SOC_type, SOC_id):
+        assert(block_subtype in ["dram", "sram", "ic", "gpp", "ip"]), "block_subtype" + block_subtype + " is not supported"
+        return self.SOC_area_subtype_dict[block_subtype][SOC_type][SOC_id]
+
 
     # get the simulation progress
     def get_SOC_s_latency_sim_progress(self, SOC_type, SOC_id, progress_metrics):

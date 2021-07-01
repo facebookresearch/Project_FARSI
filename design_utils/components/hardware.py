@@ -433,6 +433,11 @@ class Block:
         self.__instance_name = name
 
     @property
+    def instance_name_without_id(self):
+        return self.__instance_name
+
+
+    @property
     def instance_name(self):
         return self.__instance_name + "_"+ str(self.id)
 

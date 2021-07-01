@@ -422,6 +422,8 @@ class Kernel:
                                                       # the kernel on this block
         self.phase_num = -1  # since the very first time, doesn't count
         self.block_phase_work_dict = defaultdict(dict)  # how much work per block and phase is done
+        self.block_phase_read_dict = defaultdict(dict)  # how much work per block and phase is done
+        self.block_phase_write_dict = defaultdict(dict)  # how much work per block and phase is done
         self.block_phase_energy_dict = defaultdict(dict)  # how much energy phase block and phase is consumed
         # how much leakage energy phase block and phase is consumed (PE and mem)
         self.block_phase_leakage_energy_dict = defaultdict(dict)
@@ -454,6 +456,8 @@ class Kernel:
         self.phase_num = -1 # since the very first time, doesn't count
         self.block_normalized_work_rate = {}  # blocks and their work_rate (not normalized) including sharing
         self.block_phase_work_dict = defaultdict(dict)  # how much work per block and phase is done
+        self.block_phase_read_dict = defaultdict(dict)  # how much work per block and phase is done
+        self.block_phase_write_dict = defaultdict(dict)  # how much work per block and phase is done
         self.block_phase_energy_dict = defaultdict(dict)  # how much energy phase block and phase is consumed
         self.block_phase_leakage_energy_dict = defaultdict(dict)
         self.block_phase_area_dict = defaultdict(dict)  # how much area phase block and phase is consumed
@@ -1026,11 +1030,30 @@ class Kernel:
         # iterate through each blocks attainable work rate and calculate
         # how much work it can do for the kernel of interest
         for block, pipe_clusters_work_rate in self.block_att_work_rate_dict.items():
+            read_work = write_work = 0
             for pipe_cluster, work_rate in pipe_clusters_work_rate.items():
+                # update work
                 if self.phase_num in self.block_phase_work_dict[block].keys():
                     self.block_phase_work_dict[block][self.phase_num] += work_rate* time_step_size
                 else:
                     self.block_phase_work_dict[block][self.phase_num] = work_rate* time_step_size
+
+                if pipe_cluster.dir == "read":
+                     read_work += work_rate * time_step_size
+                if pipe_cluster.dir == "write":
+                     write_work += work_rate * time_step_size
+
+            # update read specifically
+            if self.phase_num in self.block_phase_read_dict[block].keys():
+                self.block_phase_read_dict[block][self.phase_num] += read_work
+            else:
+                self.block_phase_read_dict[block][self.phase_num] = read_work
+
+            if self.phase_num in self.block_phase_write_dict[block].keys():
+                self.block_phase_write_dict[block][self.phase_num] += write_work
+            else:
+                self.block_phase_write_dict[block][self.phase_num] = write_work
+
 
     # Calculates the leakage power of the phase for PE and IC
     # memory leakage power should be accumulated for the whole execution time

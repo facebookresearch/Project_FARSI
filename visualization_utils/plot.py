@@ -477,7 +477,7 @@ def barplot_moves(move_profile):
 
     # transformations
     fig, ax = plt.subplots(figsize=(9.4, 4.8))
-    transformation_decoding = ["split", "migrate", "swap", "split_swap", "cleanup"]
+    transformation_decoding = ["split", "migrate", "swap", "split_swap", "cleanup", "identity"]
     y = []
 
     for move_ in move_to_plot:
