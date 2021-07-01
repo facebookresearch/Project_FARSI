@@ -62,7 +62,7 @@ sel_next_dp = "all_metrics"  # how to select the next desigh, ["all_metrics", "o
 
 # selection algorithm (picking the best neighbour)
 neigh_sel_algorithm = "annealing"
-SA_breadth = 3 # breath of the neighbour search
+SA_breadth = 1 # breath of the neighbour search
 SA_depth = 10 # depth of the neighbour search
 annealing_max_temp = 500
 annealing_temp_dec = 50
@@ -267,8 +267,11 @@ cacti_param_addr = "/Users/behzadboro/Downloads/cacti/farsi_gen.cfg"
 cacti_log_results = False # if true, we log cacti results as we collect them. this allows us to avoid rerunning
 cacti_data_log_file = "/Users/behzadboro/Downloads/cacti/data_log.csv"
 cacti_input_col_order = ["mem_subtype", "mem_size"]
-cacti_output_col_order = ["energy_per_byte", "area"]
+cacti_output_col_order = ["read_energy_per_byte", "write_energy_per_byte", "area"]
 config.cacti_min_memory_size_in_bytes =  2048 # bellow this value cacti errors out. We can play with burst size and page size to fix this though
 
 #ACC_coeff = 128  # comparing to what we have parsed, how much to modify. This is just for some exploration purposes
 	       # It should almost always set to 1
+
+
+dram_stacked = True
