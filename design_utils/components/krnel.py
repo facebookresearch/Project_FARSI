@@ -1062,9 +1062,6 @@ class Kernel:
                     block.get_work_over_energy(self.get_power_knob_id())
                     exit(0)
 
-                #if block.type == "ic":
-                #    print("&&&&&&&&&&&&&&&&&&&& (((((((( YOU MUST UNCOMMENT THIS")
-                #    this_phase_energy = 0
                 self.block_phase_energy_dict[block][self.phase_num] = this_phase_energy
 
                 pass
@@ -1094,6 +1091,8 @@ class Kernel:
                     for tsk in tasks_name:
                         memory_total_work = config.souurce_memory_work[tsk]
                         mem.update_area(coef*memory_total_work/mem.get_work_over_area(self.get_power_knob_id()), self.get_task_name())
+                        mem.update_area_in_bytes(coef*memory_total_work, self.get_task_name())
+            # mem.update_area(coef*memory_total_work/mem.get_work_over_area(self.get_power_knob_id()), self.get_task_name())
             else: memory_total_work = 0
         elif "siink" in self.get_task_name():
             memory_total_work = 0
@@ -1104,6 +1103,7 @@ class Kernel:
                 mem_work_ratio = self.__task_to_blocks_map.get_workRatio_by_block_name_and_dir_eliminating_fake(mem.instance_name, dir_)
                 memory_total_work = pe_s_total_work * mem_work_ratio
                 # changed to get by Hadi
+                mem.update_area_in_bytes(coef*memory_total_work, self.get_task_name())
                 mem.update_area(coef*memory_total_work/mem.get_work_over_area(self.get_power_knob_id()), self.get_task_name())
 
                 mem_work_ratio = self.__task_to_blocks_map.get_workRatio_by_block_name_and_dir(mem.instance_name, dir_)

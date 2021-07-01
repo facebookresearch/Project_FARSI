@@ -124,6 +124,7 @@ class Block:
         self.PA_prop_auto_tuning_list = []   # list of variables to be auto tuned
 
         self.area_list = [0]  # list of areas for different task calls
+        self.area_in_bytes_list = [0]  # list of areas for different task calls
         # only for memory
         self.area_task_dir_list = []
         self.task_mem_map_dict  = {}  # memory map associated with different tasks for memory
@@ -361,15 +362,17 @@ class Block:
             print("area in byte for non-memory blocks are not defined")
             return 0
         else:
-            area = self.get_area()
-            return math.ceil(area*self.work_over_area)
+            #area = self.get_area()
+            #return math.ceil(area*self.work_over_area)
+            max_work = max(self.area_in_bytes_list)
+            return math.ceil(max_work)
             #return area*self.db_input.misc_data["ref_mem_work_over_area"]
 
     # return the number of banks
     def get_num_of_banks(self):
         if self.type == "mem":
             #max_work = max(self.area_list)*self.db_input.misc_data["ref_mem_work_over_area"]
-            max_work = max(self.area_list)*self.work_over_area
+            max_work = max(self.area_in_bytes_list)
             num_of_banks = math.ceil(max_work/self.db_input.misc_data["memory_block_size"])
             return num_of_banks
         else:
@@ -392,16 +395,26 @@ class Block:
         self.area_list = [area]
         self.area = area
 
+    # used with cacti
+    def update_area_energy_power_rate(self, energy_per_byte, area_per_byte):
+        if self.type not in ["mem", "ic"]:
+            print("should not be updateing the block values")
+            exit(0)
+        self.work_over_area = 1/area_per_byte
+        self.work_over_energy = 1/max(energy_per_byte,.0000000001)
+        self.one_over_power = self.work_over_energy/self.peak_work_rate
+        self.one_over_area = self.work_over_area
+
     # ---------------------------
     # Functionality:
     #       get the area associated with a block.
     # --------------------------
     def get_area(self):
         if self.type == "mem":
-            #max_work = max(self.area_list)*self.db_input.misc_data["ref_mem_work_over_area"]
-            max_work = max(self.area_list)*self.work_over_area
-            max_work_rounded = math.ceil(max_work/self.db_input.misc_data["memory_block_size"])*self.db_input.misc_data["memory_block_size"]
-            self.area = max_work_rounded/self.work_over_area
+            if not config.use_cacti:   # if using cacti, the area is already calculated (note that at the moment, area list doesn't matter for cacti)
+                max_work = max(self.area_in_bytes_list)
+                max_work_rounded = math.ceil(max_work/self.db_input.misc_data["memory_block_size"])*self.db_input.misc_data["memory_block_size"]
+                self.area = max_work_rounded/self.work_over_area
         else:
            self.area =  max(self.area_list)
         return self.area
@@ -463,14 +476,29 @@ class Block:
             else: dir = 'write'
             if (self.area_list[-1]+area) < -1*self.db_input.misc_data["area_error_margin"]:
                 raise Exception("memory size can not go bellow the error margin")
-            if dir == "write":
-                self.task_mem_map_dict[task_requesting] = (hex(int(self.area_list[-1])), hex(int(self.area_list[-1]+area)))
+            #if dir == "write":
+            #    self.task_mem_map_dict[task_requesting] = (hex(int(self.area_list[-1])), hex(int(self.area_list[-1]+area)))
             self.area_list.append(self.area_list[-1]+area)
             self.area_task_dir_list.append((task_requesting, dir))
         else:
             if self.only_dummy_tasks():
                 area = 0
             self.area_list.append(area)
+
+
+    def update_area_in_bytes(self, area_in_byte, task_requesting):  # note that bytes can be negative (if reading from the block) or positive
+        if self.type == "mem":
+            if area_in_byte < 0: dir = 'read'
+            else: dir = 'write'
+            if (self.area_in_bytes_list[-1]+area_in_byte) < -1*self.db_input.misc_data["area_error_margin"]:
+                raise Exception("memory size can not go bellow the error margin")
+            #if dir == "write":
+            #    self.task_mem_map_dict[task_requesting] = (hex(int(self.area_in_bytes_list[-1])), hex(int(self.area_in_bytes_list[-1]+area_in_byte)))
+            self.area_in_bytes_list.append(self.area_in_bytes_list[-1]+area_in_byte)
+        else:
+            if self.only_dummy_tasks():
+                area = 0
+            self.area_in_bytes_list.append(area_in_byte)
 
 
     def __deepcopy__(self, memo):
@@ -482,6 +510,7 @@ class Block:
             setattr(result, k, copy.deepcopy(v, memo))
         #Block.id_counter += 1
         result.area_list = [0]
+        result.area_in_bytes_list = [0]
         result.area_task_dir_list = []
         result.task_mem_map_dict = {}
         return result
@@ -592,6 +621,15 @@ class Block:
         # the duplicates happens cause  we can have one task that writes and reads into that block
         results = list(set(tasks_with_possible_duplicates))
         return results
+
+    def get_tasks_of_block_by_dir(self, dir_):
+        tasks_with_possible_duplicates = [task_dir[0] for task_dir in self.__tasks_dir_work_ratio.keys() if task_dir[1] == dir_]
+        #if len(tasks_with_possible_duplicates) == 0:
+        #    print("what")
+        # the duplicates happens cause  we can have one task that writes and reads into that block
+        results = list(set(tasks_with_possible_duplicates))
+        return results
+
 
     # ---------------------------
     # Functionality:

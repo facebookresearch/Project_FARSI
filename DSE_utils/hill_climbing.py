@@ -397,13 +397,15 @@ class HillClimbing:
     def is_cleanup_iter(self):
         return (self.cleanup_ctr % (config.cleaning_threshold)) > (config.cleaning_threshold- config.cleaning_consecutive_iterations)
 
-    def get_feasible_transformations(self, ex_dp, sim_dp, hot_blck_synced, selected_metric, selected_krnl, selected_dir):
-        imm_block = self.dh.get_immediate_block(hot_blck_synced, selected_metric, selected_dir,  hot_blck_synced.get_tasks_of_block())
+    def get_feasible_transformations(self, ex_dp, sim_dp, hot_blck_synced, selected_metric, selected_krnl, sorted_metric_dir):
+        imm_block = self.dh.get_immediate_block_multi_metric(hot_blck_synced, selected_metric, sorted_metric_dir,  hot_blck_synced.get_tasks_of_block())
         task_synced = [task__ for task__ in hot_blck_synced.get_tasks_of_block() if task__.name == selected_krnl.get_task_name()][0]
         feasible_transformations = set(config.metric_trans_dict[selected_metric])
 
         # find the block that is at least as good as the block (for migration)
         # if can't find any, we return the same block
+        selected_metric = list(sorted_metric_dir.keys())[-1]
+        selected_dir = sorted_metric_dir[selected_metric]
         equal_imm_block_present_for_migration = self.dh.get_equal_immediate_block_present(ex_dp, hot_blck_synced,
                                                                 selected_metric, selected_dir, [task_synced])
 
@@ -411,23 +413,20 @@ class HillClimbing:
         if equal_imm_block_present_for_migration == hot_blck_synced:
             # if can't find a block that is at least as good as the current block, can't migrate
             feasible_transformations =  set(list(feasible_transformations - set(['migrate'])))
-        #else:
-        #   print("now find now ok")
+
         if len(hot_blck_synced.get_tasks_of_block()) == 1:  # can't split an accelerator
-            feasible_transformations =  set(list(feasible_transformations - set(['split'])))
+            feasible_transformations =  set(list(feasible_transformations - set(['split', 'swap_split'] )))
         if imm_block.get_generic_instance_name() == hot_blck_synced.get_generic_instance_name():
             # if can't swap improve, get rid of swap
             feasible_transformations = set(list(feasible_transformations - set(['swap'])))
         if hot_blck_synced.type in ["ic", "mem"]  and selected_metric == "latency" and selected_dir  == -1:
             # if no other task to run in parallel with, don't split
             if not (self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp, task_synced, hot_blck_synced)):
-                feasible_transformations = set(list(feasible_transformations - set(['split', 'migrate'])))
-            # delete the following line right after debugging
-            #feasible_transformations = set(list(feasible_transformations - set(['split', 'migrate'])))
+                feasible_transformations = set(list(feasible_transformations - set(['split', 'migrate', 'swap_split'])))
         if hot_blck_synced.type in ["ic"]:
             # we don't cover migrate for ICs at the moment
             # TODO: add this feature later
-            feasible_transformations = set(list(feasible_transformations - set(['migrate'])))
+            feasible_transformations = set(list(feasible_transformations - set(['migrate', 'split_swap'])))
 
         # if no valid transformation left, issue the identity transformation (where nothing changes and a simple copying is done)
         if len(list(feasible_transformations)) == 0:
@@ -443,12 +442,16 @@ class HillClimbing:
     #      selected_metric: metric to focus on
     #      selected_krnl: the kernel to focus on
     # ------------------------------
-    def select_transformation(self, ex_dp, sim_dp, hot_blck_synced, selected_metric, selected_krnl, selected_dir):
+    def select_transformation(self, ex_dp, sim_dp, hot_blck_synced, selected_metric, selected_krnl, sorted_metric_dir):
         feasible_transformations = self.get_feasible_transformations(ex_dp, sim_dp, hot_blck_synced, selected_metric,
-                                                                    selected_krnl, selected_dir)
+                                                                    selected_krnl, sorted_metric_dir)
         print(list(feasible_transformations))
         random.seed(datetime.now().microsecond)
         transformation = random.choice(list(feasible_transformations))
+        #if len(hot_blck_synced.get_tasks_of_block_by_dir("write")) > 1:
+        #    transformation = "split_swap"
+        #else:
+        #    transformation = "swap"
         if transformation == "migrate":
             batch_mode = "single"
         elif transformation == "split":
@@ -457,6 +460,8 @@ class HillClimbing:
                 batch_mode = "batch"
             else:
                 batch_mode = "single"
+        elif transformation == "split_swap":
+            batch_mode = "single"
         else:
             batch_mode = "irrelevant"
         return transformation, batch_mode
@@ -475,9 +480,9 @@ class HillClimbing:
                 return block.type
 
         # Figure out whether there is a mapping that improves kernels performance
-        def no_swap_improvement_possible(sim_dp, selected_metric, dir, krnl):
+        def no_swap_improvement_possible(sim_dp, selected_metric, metric_dir, krnl):
             hot_block = sim_dp.get_dp_stats().get_hot_block_of_krnel(krnl.get_task_name(), selected_metric)
-            imm_block = self.dh.get_immediate_block(hot_block, selected_metric, dir, [krnl.get_task()])
+            imm_block = self.dh.get_immediate_block_multi_metric(hot_block, metric_dir, [krnl.get_task()])
             blah  = hot_block.get_generic_instance_name()
             blah2  = imm_block.get_generic_instance_name()
             return hot_block.get_generic_instance_name() == imm_block.get_generic_instance_name()
@@ -492,7 +497,7 @@ class HillClimbing:
             current_cost = self.database.db_input.porting_effort[hot_block_subtype]
             #if hot_block_subtype == "ip":
             #    print("what")
-            imm_block = self.dh.get_immediate_block(hot_block,selected_metric, dir,[krnel.get_task()])
+            imm_block = self.dh.get_immediate_block_multi_metric(hot_block,selected_metric, metric_dir,[krnel.get_task()])
             imm_block_subtype = get_subtype_for_cost(imm_block)
             imm_block_cost =  self.database.db_input.porting_effort[imm_block_subtype]
             improvement_cost = (imm_block_cost - current_cost)
@@ -518,7 +523,7 @@ class HillClimbing:
         return kernel_improvement_cost_inverse
 
     # calculate the cost impact of a kernel improvement
-    def get_swap_cost(self, sim_dp, krnl, selected_metric, dir):
+    def get_swap_cost(self, sim_dp, krnl, selected_metric, sorted_metric_dir):
         def get_subtype_for_cost(block):
             if block.type == "pe" and block.subtype == "ip":
                 return "ip"
@@ -533,7 +538,7 @@ class HillClimbing:
         hot_block = sim_dp.get_dp_stats().get_hot_block_of_krnel(krnl.get_task_name(), selected_metric)
         hot_block_subtype = get_subtype_for_cost(hot_block)
         current_cost = self.database.db_input.porting_effort[hot_block_subtype]
-        imm_block = self.dh.get_immediate_block(hot_block,selected_metric, dir,[krnl.get_task()])
+        imm_block = self.dh.get_immediate_block_multi_metric(hot_block,selected_metric, sorted_metric_dir,[krnl.get_task()])
         imm_block_subtype = get_subtype_for_cost(imm_block)
         imm_block_cost =  self.database.db_input.porting_effort[imm_block_subtype]
         improvement_cost = (imm_block_cost - current_cost)
@@ -555,30 +560,34 @@ class HillClimbing:
             exit(0)
 
     # how much does it cost to improve the kernel for different transformations
-    def get_krnl_improvement_cost(self, ex_dp, sim_dp, krnls, selected_metric, move_dir):
+    def get_krnl_improvement_cost(self, ex_dp, sim_dp, krnls, selected_metric, move_sorted_metric_dir):
         # whether you can apply the transformation for the krnel's block
-        def get_transformation_cost(sim_dp, selected_metric, dir, krnl, transformation):
+        def get_transformation_cost(sim_dp, selected_metric, move_sorted_metric_dir, krnl, transformation):
             if transformation == "swap":
-                cost = self.get_swap_cost(sim_dp, krnl, selected_metric, move_dir)
+                cost = self.get_swap_cost(sim_dp, krnl, selected_metric, move_sorted_metric_dir)
             elif transformation in ["split", "migrate"]:
                 cost = self.get_migration_split_cost(transformation)
+            elif transformation in ["split_swap"]:
+                cost = self.get_migration_split_cost("split")
+                cost += self.get_swap_cost(sim_dp, krnl, selected_metric, move_sorted_metric_dir)
             if cost == 0:
                 cost = self.min_cost_to_consider
             return cost
 
         krnl_improvement_cost = {}
+
         # iterate through the kernels, find their feasible transformations and
         # find cost
         for krnl in krnls:
             hot_block = sim_dp.get_dp_stats().get_hot_block_of_krnel(krnl.get_task_name(), selected_metric)
-            imm_block = self.dh.get_immediate_block(hot_block, selected_metric, move_dir, [krnl.get_task()])
+            imm_block = self.dh.get_immediate_block_multi_metric(hot_block, selected_metric, move_sorted_metric_dir, [krnl.get_task()])
             hot_blck_synced = self.dh.find_cores_hot_kernel_blck_bottlneck(ex_dp, hot_block)
             feasible_trans = self.get_feasible_transformations(ex_dp, sim_dp, hot_blck_synced, selected_metric,
-                                              krnl,move_dir)
+                                              krnl,move_sorted_metric_dir)
             for trans in feasible_trans:
                 if trans == "identity":
                     continue
-                cost = get_transformation_cost(sim_dp, selected_metric, move_dir, krnl, trans)
+                cost = get_transformation_cost(sim_dp, selected_metric, move_sorted_metric_dir, krnl, trans)
                 krnl_improvement_cost[(krnl, trans)] = cost
         return krnl_improvement_cost
 
@@ -598,12 +607,20 @@ class HillClimbing:
             selected_metric = list(metric_prob_dict_sorted.keys())[len(metric_prob_dict_sorted.keys()) -1]
         else:
             selected_metric = self.pick_from_prob_dict(metric_prob_dict_sorted)
-        return selected_metric, metric_prob_dict
+
+        sorted_low_to_high_metric_dir = {}
+        for metric, prob in metric_prob_dict_sorted.items():
+            move_dir = 1  # try to increase the metric value
+            if not sim_dp.dp_stats.fits_budget_for_metric_for_SOC(metric, 1):
+                move_dir = -1  # try to reduce the metric value
+            sorted_low_to_high_metric_dir[metric] = move_dir
+
+        return selected_metric, metric_prob_dict_sorted, sorted_low_to_high_metric_dir
 
     # select direction for the move
-    def select_dir(self, sim_dp):
+    def select_dir(self, sim_dp, metric):
         move_dir = 1  # try to increase the metric value
-        if not sim_dp.dp_stats.fits_budget(1):
+        if not sim_dp.dp_stats.fits_budget_for_metric_for_SOC(metric, 1):
             move_dir = -1  # try to reduce the metric value
         return move_dir
 
@@ -648,9 +665,9 @@ class HillClimbing:
         return krnl_prob_dict
 
     # get each_kernels_improvement_ease (ease = 1/cost)
-    def get_kernels_s_improvement_ease(self, ex_dp, sim_dp, selected_metric, move_dir):
+    def get_kernels_s_improvement_ease(self, ex_dp, sim_dp, selected_metric, move_sorted_metric_dir):
         krnls = sim_dp.get_dp_stats().get_kernels()
-        krnl_trans_improvement_cost = self.get_krnl_improvement_cost(ex_dp, sim_dp, krnls, selected_metric, move_dir)
+        krnl_trans_improvement_cost = self.get_krnl_improvement_cost(ex_dp, sim_dp, krnls, selected_metric, move_sorted_metric_dir)
         # normalize
         # normalized and reverse (we need to reverse, so higher cost is worse, i.e., smaller)
         krnl_trans_improvement_ease = {}
@@ -674,11 +691,11 @@ class HillClimbing:
         return krnl_improvement_ease
 
     # select the kernel for the move
-    def select_kernel(self, ex_dp, sim_dp, selected_metric, move_dir):
+    def select_kernel(self, ex_dp, sim_dp, selected_metric, move_sorted_metric_dir):
         # get each kernel's contributions
         krnl_contribution_dict = self.get_kernels_s_contribution(selected_metric, sim_dp)
         # get each kernel's improvement cost
-        krnl_improvement_ease = self.get_kernels_s_improvement_ease(ex_dp, sim_dp, selected_metric, move_dir)
+        krnl_improvement_ease = self.get_kernels_s_improvement_ease(ex_dp, sim_dp, selected_metric, move_sorted_metric_dir)
 
         # combine the selections methods
         # multiply the probabilities for a more complex metric
@@ -689,14 +706,6 @@ class HillClimbing:
         # sort
         #krnl_prob_dict_sorted = {k: v for k, v in sorted(krnl_prob_dict.items(), key=lambda item: item[1])}
         krnl_prob_dict_sorted = sorted(krnl_prob_dict.items(), key=lambda item: item[1], reverse=True)
-
-
-        # quick sanity check
-        """ 
-        if not(config.move_krnel_ranking_mode == "exact") and sum(krnl_prob_dict_sorted.values()) < .99:
-            x = sum(krnl_prob_dict_sorted.values())
-            print("This should not happen")
-        """
 
         # get the worse kernel
         if config.move_krnel_ranking_mode == "exact":  # for area to allow us pick scenarios that are not necessarily the worst
@@ -745,13 +754,11 @@ class HillClimbing:
         else: time.sleep(.00001), random.seed(datetime.now().microsecond)
 
         # select move components
-        selected_metric, metric_prob_dict = self.select_metric(sim_dp)
-        if selected_metric == "power":
-            print("what make sure now to del")
-        move_dir = self.select_dir(sim_dp)
-        selected_krnl, krnl_prob_dict, krnl_prob_dict_sorted = self.select_kernel(ex_dp, sim_dp, selected_metric, move_dir)
+        selected_metric, metric_prob_dir_dict, sorted_metric_dir = self.select_metric(sim_dp)
+        move_dir = self.select_dir(sim_dp, selected_metric)
+        selected_krnl, krnl_prob_dict, krnl_prob_dir_dict_sorted = self.select_kernel(ex_dp, sim_dp, selected_metric, sorted_metric_dir)
         selected_block, block_prob_dict = self.select_block(sim_dp, ex_dp, selected_krnl, selected_metric)
-        transformation_name,transformation_batch_mode = self.select_transformation(ex_dp, sim_dp, selected_block, selected_metric, selected_krnl, move_dir)
+        transformation_name,transformation_batch_mode = self.select_transformation(ex_dp, sim_dp, selected_block, selected_metric, selected_krnl, sorted_metric_dir)
 
         # prepare for move
         # if bus, (forgot which exception), if IP, avoid split .
@@ -764,10 +771,11 @@ class HillClimbing:
             #config.VIS_GR_PER_GEN = False
 
         # log the data for future profiling/data collection/debugging
-        move_to_apply = move(transformation_name, transformation_batch_mode, move_dir, selected_metric, selected_block, selected_krnl, krnl_prob_dict_sorted)
+        move_to_apply = move(transformation_name, transformation_batch_mode, move_dir, selected_metric, selected_block, selected_krnl, krnl_prob_dir_dict_sorted)
+        move_to_apply.set_sorted_metric_dir(sorted_metric_dir)
         move_to_apply.set_logs(sim_dp.dp_stats.get_system_complex_metric("cost"), "cost")
         move_to_apply.set_logs(krnl_prob_dict, "kernels")
-        move_to_apply.set_logs(metric_prob_dict, "metrics")
+        move_to_apply.set_logs(metric_prob_dir_dict, "metrics")
         move_to_apply.set_logs(block_prob_dict, "blocks")
         move_to_apply.set_logs(self.krnel_rnk_to_consider, "kernel_rnk_to_consider")
         move_to_apply.set_logs(sim_dp.dp_stats.dist_to_goal(["power", "area", "latency"],
@@ -784,24 +792,24 @@ class HillClimbing:
             else:
                 self.dh.unload_read_buses(ex_dp)  # unload buses
             # get immediate superior/inferior block (based on the desired direction)
-            imm_block = self.dh.get_immediate_block(move_to_apply.get_block_ref(),
-                                                 move_to_apply.get_metric(), move_to_apply.get_dir(),
+            imm_block = self.dh.get_immediate_block_multi_metric(move_to_apply.get_block_ref(),
+                                                 move_to_apply.get_metric(), move_to_apply.get_sorted_metric_dir(),
                                                  move_to_apply.get_block_ref().get_tasks_of_block())  # immediate block either superior or
             move_to_apply.set_dest_block(imm_block)
 
             move_to_apply.set_tasks(move_to_apply.get_block_ref().get_tasks_of_block())
-            if move_to_apply.get_block_ref().subtype == "ip" and imm_block.subtype == "gpp":
-                imm_block = self.dh.get_immediate_block(move_to_apply.get_block_ref(),
-                                                        move_to_apply.get_metric(), move_to_apply.get_dir(),
-                                                        move_to_apply.get_block_ref().get_tasks_of_block())  # immediate block either superior or
-                print("this does not make sense. definitely delete later")
-                #exit(0)
-            if move_to_apply.get_block_ref().subtype == "sram" and imm_block.subtype == "dram":
-                imm_block = self.dh.get_immediate_block(move_to_apply.get_block_ref(),
-                                                        move_to_apply.get_metric(), move_to_apply.get_dir(),
-                                                        move_to_apply.get_block_ref().get_tasks_of_block())  # immediate block either superior or
-                print("this does not make sense. definitely delete later")
+        elif move_to_apply.get_transformation_name() in ["split_swap"]:
+            self.dh.unload_buses(ex_dp)  # unload buses
+            # get immediate superior/inferior block (based on the desired direction)
+            imm_block = self.dh.get_immediate_block_multi_metric(move_to_apply.get_block_ref(),
+                                                 move_to_apply.get_metric(), move_to_apply.get_sorted_metric_dir(),
+                                                 [move_to_apply.get_block_ref().get_tasks_by_name(move_to_apply.get_kernel_ref().get_task_name())])  # immediate block either superior or
+            move_to_apply.set_dest_block(imm_block)
 
+            migrant_tasks = self.dh.migrant_selection(ex_dp, move_to_apply.get_block_ref(), move_to_apply.get_kernel_ref(),
+                                                      move_to_apply.get_transformation_batch())
+            #migrant_tasks  = list(set(move_to_apply.get_block_ref().get_tasks()) - set(migrant_tasks_))  # reverse the order to allow for swap to happen on the ref_block
+            move_to_apply.set_tasks(migrant_tasks)
         elif move_to_apply.get_transformation_name() in ["split"]:
             # select tasks to migrate
             migrant_tasks = self.dh.migrant_selection(ex_dp, move_to_apply.get_block_ref(), move_to_apply.get_kernel_ref(),
@@ -933,9 +941,10 @@ class HillClimbing:
         # get the best_sim info
         sim_dp = best_sim_dp_stat_so_far.dp
         ex_dp = best_ex_dp_so_far
-        best_sim_selected_metric, metric_prob_dict = self.select_metric(sim_dp)
-        best_sim_move_dir = self.select_dir(sim_dp)
-        best_sim_selected_krnl, krnl_prob_dict = self.select_kernel(ex_dp, sim_dp, best_sim_selected_metric, best_sim_move_dir)
+
+        best_sim_selected_metric, metric_prob_dict, best_sorted_metric_dir = self.select_metric(sim_dp)
+        best_sim_move_dir = self.select_dir(sim_dp, best_sim_selected_metric)
+        best_sim_selected_krnl, krnl_prob_dict = self.select_kernel(ex_dp, sim_dp, best_sim_selected_metric, best_sorted_metric_dir)
         best_sim_selected_block, block_prob_dict = self.select_block_without_sync(sim_dp, best_sim_selected_krnl, best_sim_selected_metric)
 
         # sort the design base on distance
@@ -962,9 +971,9 @@ class HillClimbing:
                 for sim_dp_stat, energy in sim_dp_to_select_from:
                     sim_dp = sim_dp_stat.dp
                     ex_dp = sim_stat_ex_dp_dict[sim_dp_stat]
-                    selected_metric, metric_prob_dict = self.select_metric(sim_dp)
-                    move_dir = self.select_dir(sim_dp)
-                    selected_krnl, krnl_prob_dict = self.select_kernel(ex_dp, sim_dp, selected_metric, move_dir)
+                    selected_metric, metric_prob_dict, sorted_metric_dir = self.select_metric(sim_dp)
+                    move_dir = self.select_dir(sim_dp, selected_metric)
+                    selected_krnl, krnl_prob_dict = self.select_kernel(ex_dp, sim_dp, selected_metric, sorted_metric_dir)
                     selected_block, block_prob_dict = self.select_block_without_sync(sim_dp, selected_krnl,
                                                                                      selected_metric)
                     if not selected_krnl.get_task_name() == best_sim_selected_krnl.get_task_name():
@@ -994,9 +1003,9 @@ class HillClimbing:
 
 
         # get the kernel of interest using this for now to collect cached designs
-        best_sim_selected_metric, metric_prob_dict = self.select_metric(best_sim_dp_so_far_stats.dp)
-        best_sim_move_dir = self.select_dir(best_sim_dp_so_far_stats.dp)
-        best_sim_selected_krnl, _, _= self.select_kernel(best_ex_dp_so_far, best_sim_dp_so_far_stats.dp, best_sim_selected_metric, best_sim_move_dir)
+        best_sim_selected_metric, metric_prob_dict,best_sorted_metric_dir = self.select_metric(best_sim_dp_so_far_stats.dp)
+        best_sim_move_dir = self.select_dir(best_sim_dp_so_far_stats.dp, best_sim_selected_metric)
+        best_sim_selected_krnl, _, _= self.select_kernel(best_ex_dp_so_far, best_sim_dp_so_far_stats.dp, best_sim_selected_metric, best_sorted_metric_dir)
         if best_sim_selected_krnl.get_task_name() not in self.recently_cached_designs.keys():
            self.recently_cached_designs[best_sim_selected_krnl.get_task_name()]  = []
 
@@ -1015,7 +1024,7 @@ class HillClimbing:
         # if any of the designs meet the budget or it's a cleanup iteration, include cost in distance calculation.
         # note that when we compare, we need to use the same dist_to_goal calculation, hence
         # ann_energy_best_dp_so_far needs to use the same calculation
-        metric_to_target , metric_prob_dict = self.select_metric(best_sim_dp_so_far_stats.dp)
+        metric_to_target , metric_prob_dict, sorted_metric_dir = self.select_metric(best_sim_dp_so_far_stats.dp)
         include_cost_in_distance = best_sim_dp_so_far_stats.fits_budget(1) or (len(new_designs_meeting_budget) > 0) or self.is_cleanup_iter()
         if include_cost_in_distance:
             ann_energy_best_dp_so_far = best_sim_dp_so_far_stats.dist_to_goal(["cost", "latency", "power", "area"],
@@ -1402,6 +1411,7 @@ class HillClimbing:
 
         # generate some neighbouring design points and evaluate them
         des_tup_list =[]
+        #config.SA_depth = 3*len(self.so_far_best_ex_dp.get_hardware_graph().get_blocks_by_type("mem"))+ len(self.so_far_best_ex_dp.get_hardware_graph().get_blocks_by_type("ic"))
         self.gen_some_neighs_and_eval((self.so_far_best_ex_dp, self.so_far_best_sim_dp), config.SA_breadth, config.SA_depth, des_tup_list)
         print("sim time + neighbour generation per design point " + str((time.time() - strt)/max(len(des_tup_list), 1)))
 

@@ -62,8 +62,8 @@ sel_next_dp = "all_metrics"  # how to select the next desigh, ["all_metrics", "o
 
 # selection algorithm (picking the best neighbour)
 neigh_sel_algorithm = "annealing"
-SA_breadth = 1 # breath of the neighbour search
-SA_depth = 20 # depth of the neighbour search
+SA_breadth = 3 # breath of the neighbour search
+SA_depth = 10 # depth of the neighbour search
 annealing_max_temp = 500
 annealing_temp_dec = 50
 annealing_dampening_coef = 10  # how much to dampen the metric that has  met the design objectives
@@ -120,11 +120,11 @@ for metric in all_metrics:
 
 #objective_function = 0  #
 #objective_budget = .000000001
-metric_trans_dict = {"latency": ["split", "swap", "migrate"], "power": ["split", "swap", "migrate"],
-                      "area": ["split", "swap", "migrate"]}
+metric_trans_dict = {"latency": ["split", "swap", "migrate", "split_swap"], "power": ["split", "swap", "migrate", "split_swap"],
+                      "area": ["split", "swap", "migrate", "split_swap"]}
 
 cleaning_threshold = 10220  # how often to activate cleaning
-cleaning_consecutive_iterations = 3  # how many consecutive iterations to clean
+cleaning_consecutive_iterations = 1  # how many consecutive iterations to clean
 
 move_metric_ranking_mode = "exact"  # exact, prob.  If exact, metrics are ranked (and hence selected) based on
                                     # their distance to the goal. If prob, we sample probabilistically based on the
@@ -138,7 +138,7 @@ move_blck_ranking_mode = "exact"  # exact, prob.  If exact, blocks are ranked (a
                                     # their distance to the goal. If prob, we sample probabilistically based on the
                                     # distance
 
-max_krnel_stagnation_ctr = 0
+max_krnel_stagnation_ctr = 2
 fitted_budget_ctr_threshold = 1  # how many times fitting the budget before terminating
 
 recently_cached_designs_queue_size = 20
@@ -165,7 +165,7 @@ data_folder = "data"
 PA_output_folder = data_folder+"/"+"PA_output"
 sim_progress_folder = data_folder+"/"+"sim_progress"
 RUN_VERIFICATION_PER_GEN = False# every new desi, generate the verification data
-RUN_VERIFICATION_PER_NEW_CONFIG = True
+RUN_VERIFICATION_PER_NEW_CONFIG = False
 RUN_VERIFICATION_PER_IMPROVMENT = False and not (RUN_VERIFICATION_PER_GEN or RUN_VERIFICATION_PER_NEW_CONFIG) # every improvement, generate verification
                                                                          # don't want to double generate, hence the second
                                                                          # predicate clause
@@ -261,14 +261,14 @@ transaction_base_simulation = False   # do not set to true. It doesn't work
 
 
 # CACTI
-use_cacti = False and not RUN_VERIFICATION_AT_ALL # if True, use cacti. You have to have cacti installed.j
+use_cacti = True and not RUN_VERIFICATION_AT_ALL # if True, use cacti. You have to have cacti installed.j
 cact_bin_addr = "/Users/behzadboro/Downloads/cacti/cacti"
 cacti_param_addr = "/Users/behzadboro/Downloads/cacti/farsi_gen.cfg"
 cacti_log_results = False # if true, we log cacti results as we collect them. this allows us to avoid rerunning
 cacti_data_log_file = "/Users/behzadboro/Downloads/cacti/data_log.csv"
 cacti_input_col_order = ["mem_subtype", "mem_size"]
 cacti_output_col_order = ["energy_per_byte", "area"]
-
+config.cacti_min_memory_size_in_bytes =  2048 # bellow this value cacti errors out. We can play with burst size and page size to fix this though
 
 #ACC_coeff = 128  # comparing to what we have parsed, how much to modify. This is just for some exploration purposes
 	       # It should almost always set to 1

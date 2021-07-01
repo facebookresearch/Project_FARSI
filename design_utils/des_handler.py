@@ -40,6 +40,7 @@ class move:
         self.sorted_metrics = []
         self.dist_to_goal = 0
         self.cost = 0
+        self.sorted_metric_dir = {}
         self.pre_move_ex = None
         self.moved_ex = None
         self.validity_meta_data = ""
@@ -135,6 +136,12 @@ class move:
     def get_metric(self):
         assert(not(self.metric == "deadbeef")), "metric is not initialized"
         return self.metric
+
+    def set_sorted_metric_dir(self, sorted_metric_dir):
+        self.sorted_metric_dir = sorted_metric_dir
+
+    def get_sorted_metric_dir(self):
+        return self.sorted_metric_dir
 
     def get_transformation_name(self):
         assert(not(self.transformation_name == "deadbeef")), "name is not initialized"
@@ -304,6 +311,7 @@ class DesignHandler:
         self.DMA_task_ctr = 0  # number of DMA engines used
         if config.FARSI_performance == "fast":
             self.get_immediate_block = self.get_immediate_block_fast
+            self.get_immediate_block_multi_metric = self.get_immediate_block_multi_metric_fast
             self.get_equal_immediate_block_present = self.get_equal_immediate_block_present_fast
         else:
             self.get_immediate_block = self.get_immediate_block_slow
@@ -927,6 +935,14 @@ class DesignHandler:
         imm_blck = self.database.cast(blkL)
         return self.database.copy_SOC(imm_blck, block)
 
+    def get_immediate_block_multi_metric_fast(self, block, metric, sorted_metric_dir, tasks):
+        imm_blck_non_unique = self.database.up_sample_down_sample_block_multi_metric_fast(block, sorted_metric_dir, tasks)[0]  # get the first value
+        blkL = self.database.cached_block_to_blockL[imm_blck_non_unique]
+        imm_blck = self.database.cast(blkL)
+        return self.database.copy_SOC(imm_blck, block)
+
+
+
     # Get the immediate supperior/inferior block according to the metric (and direction)
     # Variables:
     #   metric_dir: -1 (increase) and 1 (decrease)
@@ -954,13 +970,6 @@ class DesignHandler:
     def get_equal_immediate_block_present_fast(self, ex_dp, block, metric, metric_dir, tasks):
         imm_blcks_non_unique = self.database.equal_sample_up_sample_down_sample_block_fast(block, metric, metric_dir,
                                                                            tasks)  # get the first value
-        """
-        imm_blcks = []
-        for imm_blck_non_unique in imm_blcks_non_unique:
-            blkL = self.database.cached_block_to_blockL[imm_blck_non_unique]
-            imm_blcks.append(self.database.cast(blkL))
-        """
-
         des_blocks = ex_dp.get_blocks()
         for block_ in imm_blcks_non_unique:
             for des_block in des_blocks:
@@ -969,6 +978,19 @@ class DesignHandler:
                     return des_block
 
         return block
+
+    def get_equal_immediate_block_present_multi_metric_fast(self, ex_dp, block, metric, sorted_metric_dir, tasks):
+        imm_blcks_non_unique = self.database.equal_sample_up_sample_down_sample_block_multi_metric_fast(block, metric, sorted_metric_dir,
+                                                                           tasks)  # get the first value
+        des_blocks = ex_dp.get_blocks()
+        for block_ in imm_blcks_non_unique:
+            for des_block in des_blocks:
+                if block_.get_generic_instance_name() == des_block.get_generic_instance_name() and \
+                        not (block.instance_name == des_block.instance_name):
+                    return des_block
+
+        return block
+
 
     # ------------------------------
     # Functionality:
@@ -1029,6 +1051,29 @@ class DesignHandler:
                 succeeded = self.fork_bus(ex_dp, move_to_apply.get_block_ref(), move_to_apply.get_tasks())
             else:
                 succeeded = self.fork_block(ex_dp, move_to_apply.get_block_ref(), move_to_apply.get_tasks())
+            if config.DEBUG_SANITY:ex_dp.sanity_check() # sanity check
+        elif move_to_apply.get_transformation_name() == "split_swap":
+            # first split
+            previous_designs_blocks = ex_dp.get_blocks()
+            self.unload_buses(ex_dp)  # unload buss
+            if move_to_apply.get_block_ref().type == "ic":
+                succeeded = self.fork_bus(ex_dp, move_to_apply.get_block_ref(), move_to_apply.get_tasks())
+            else:
+                succeeded = self.fork_block(ex_dp, move_to_apply.get_block_ref(), move_to_apply.get_tasks())
+            ex_dp.hardware_graph.update_graph(block_to_prime_with=move_to_apply.get_block_ref())  # update the hardware graph
+            if succeeded:
+                current_blocks = ex_dp.get_blocks()
+                new_block = list(set(current_blocks) - set(previous_designs_blocks))[0]
+                if config.DEBUG_SANITY:ex_dp.sanity_check() # sanity check
+                succeeded = self.swap_block(new_block, move_to_apply.get_des_block())
+                succeeded = self.mig_tasks_of_src_to_dest(ex_dp, new_block,
+                                                          move_to_apply.get_des_block(), move_to_apply.get_tasks())
+                self.unload_buses(ex_dp)  # unload buses
+                self.unload_read_mem(ex_dp)  # unload memories
+                ex_dp.hardware_graph.update_graph(block_to_prime_with=move_to_apply.get_des_block())  # update the hardware graph
+            else:
+                print("something went wrong with split swap")
+
             if config.DEBUG_SANITY:ex_dp.sanity_check() # sanity check
         elif move_to_apply.get_transformation_name() == "migrate" or move_to_apply.get_transformation_name() == "cleanup":
             self.unload_buses(ex_dp)  # unload buses

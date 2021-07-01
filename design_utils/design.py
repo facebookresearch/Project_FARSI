@@ -799,12 +799,20 @@ class DPStatsContainer():
                     return False
         return True
 
+    def fits_budget_for_metric_for_SOC(self, metric_name, budget_coeff):
+        for type, id in self.dp_rep.get_designs_SOCs():
+            if not all(self.fits_budget_for_metric(type, id, metric_name, 1)):
+                return False
+        return True
+
+
     # returns a list of values
     def fits_budget_for_metric_and_workload(self, type, id, metric_name, workload, budget_coeff):
        dist = self.normalized_distance_for_workload(type, id, metric_name, workload)
        if not isinstance(dist, list):
            dist = [dist]
        return [dist_el<.001 for dist_el in dist]
+
 
     # returns a list of values
     def fits_budget_for_metric(self, type, id, metric_name, budget_coeff):
@@ -985,7 +993,7 @@ class SimDesignPoint(ExDesignPoint):
             exit(0)
 
         # prime cacti
-        mem_bytes = blk.get_area_in_bytes()
+        mem_bytes = max(blk.get_area_in_bytes(), config.cacti_min_memory_size_in_bytes)
         subtype = blk.subtype
         #subtype = "sram"  # TODO: change later to sram/dram
         mem_subtype = self.FARSI_to_cacti_mem_type_converter(subtype)
@@ -1018,9 +1026,9 @@ class SimDesignPoint(ExDesignPoint):
                 tech_node = misc_knobs["tech_node_SF"]
 
         if blk.type == "ic" :
-            return 0,0
+            return 0,0,1
         elif blk.type == "mem":
-            mem_bytes = blk.get_area_in_bytes()
+            mem_bytes = max(blk.get_area_in_bytes(), config.cacti_min_memory_size_in_bytes) # to make sure we don't go smaller than cacti's minimum size
             mem_subtype = self.FARSI_to_cacti_mem_type_converter(blk.subtype)
             #mem_subtype = "ram" #choose from ["main memory", "ram"]
             found_results, energy_per_byte, area = \
@@ -1029,8 +1037,8 @@ class SimDesignPoint(ExDesignPoint):
                 energy_per_byte, area = self.run_and_collect_cacti_data(blk, database)
                 energy_per_byte *= tech_node["energy"]
                 area *= tech_node["area"]
-            return energy_per_byte, area
-
+            area_per_byte = area/mem_bytes
+            return energy_per_byte, area, area_per_byte
     # For each kernel, update the energy and power using cacti
     def cacti_update_energy_area_of_kernel(self, krnl, database):
         # for sanity check. delete later
@@ -1042,42 +1050,28 @@ class SimDesignPoint(ExDesignPoint):
             # only for memory and ic
             if blk.type not in ["mem", "ic"]:
                 continue
-            energy_per_byte, area = self.collect_cacti_data(blk, database)
+            energy_per_byte, area, area_per_byte = self.collect_cacti_data(blk, database)
             for phase, metric in phase_metric.items():
                 krnl.block_phase_energy_dict[blk][phase] = krnl.block_phase_work_dict[blk][
                                                                phase] * energy_per_byte
                 krnl.block_phase_area_dict[blk][phase] = area
 
-        # apply aggregates
+        # apply aggregates, which is iterate through every phase, scratch their values, and aggregates all the block energies
+        # areas.
         krnl.stats.phase_energy_dict = krnl.aggregate_energy_of_for_every_phase()
         krnl.stats.phase_area_dict = krnl.aggregate_area_of_for_every_phase()
         krnl.set_stats()
 
-        """
-        # for sanity check (delete later)
-        for blk, phase_metric in krnl.block_phase_energy_dict.items():
-            if blk.type == "mem":
-                for phase, energy in krnl.block_phase_energy_dict[blk].items():
-                    if energy == 0:
-                        energy = 1
-                    for block in stats_cpy.keys():
-                        if block.instance_name == blk.instance_name:
-                            ratio_phase[phase] = stats_cpy[block][phase]/energy
-        """
         return "_"
 
     # For each block, get energy area
     # at the moment, only setting up area. TODO: check whether energy matters
-    def cacti_update_energy_area_of_block(self, block, block_ratio, database):
+    def cacti_update_energy_area_of_block(self, block, database):
         if block.type not in ["mem", "ic"]:
             return
-        energy_per_byte, area = self.collect_cacti_data(block, database)
+        energy_per_byte, area, area_per_byte = self.collect_cacti_data(block, database)
         block.set_area_directly(area)
-        # for debugging
-        if block.type == "ic":
-            block_ratio[block] = 1
-        else:
-            block_ratio[block] = block.get_area() / area
+        #block.update_area_energy_power_rate(energy_per_byte, area_per_byte)
 
     # update the design energy (after you have already updated the kernels energy)
     def cacti_update_energy_area_of_design(self):
@@ -1099,7 +1093,6 @@ class SimDesignPoint(ExDesignPoint):
     def correct_power_area_with_cacti(self, database):
         # bellow dictionaries used for debugging purposes. You can delete them later
         krnl_ratio_phase = {}  # for debugging delete later
-        block_ratio = {}
 
         # update in 3 stages
         # (1) fix kernel energy first
@@ -1108,7 +1101,7 @@ class SimDesignPoint(ExDesignPoint):
 
         # (2) fix the block's area
         for block in self.get_blocks():
-            self.cacti_update_energy_area_of_block(block, block_ratio, database)
+            self.cacti_update_energy_area_of_block(block, database)
 
         # (3) update/fix the entire design accordingly
         self.cacti_update_energy_area_of_design()
@@ -1610,6 +1603,13 @@ class DPStats:
                 if not self.fits_budget_for_metric(type, id, metric_name):
                     return False
         return True
+
+    def fits_budget_per_metric(self, metric_name, budget_coeff):
+        for type, id in self.dp.get_designs_SOCs():
+            if not self.fits_budget_for_metric(type, id, metric_name):
+                return False
+        return True
+
 
     # whether the design fits the budget for the metric argument specified
     # type, and id specify the relevant parameters of the SOC

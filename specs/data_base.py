@@ -767,10 +767,63 @@ class DataBase:
 
         return results
 
-    def up_sample_down_sample_block_fast_multi_metric(self, blck_to_imprv, metric_dir, tasks=[]):
+    def check_weird_nests(self, results, blck_to_imprv, metrics_to_sort_reversed, srtd_comptble_blcks):
+        if results[0].subtype == "dram" and blck_to_imprv.subtype == "sram":
+            results = []
+            # first make sure it can meet across all metrics
+            for blck in srtd_comptble_blcks:
+                if metrics_to_sort_reversed[2][1] * (getattr(blck, metrics_to_sort_reversed[2][0]) >
+                                                     metrics_to_sort_reversed[2][1] * getattr(blck_to_imprv,
+                                                                                              metrics_to_sort_reversed[
+                                                                                                  2][0])):
+                    if metrics_to_sort_reversed[1][1] * (getattr(blck, metrics_to_sort_reversed[1][0]) >=
+                                                         metrics_to_sort_reversed[1][1] * getattr(blck_to_imprv,
+                                                                                                  metrics_to_sort_reversed[
+                                                                                                      1][0])):
+                        if metrics_to_sort_reversed[0][1] * (getattr(blck, metrics_to_sort_reversed[0][0]) >=
+                                                             metrics_to_sort_reversed[0][1] * getattr(blck_to_imprv,
+                                                                                                      metrics_to_sort_reversed[
+                                                                                                          0][0])):
+                            results.append(blck)
+            if len(results) > 0:
+                return results
+
+            # meet across two metrics
+            for blck in srtd_comptble_blcks:
+                if metrics_to_sort_reversed[2][1] * (getattr(blck, metrics_to_sort_reversed[2][0]) >
+                                                     metrics_to_sort_reversed[2][1] * getattr(blck_to_imprv,
+                                                                                              metrics_to_sort_reversed[
+                                                                                                  2][0])):
+                    if metrics_to_sort_reversed[1][1] * (getattr(blck, metrics_to_sort_reversed[1][0]) >=
+                                                         metrics_to_sort_reversed[1][1] * getattr(blck_to_imprv,
+                                                                                                  metrics_to_sort_reversed[
+                                                                                                      1][0])):
+                        results.append(blck)
+            if len(results) > 0:
+                return results
+
+            # meet across at least one meteric
+            for blck in srtd_comptble_blcks:
+                if metrics_to_sort_reversed[2][1] * (getattr(blck, metrics_to_sort_reversed[2][0]) >
+                                                     metrics_to_sort_reversed[2][1] * getattr(blck_to_imprv,
+                                                                                              metrics_to_sort_reversed[
+                                                                                                  2][0])):
+                    results.append(blck)
+
+
+
+    def up_sample_down_sample_block_multi_metric_fast(self, blck_to_imprv, sorted_metric_dir, tasks=[]):
         all_compatible_blocks = self.find_all_compatible_blocks_fast(blck_to_imprv.type, tasks)
-        metrics_to_sort = []
-        for metric,dir in metric_dir.keys():
+        """
+        if blck_to_imprv.type == "mem":
+            blah = []
+            for el in all_compatible_blocks:
+                if el.subtype == "sram":
+                    blah.append(el)
+            all_compatible_blocks = blah
+        """
+        metrics_to_sort_reversed = []
+        for metric,dir in sorted_metric_dir.items():
             if metric == "latency":
                 metric_to_sort = 'peak_work_rate'
             elif metric == "power":
@@ -780,31 +833,61 @@ class DataBase:
                 metric_to_sort = 'one_over_area'
             else:
                 print("metric: " + metric + " is not defined")
-            metrics_to_sort.append((metric_to_sort, -1*dir))
+            metrics_to_sort_reversed.append((metric_to_sort, -1*dir))
 
-
-        sampling_dir = metric_dir[0][1]
-        metric_sign = {}
-        for metric,dir in metric_dir:
-            metric_sign[metric] =-1*dir
-
+        most_important_metric = list(sorted_metric_dir.keys())[-1]
+        sampling_dir = sorted_metric_dir[most_important_metric]
 
         #srtd_comptble_blcks = sorted(all_compatible_blocks, key=attrgetter(metric_to_sort), reverse=reversed)  #
-        srtd_comptble_blcks = sorted(all_compatible_blocks, key=lambda blk: (getattr(blk, metrics_to_sort[0][1]*metrics_to_sort[0][0]),
-                                                                             metrics_to_sort[1][1]*getattr(blk, metrics_to_sort[1]),
-                                                                             metrics_to_sort[2][1]*getattr(blk, metrics_to_sort[2])))
+        srtd_comptble_blcks = sorted(all_compatible_blocks, key=lambda blk: (metrics_to_sort_reversed[2][1]*getattr(blk, metrics_to_sort_reversed[2][0]),
+                                                                             metrics_to_sort_reversed[1][1]*getattr(blk, metrics_to_sort_reversed[1][0]),
+                                                                             metrics_to_sort_reversed[0][1]*getattr(blk, metrics_to_sort_reversed[0][0])))
         idx = 0
 
         # find the block
         results = []
+        """
+        # first make sure it can meet across all metrics
         for blck in srtd_comptble_blcks:
-            #if (getattr(blck, metric_to_sort) == getattr(blck_to_imprv, metric_to_sort)):
-            if sampling_dir < 0:  # need to reduce
-                if (getattr(blck, metric_to_sort) >= getattr(blck_to_imprv, metric_to_sort)):
+            if metrics_to_sort_reversed[2][1]*getattr(blck, metrics_to_sort_reversed[2][0]) > \
+                    metrics_to_sort_reversed[2][1]*getattr(blck_to_imprv, metrics_to_sort_reversed[2][0]):
+                if metrics_to_sort_reversed[1][1] * getattr(blck, metrics_to_sort_reversed[1][0]) >= \
+                        metrics_to_sort_reversed[1][1] * getattr(blck_to_imprv,metrics_to_sort_reversed[1][0]):
+                    if metrics_to_sort_reversed[0][1]*getattr(blck, metrics_to_sort_reversed[0][0]) >= \
+                            metrics_to_sort_reversed[0][1] * getattr(blck_to_imprv, metrics_to_sort_reversed[0][0]):
+                        results.append(blck)
+
+        # meet across two metrics
+        if len(results) == 0:
+            for blck in srtd_comptble_blcks:
+                if metrics_to_sort_reversed[2][1] * getattr(blck, metrics_to_sort_reversed[2][0]) > \
+                        metrics_to_sort_reversed[2][1] * getattr(blck_to_imprv, metrics_to_sort_reversed[2][0]):
+                    if metrics_to_sort_reversed[1][1] * getattr(blck, metrics_to_sort_reversed[1][0]) >= \
+                            metrics_to_sort_reversed[1][1] * getattr(blck_to_imprv, metrics_to_sort_reversed[1][0]):
+                        results.append(blck)
+        """
+        # meet across at least one meteric
+        if len(results) == 0:
+            for blck in srtd_comptble_blcks:
+                if metrics_to_sort_reversed[2][1] * getattr(blck, metrics_to_sort_reversed[2][0]) > \
+                        metrics_to_sort_reversed[2][1] * getattr(blck_to_imprv, metrics_to_sort_reversed[2][0]):
                     results.append(blck)
-            elif sampling_dir > 0:  # need to reduce
-                if (getattr(blck, metric_to_sort) <= getattr(blck_to_imprv, metric_to_sort)):
-                    results.append(blck)
+
+       # we need pareto front calculation here, but we are doing something simple at the moment instead
+        if len(results) > 1:
+            first_el = results[0]
+            second_el = results[1]
+            if metrics_to_sort_reversed[1][1] * getattr(first_el, metrics_to_sort_reversed[1][0]) >= \
+                    metrics_to_sort_reversed[1][1] * getattr(second_el, metrics_to_sort_reversed[1][0]):
+                results = [results[0]]
+            else:
+                results = [results[1]]
+
+#        if len(results)  > 0:
+#            self.check_weird_nests(results, blck_to_imprv, metrics_to_sort_reversed, srtd_comptble_blcks)
+
+        if len(results) == 0:
+            results = srtd_comptble_blcks
 
         return results
 
