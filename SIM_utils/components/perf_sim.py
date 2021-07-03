@@ -12,7 +12,6 @@ class PerformanceSimulator:
         self.design = sim_design  # design to simulate
         self.scheduled_kernels = []   # kernels already scheduled
         self.completed_kernels = []   # kernels already completed
-
         # List of all the kernels that are not scheduled yet (to be launched)
         self.yet_to_schedule_kernels = self.design.get_kernels()[:]  # kernels to be scheduled
         self.old_clock_time = self.clock_time = 0
@@ -110,6 +109,16 @@ class PerformanceSimulator:
 
 
     def update_parallel_tasks(self):
+        # keep track of krnls that are present per phase
+        for krnl in self.scheduled_kernels:
+            if krnl.get_task_name() in ["souurce", "siink", "dummy_last"]:
+                continue
+            if krnl not in self.design.krnl_phase_present.keys():
+                self.design.krnl_phase_present[krnl] = []
+            self.design.krnl_phase_present[krnl].append(self.phase_num)
+            self.design.phase_krnl_present[self.phase_num] = self.scheduled_kernels[:]
+
+        """
         scheduled_kernels = self.scheduled_kernels[:]
         for idx, krnl in enumerate(scheduled_kernels):
             if krnl.get_task_name() in ["souurce", "siink"]:
@@ -123,7 +132,7 @@ class PerformanceSimulator:
                     self.design.parallel_kernels[krnl].append(krnl_2)
 
         pass
-
+        """
     # ------------------------------
     # Functionality:
     #   update the status of each kernel, this means update
@@ -164,6 +173,7 @@ class PerformanceSimulator:
     #   update the status of the program, i.e., whether it's done or still in progress
     # ------------------------------
     def update_program_status(self):
+
         if len(self.scheduled_kernels) == 0 and len(self.yet_to_schedule_kernels) == 0:
             self.program_status = "done"
         elif len(self.scheduled_kernels) == 0:
@@ -203,12 +213,16 @@ class PerformanceSimulator:
         # update each kernels's work-rate (bandwidth)
         _ = [kernel.update_block_att_work_rate(self.scheduled_kernels) for kernel in self.scheduled_kernels]
         # update each pipe cluster's paths (inpipe-outpipe) work-rate
-        _ = [kernel.update_pipe_clusters_pathlet_work_rate() for kernel in self.scheduled_kernels]
+
+        #_ = [kernel.update_pipe_clusters_pathlet_work_rate() for kernel in self.scheduled_kernels]
         # update each pipe cluster's paths (inpipe-outpipe) latency. Note that latency update must run after path's work-rate
+
         # update as it depends on it
-        _ = [kernel.update_pipe_clusters_pathlet_latency(self.scheduled_kernels) for kernel in self.scheduled_kernels]
-        #_ = [kernel.update_pipe_clusters_path_latency() for kernel in self.scheduled_kernels]
-        #-self.update_pipe_cluster_work_rate(pipe_cluster, bottleneck_work_rate)
+        #_ = [kernel.update_pipe_clusters_pathlet_latency(self.scheduled_kernels) for kernel in self.scheduled_kernels]
+
+
+        #----_ = [kernel.update_pipe_clusters_path_latency() for kernel in self.scheduled_kernels]
+        #-----self.update_pipe_cluster_work_rate(pipe_cluster, bottleneck_work_rate)
 
     # ------------------------------
     # Functionality:

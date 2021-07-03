@@ -692,7 +692,11 @@ class DataBase:
                     results.append(blck)
 
         if len(results) == 0:
-            results = srtd_comptble_blcks
+            for el in srtd_comptble_blcks:
+                if el.get_generic_instance_name() == blck_to_imprv.get_generic_instance_name():
+                    results = [el]
+                    break
+
         return results
 
     # ------------------------------
@@ -767,61 +771,9 @@ class DataBase:
 
         return results
 
-    def check_weird_nests(self, results, blck_to_imprv, metrics_to_sort_reversed, srtd_comptble_blcks):
-        if results[0].subtype == "dram" and blck_to_imprv.subtype == "sram":
-            results = []
-            # first make sure it can meet across all metrics
-            for blck in srtd_comptble_blcks:
-                if metrics_to_sort_reversed[2][1] * (getattr(blck, metrics_to_sort_reversed[2][0]) >
-                                                     metrics_to_sort_reversed[2][1] * getattr(blck_to_imprv,
-                                                                                              metrics_to_sort_reversed[
-                                                                                                  2][0])):
-                    if metrics_to_sort_reversed[1][1] * (getattr(blck, metrics_to_sort_reversed[1][0]) >=
-                                                         metrics_to_sort_reversed[1][1] * getattr(blck_to_imprv,
-                                                                                                  metrics_to_sort_reversed[
-                                                                                                      1][0])):
-                        if metrics_to_sort_reversed[0][1] * (getattr(blck, metrics_to_sort_reversed[0][0]) >=
-                                                             metrics_to_sort_reversed[0][1] * getattr(blck_to_imprv,
-                                                                                                      metrics_to_sort_reversed[
-                                                                                                          0][0])):
-                            results.append(blck)
-            if len(results) > 0:
-                return results
-
-            # meet across two metrics
-            for blck in srtd_comptble_blcks:
-                if metrics_to_sort_reversed[2][1] * (getattr(blck, metrics_to_sort_reversed[2][0]) >
-                                                     metrics_to_sort_reversed[2][1] * getattr(blck_to_imprv,
-                                                                                              metrics_to_sort_reversed[
-                                                                                                  2][0])):
-                    if metrics_to_sort_reversed[1][1] * (getattr(blck, metrics_to_sort_reversed[1][0]) >=
-                                                         metrics_to_sort_reversed[1][1] * getattr(blck_to_imprv,
-                                                                                                  metrics_to_sort_reversed[
-                                                                                                      1][0])):
-                        results.append(blck)
-            if len(results) > 0:
-                return results
-
-            # meet across at least one meteric
-            for blck in srtd_comptble_blcks:
-                if metrics_to_sort_reversed[2][1] * (getattr(blck, metrics_to_sort_reversed[2][0]) >
-                                                     metrics_to_sort_reversed[2][1] * getattr(blck_to_imprv,
-                                                                                              metrics_to_sort_reversed[
-                                                                                                  2][0])):
-                    results.append(blck)
-
-
-
     def up_sample_down_sample_block_multi_metric_fast(self, blck_to_imprv, sorted_metric_dir, tasks=[]):
         all_compatible_blocks = self.find_all_compatible_blocks_fast(blck_to_imprv.type, tasks)
-        """
-        if blck_to_imprv.type == "mem":
-            blah = []
-            for el in all_compatible_blocks:
-                if el.subtype == "sram":
-                    blah.append(el)
-            all_compatible_blocks = blah
-        """
+
         metrics_to_sort_reversed = []
         for metric,dir in sorted_metric_dir.items():
             if metric == "latency":
@@ -885,9 +837,13 @@ class DataBase:
 
 #        if len(results)  > 0:
 #            self.check_weird_nests(results, blck_to_imprv, metrics_to_sort_reversed, srtd_comptble_blcks)
-
         if len(results) == 0:
-            results = srtd_comptble_blcks
+            for el in srtd_comptble_blcks:
+                if el.get_generic_instance_name() == blck_to_imprv.get_generic_instance_name():
+                    results = [el]
+                    break
+        #if len(results) == 0:
+        #    results = [srtd_comptble_blcks[-1]]
 
         return results
 

@@ -46,6 +46,9 @@ class move:
         self.validity_meta_data = ""
         self.krnel_prob_dict_sorted = krnl_prob_dict_sorted
 
+    def set_krnel_ref(self, krnel):
+        self.krnel = krnel
+
     def set_logs(self, data, type_):
         if type_ == "cost":
             self.cost = data
@@ -312,7 +315,7 @@ class DesignHandler:
         if config.FARSI_performance == "fast":
             self.get_immediate_block = self.get_immediate_block_fast
             self.get_immediate_block_multi_metric = self.get_immediate_block_multi_metric_fast
-            self.get_equal_immediate_block_present = self.get_equal_immediate_block_present_fast
+            self.get_equal_immediate_blocks_present = self.get_equal_immediate_blocks_present_fast
         else:
             self.get_immediate_block = self.get_immediate_block_slow
             self.get_equal_immediate_block_present = self.get_equal_immediate_block_present_slow
@@ -349,21 +352,28 @@ class DesignHandler:
         self.load_read_mem_and_ic_recursive(ex_dp, [], ex_dp.get_hardware_graph().get_task_graph().get_root(), [], None)
 
     # check if there is another task (on the block that can run in parallel with the task of interest
-    def find_parallel_tasks_of_task_in_block(self, ex_dp, task, block):
+    def find_parallel_tasks_of_task_in_block(self, ex_dp, sim_dp, task, block):
         task_synced = [task__ for task__ in block.get_tasks_of_block() if task__.name == task.name][0]
         parallel_tasks = []
         tasks_of_block = [task_ for task_ in block.get_tasks_of_block() if (not ("souurce" in task_.name) or not ("siink" in task_.name))]
-        for task_ in tasks_of_block:
-            if ex_dp.get_hardware_graph().get_task_graph().tasks_can_run_in_parallel(task_, task_synced):
-                parallel_tasks.append(task_)
+
+        if config.parallelism_analysis == "static":
+            for task_ in tasks_of_block:
+                if ex_dp.get_hardware_graph().get_task_graph().tasks_can_run_in_parallel(task_, task_synced):
+                    parallel_tasks.append(task_)
+        elif config.parallelism_analysis == "dynamic":
+            parallel_tasks_names = sim_dp.get_dp_rep().get_tasks_parallel_task_dynamically(task)
+            for task_ in tasks_of_block:
+                if task_.get_name() in  parallel_tasks_names:
+                    parallel_tasks.append(task_)
 
         cluster_one = parallel_tasks
         cluster_two = list(set(tasks_of_block) - set(cluster_one))
         return [cluster_one, cluster_two]
 
     # can any other task on the block run in parallel with that ref task
-    def can_any_task_on_block_run_in_parallel(self, ex_dp, ref_task, block):
-        clusters_run_in_parallel = self.find_parallel_tasks_of_task_in_block(ex_dp, ref_task, block)
+    def can_any_task_on_block_run_in_parallel(self, ex_dp, sim_dp, ref_task, block):
+        clusters_run_in_parallel = self.find_parallel_tasks_of_task_in_block(ex_dp, sim_dp, ref_task, block)
         if len(clusters_run_in_parallel[0]) > 0:
             return True
         else:
@@ -967,17 +977,22 @@ class DesignHandler:
 
         return block
 
-    def get_equal_immediate_block_present_fast(self, ex_dp, block, metric, metric_dir, tasks):
+    def get_equal_immediate_blocks_present_fast(self, ex_dp, block, metric, metric_dir, tasks):
         imm_blcks_non_unique = self.database.equal_sample_up_sample_down_sample_block_fast(block, metric, metric_dir,
                                                                            tasks)  # get the first value
-        des_blocks = ex_dp.get_blocks()
-        for block_ in imm_blcks_non_unique:
-            for des_block in des_blocks:
-                if block_.get_generic_instance_name() == des_block.get_generic_instance_name() and \
-                        not (block.instance_name == des_block.instance_name):
-                    return des_block
 
-        return block
+        all_compatible_blocks = [blck.get_generic_instance_name() for blck in self.database.find_all_compatible_blocks_fast(block.type, tasks)]
+
+        blocks_present = ex_dp.get_blocks()
+        result_blocks = []
+        for block_ in imm_blcks_non_unique:
+            for block_present in blocks_present:
+                if not (block.instance_name == block_present.instance_name) and block_present.get_generic_instance_name() in all_compatible_blocks:
+                   result_blocks.append(block_present)
+
+        if len(result_blocks) == 0:
+            result_blocks = [block]
+        return result_blocks
 
     def get_equal_immediate_block_present_multi_metric_fast(self, ex_dp, block, metric, sorted_metric_dir, tasks):
         imm_blcks_non_unique = self.database.equal_sample_up_sample_down_sample_block_multi_metric_fast(block, metric, sorted_metric_dir,
@@ -1218,9 +1233,11 @@ class DesignHandler:
                     return 0
 
 
-    def cluster_tasks_based_on_tasks_parallelism(self, ex_dp, task, block):
-        return self.find_parallel_tasks_of_task_in_block(ex_dp, task, block)
+    def cluster_tasks_based_on_tasks_parallelism(self, ex_dp, sim_dp, task, block):
+        return self.find_parallel_tasks_of_task_in_block(ex_dp, sim_dp, task, block)
 
+    def cluster_tasks_based_on_tasks_serialism(self, ex_dp, sim_dp, task, block):
+        return self.find_serial_tasks_of_task_in_block(ex_dp, sim_dp, task, block)
 
     # ------------------------------
     # Functionality:
@@ -1465,19 +1482,23 @@ class DesignHandler:
     #       block: block where tasks resides in.
     #       num_clusters: how many clusters do we want to have.
     # ------------------------------
-    def cluster_tasks(self, ex_dp, block, selected_kernel, selection_mode):
+    def cluster_tasks(self, ex_dp, sim_dp, block, selected_kernel, selection_mode):
         if selection_mode == "random":
             return self.cluster_tasks_randomly(block.get_tasks_of_block())
         elif selection_mode == "tasks_dependency":
             return self.cluster_tasks_based_on_data_sharing(selected_kernel.get_task(), block.get_tasks_of_block(), 2)
         elif selection_mode == "single":
             return self.separate_a_task(block.get_tasks_of_block(), selected_kernel)
+        elif selection_mode == "single_serialism":
+            return [[selected_kernel.get_task()]]
         #elif selection_mode == "batch":
         #    return self.cluster_tasks_based_on_data_sharing(selected_kernel.get_task(), block.get_tasks_of_block(), 2)
         elif selection_mode == "batch":
-            return self.cluster_tasks_based_on_tasks_parallelism(ex_dp, selected_kernel.get_task(), block)
+            return self.cluster_tasks_based_on_tasks_parallelism(ex_dp, sim_dp, selected_kernel.get_task(), block)
+        #elif selection_mode == "batch_nonparallel":
+        #    return self.cluster_tasks_based_on_tasks_serialism(ex_dp, sim_dp, selected_kernel.get_task(), block)
         else:
-            raise Exception("migrant clustering policy:" + config.migration_policy + "not supported")
+            raise Exception("migrant clustering policy:" + selection_mode + "not supported")
 
     # ------------------------------
     # Functionality:
@@ -1485,10 +1506,10 @@ class DesignHandler:
     # Variables:
     #       block: block where tasks resides in.
     # ------------------------------
-    def migrant_selection(self, ex_dp, block, selected_kernel, selection_mode):
+    def migrant_selection(self, ex_dp, sim_dp, block, selected_kernel, selection_mode):
         if config.DEBUG_FIX: random.seed(0)
         else: time.sleep(.00001), random.seed(datetime.now().microsecond)
-        clustered_tasks = self.cluster_tasks(ex_dp, block, selected_kernel, selection_mode)
+        clustered_tasks = self.cluster_tasks(ex_dp,sim_dp, block, selected_kernel, selection_mode)
         return clustered_tasks[0]
 
     # ------------------------------

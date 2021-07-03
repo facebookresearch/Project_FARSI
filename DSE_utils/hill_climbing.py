@@ -237,10 +237,19 @@ class HillClimbing:
 
     # check if there is another task (on the block that can run in parallel with the task of interest
     def check_if_task_can_run_with_any_other_task_in_parallel(self, sim_dp, task, block):
-        tasks_of_block = [task_ for task_ in block.get_tasks_of_block() if (not ("souurce" in task_.name) or not ("siink" in task_.name))]
-        for task_ in tasks_of_block:
-            if sim_dp.get_dp_rep().get_hardware_graph().get_task_graph().tasks_can_run_in_parallel(task_, task):
-                return True
+        if task.get_name() in ["souurce", "siink", "dummy_last"]:
+            return False
+        tasks_of_block = [task_ for task_ in block.get_tasks_of_block() if
+                          (not ("souurce" in task_.name) or not ("siink" in task_.name))]
+        if config.parallelism_analysis == "static":
+            for task_ in tasks_of_block:
+                if sim_dp.get_dp_rep().get_hardware_graph().get_task_graph().tasks_can_run_in_parallel(task_, task):
+                    return True
+        elif config.parallelism_analysis == "dynamic":
+            parallel_tasks_names = sim_dp.get_dp_rep().get_tasks_parallel_task_dynamically(task)
+            for task_ in tasks_of_block:
+                if task_.get_name() in  parallel_tasks_names:
+                    return True
         return False
 
 
@@ -397,32 +406,125 @@ class HillClimbing:
     def is_cleanup_iter(self):
         return (self.cleanup_ctr % (config.cleaning_threshold)) > (config.cleaning_threshold- config.cleaning_consecutive_iterations)
 
+    def select_block_to_migrate_to(self, ex_dp, sim_dp, hot_blck_synced, selected_metric, sorted_metric_dir, selected_krnl):
+        def get_block_attr(selected_metric):
+            if selected_metric == "latency":
+                selected_metric_to_sort = 'peak_work_rate'
+            elif selected_metric == "power":
+                #selected_metric_to_sort = 'work_over_energy'
+                selected_metric_to_sort = 'one_over_power'
+            elif selected_metric == "area":
+                selected_metric_to_sort = 'one_over_area'
+            else:
+                print("selected_selected_metric: " + selected_metric + " is not defined")
+            return selected_metric_to_sort
+
+        # get initial information
+        """
+        tasks_synced = [task__ for task__ in hot_blck_synced.get_tasks_of_block() if task__.name == selected_krnl.get_task_name()]
+        if len(tasks_synced)  == 0: # this condition happens when we have a read task and we have unloaded reads
+            found_block_to_mig_to = False
+            selection_mode = "single"
+            return hot_blck_synced, found_block_to_mig_to, selection_mode
+        task_synced = tasks_synced[0]
+        """
+        task = ex_dp.get_hardware_graph().get_task_graph().get_task_by_name(selected_krnl.get_task_name())
+        selected_metric = list(sorted_metric_dir.keys())[-1]
+        selected_dir = sorted_metric_dir[selected_metric]
+        # find blocks equal or immeidately better
+        equal_imm_blocks_present_for_migration = self.dh.get_equal_immediate_blocks_present(ex_dp, hot_blck_synced,
+                                                                selected_metric, selected_dir, [task])
+
+        # does parallelism exist in the current occupying block
+        current_block_parallelism_exist = self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp,
+                                                                                                     task,
+                                                                                                     hot_blck_synced)
+        inequality_dir = selected_dir*-1
+        results_block = [] # results
+
+        # iterate through the blocks and find the best one
+        for block_to_migrate_to in equal_imm_blocks_present_for_migration:
+            # skip yourself
+            if block_to_migrate_to == hot_blck_synced:
+                continue
+
+            block_metric_attr = get_block_attr(selected_metric) # metric to pay attention to
+            # iterate and found blocks that are at least as good as the current block
+            if getattr(block_to_migrate_to, block_metric_attr) == getattr(hot_blck_synced, block_metric_attr):
+                # blocks have similar attr value
+
+                if (selected_metric == "power" and selected_dir == -1)  or \
+                    (selected_metric == "latency" and selected_dir == 1) or selected_metric == "area":
+                    # if we want to slow down (reduce latency, improve power), look for parallel task on the other block
+                    block_to_mig_to_parallelism_exist = self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp,
+                                                                                                               task,
+                                                                                                               block_to_migrate_to)
+                    if block_to_mig_to_parallelism_exist:
+                        results_block.append(block_to_migrate_to)
+                else:
+                    # if we want to accelerate (improve latency, get more power), look for parallel task on the same block
+                    if current_block_parallelism_exist:
+                        results_block.append(block_to_migrate_to)
+            elif inequality_dir*getattr(block_to_migrate_to, block_metric_attr) > inequality_dir*getattr(hot_blck_synced, block_metric_attr):
+                results_block.append(block_to_migrate_to)
+                break
+
+        # if no block found, just load the results_block with current block
+        if len(results_block) == 0:
+            results_block = [hot_blck_synced]
+            found_block_to_mig_to = False
+        else:
+            found_block_to_mig_to = True
+
+        # pick at random to try random scenarios. At the moment, only equal and immeidately better blocks are considered
+        random.seed(datetime.now().microsecond)
+        result_block = random.choice(results_block)
+
+        selection_mode = "batch"
+        if found_block_to_mig_to:
+            if getattr(result_block, block_metric_attr) == getattr(hot_blck_synced, block_metric_attr):
+                selection_mode = "batch"
+            else:
+                selection_mode = "single"
+
+
+        return result_block, found_block_to_mig_to, selection_mode
+
     def get_feasible_transformations(self, ex_dp, sim_dp, hot_blck_synced, selected_metric, selected_krnl, sorted_metric_dir):
         imm_block = self.dh.get_immediate_block_multi_metric(hot_blck_synced, selected_metric, sorted_metric_dir,  hot_blck_synced.get_tasks_of_block())
-        task_synced = [task__ for task__ in hot_blck_synced.get_tasks_of_block() if task__.name == selected_krnl.get_task_name()][0]
+        task = ex_dp.get_hardware_graph().get_task_graph().get_task_by_name(selected_krnl.get_task_name())
         feasible_transformations = set(config.metric_trans_dict[selected_metric])
 
         # find the block that is at least as good as the block (for migration)
         # if can't find any, we return the same block
         selected_metric = list(sorted_metric_dir.keys())[-1]
         selected_dir = sorted_metric_dir[selected_metric]
-        equal_imm_block_present_for_migration = self.dh.get_equal_immediate_block_present(ex_dp, hot_blck_synced,
-                                                                selected_metric, selected_dir, [task_synced])
+
+        equal_imm_block_present_for_migration, found_blck_to_mig_to, selection_mode = self.select_block_to_migrate_to(ex_dp, sim_dp, hot_blck_synced,
+                                                                selected_metric, sorted_metric_dir, selected_krnl)
 
         hot_block_type = hot_blck_synced.type
         hot_block_subtype = hot_blck_synced.subtype
-        parallelism_exist = self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp, task_synced, hot_blck_synced)
+        parallelism_exist = self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp, task, hot_blck_synced)
+        other_block_parallelism_exist = False
         all_transformations = config.metric_trans_dict[selected_metric]
 
         if parallelism_exist:
            if selected_metric == "latency":
                if selected_dir == -1:
-                   feasible_transformations = ["migrate", "split"]
+                    if hot_block_type == "pe":
+                        feasible_transformations = ["migrate", "split"]  # only for PE since we wont to be low cost, for IC/MEM cost does not increase if you customize
+                    else:
+                        feasible_transformations = ["migrate", "split"]#, "swap", "split_swap"]
                else:
-                   feasible_transformations = ["migrate", "swap"]
+                    # we can do better by comparing the advantage disadvantage of migrating
+                    # (Advantage: slowing down by serialization, and disadvantage: accelerating by parallelization)
+                   feasible_transformations = ["swap"]
            if selected_metric == "power":
                if selected_dir == -1:
-                   feasible_transformations = ["migrate", "swap", "split_swap"]
+                       # we can do better by comparing the advantage disadvantage of migrating
+                       # (Advantage: slowing down by serialization, and disadvantage: accelerating by parallelization)
+                       feasible_transformations = ["swap", "split_swap"]
                else:
                    feasible_transformations = all_transformations
            if selected_metric == "area":
@@ -443,8 +545,6 @@ class HillClimbing:
            if selected_metric == "power":
                if selected_dir == -1:
                    feasible_transformations = ["migrate", "swap", "split_swap"]
-               else:
-                   feasible_transformations = ["migrate", "swap", "split_swap"]
            if selected_metric == "area":
                if selected_dir == -1:
                     feasible_transformations = ["migrate", "swap",]
@@ -452,7 +552,7 @@ class HillClimbing:
                    feasible_transformations = ["migrate", "swap", "split"]
 
         # filter transformations accordingly
-        if equal_imm_block_present_for_migration == hot_blck_synced:
+        if not found_blck_to_mig_to:
             # if can't find a block that is at least as good as the current block, can't migrate
             feasible_transformations =  set(list(set(feasible_transformations) - set(['migrate'])))
 
@@ -502,6 +602,7 @@ class HillClimbing:
         print(list(feasible_transformations))
         random.seed(datetime.now().microsecond)
         transformation = random.choice(list(feasible_transformations))
+
         #if len(hot_blck_synced.get_tasks_of_block_by_dir("write")) > 1:
         #    transformation = "split_swap"
         #else:
@@ -510,10 +611,7 @@ class HillClimbing:
             batch_mode = "single"
         elif transformation == "split":
             # see if any task can run in parallel
-            if self.dh.can_any_task_on_block_run_in_parallel(ex_dp, selected_krnl.get_task(), hot_blck_synced):
-                batch_mode = "batch"
-            else:
-                batch_mode = "single"
+            batch_mode = "batch"
         elif transformation == "split_swap":
             batch_mode = "single"
         else:
@@ -861,13 +959,13 @@ class HillClimbing:
                                                  [move_to_apply.get_block_ref().get_tasks_by_name(move_to_apply.get_kernel_ref().get_task_name())])  # immediate block either superior or
             move_to_apply.set_dest_block(imm_block)
 
-            migrant_tasks = self.dh.migrant_selection(ex_dp, move_to_apply.get_block_ref(), move_to_apply.get_kernel_ref(),
+            migrant_tasks = self.dh.migrant_selection(ex_dp, sim_dp, move_to_apply.get_block_ref(), move_to_apply.get_kernel_ref(),
                                                       move_to_apply.get_transformation_batch())
             #migrant_tasks  = list(set(move_to_apply.get_block_ref().get_tasks()) - set(migrant_tasks_))  # reverse the order to allow for swap to happen on the ref_block
             move_to_apply.set_tasks(migrant_tasks)
         elif move_to_apply.get_transformation_name() in ["split"]:
             # select tasks to migrate
-            migrant_tasks = self.dh.migrant_selection(ex_dp, move_to_apply.get_block_ref(), move_to_apply.get_kernel_ref(),
+            migrant_tasks = self.dh.migrant_selection(ex_dp, sim_dp, move_to_apply.get_block_ref(), move_to_apply.get_kernel_ref(),
                                                       move_to_apply.get_transformation_batch())
             #migrant_tasks = self.dh.migrant_selection(move_to_apply.get_block_ref(), move_to_apply.get_kernel_ref(),
             #                                          tch", sim_dp.dp_stats.get_parallel_kernels())
@@ -879,20 +977,40 @@ class HillClimbing:
                                                               # we end up duplicating the hardware
                 move_to_apply.set_validity(False, "IPSplitException")
         elif move_to_apply.get_transformation_name() == "migrate":
-            self.dh.unload_buses(ex_dp)  # unload buses
-            self.dh.unload_read_mem(ex_dp)  # unload memories
             if not selected_block.type == "ic":  # ic migration is not supported
-                migrant_tasks = self.dh.migrant_selection(sim_dp, move_to_apply.get_block_ref(), move_to_apply.get_kernel_ref(),
-                                                          move_to_apply.get_transformation_batch())
-                imm_block_present = self.dh.get_equal_immediate_block_present(ex_dp, move_to_apply.get_block_ref(),
-                                                                     move_to_apply.get_metric(), move_to_apply.get_dir(),
-                                                                     migrant_tasks)  # immediate block either superior or
+                # check and see if tasks exist (if not, it was a read)
+                imm_block_present, found_blck_to_mig_to, mig_selection_mode = self.select_block_to_migrate_to(ex_dp,
+                                                                                                              sim_dp,
+                                                                                                              move_to_apply.get_block_ref(),
+                                                                                                              move_to_apply.get_metric(),
+                                                                                                              move_to_apply.get_sorted_metric_dir(),
+                                                                                                              move_to_apply.get_kernel_ref())
+                self.dh.unload_buses(ex_dp)  # unload buses
+                self.dh.unload_read_mem(ex_dp)  # unload memories
+                tasks_synced = [task__ for task__ in move_to_apply.get_block_ref().get_tasks_of_block() if
+                                task__.name == selected_krnl.get_task_name()]
+                if len(tasks_synced) == 0:  # this condition happens when we have a read task and we have unloaded reads
+                    krnl_s_tsk = ex_dp.get_hardware_graph().get_task_graph().get_task_by_name(move_to_apply.get_kernel_ref().get_task_name())
+                    parents_s_task = [el.get_name() for el in ex_dp.get_hardware_graph().get_task_graph().get_task_s_parents(krnl_s_tsk)]
+                    tasks_on_block = [el.get_name() for el in move_to_apply.get_block_ref().get_tasks_of_block()]
+                    for parent_task in parents_s_task:
+                        if parent_task in tasks_on_block:
+                            parents_task_obj = ex_dp.get_hardware_graph().get_task_graph().get_task_by_name(parent_task)
+                            krnl = sim_dp.get_kernel_by_task_name(parents_task_obj)
+                            move_to_apply.set_krnel_ref(krnl)
 
-                # TODO: this is caused by detecting a memory read as the bottlenck, hence needs to be fixed
-                if len(migrant_tasks) == 0:
-                    move_to_apply.set_validity(False, "NoParallelTaskException")
-                move_to_apply.set_tasks(migrant_tasks)
-                move_to_apply.set_dest_block(imm_block_present)
+
+                if not found_blck_to_mig_to:
+                    move_to_apply.set_validity(False, "NoMigrantException")
+                    imm_block_present = move_to_apply.get_block_ref()
+                elif move_to_apply.get_kernel_ref().get_task_name() in ["souurce", "siink", "dummy_last"]:
+                    move_to_apply.set_validity(False, "NoMigrantException")
+                    imm_block_present = move_to_apply.get_block_ref()
+                else:
+                    migrant_tasks = self.dh.migrant_selection(ex_dp, sim_dp, move_to_apply.get_block_ref(), move_to_apply.get_kernel_ref(),
+                                                              mig_selection_mode)
+                    move_to_apply.set_tasks(migrant_tasks)
+                    move_to_apply.set_dest_block(imm_block_present)
             else:
                 move_to_apply.set_validity(False, "ICMigrationException")
         elif move_to_apply.get_transformation_name() == "cleanup":
@@ -1374,6 +1492,8 @@ class HillClimbing:
     #       des_tup: starting point design point tuple (design point, simulated design point)
     # ------------------------------
     def gen_neigh_and_eval(self, des_tup):
+        # "delete this later"
+        print("------ depth ------")
         self.SA_current_depth += 1
         # generate on neighbour
         ex_dp, move_to_try = self.gen_one_neigh(des_tup)
@@ -1406,8 +1526,7 @@ class HillClimbing:
             self.gen_verification_data(sim_dp, ex_dp)
         self.seen_SOC_design_codes.append(sim_dp.dp.get_hardware_graph().get_SOC_design_code())
 
-        # "delete this later"
-        print("------ depth ------")
+
         if not sim_dp.move_applied == None:
             sim_dp.move_applied.print_info()
             print("design's latency: " + str(sim_dp.dp_stats.get_system_complex_metric("latency")))
@@ -1688,6 +1807,9 @@ class HillClimbing:
         self.total_itr_ctr += 1
         stat_result = self.so_far_best_sim_dp.dp_stats
 
+        tasks_not_meeting_budget = [el.get_task_name() for el in self.filter_in_kernels_meeting_budget("", self.so_far_best_sim_dp)]
+        tsks_left_to_optimize = list(set(tasks_not_meeting_budget) - set(self.krnels_not_to_consider))
+
         if stat_result.fits_budget(1) :
             config.VIS_GR_PER_GEN = True  # visualize the graph per design point generation
             config.VIS_SIM_PER_GEN = True  # if true, we visualize the simulation progression
@@ -1699,6 +1821,9 @@ class HillClimbing:
             reason_to_terminate = "des_stag_ctr exceeded"
             should_terminate = True
         elif len(self.krnels_not_to_consider) >= (len(self.so_far_best_sim_dp.get_kernels()) - len(self.so_far_best_sim_dp.get_dummy_tasks())):
+            reason_to_terminate = "all kernels already targeted without improvement"
+            should_terminate = True
+        elif len(tsks_left_to_optimize) == 0:
             reason_to_terminate = "all kernels already targeted without improvement"
             should_terminate = True
         elif self.total_itr_ctr > self.TOTAL_RUN_THRESHOLD:

@@ -435,7 +435,7 @@ class SimDesignPointContainer:
         return self.dp_rp.get_kernels()
 
     def get_kernel_by_task_name(self, task: Task):
-        return self.dp_rep.get_kernel_by_task_name()
+        return self.dp_rep.get_kernel_by_task_name(task)
 
     # get the kernels of the design
     def get_kernels(self):
@@ -932,8 +932,8 @@ class DPStatsContainer():
             area_no_dram_norm = (area_no_dram - self.database.get_ideal_metric_value(metric_name, type))/ (dampening_coeff*self.database.get_ideal_metric_value(metric_name, type))
             # get dram area and normalize it
             area_dram = self.get_SOC_area_base_on_subtype("dram", type, id)
-            area_dram_norm = [(area_dram - self.database.get_ideal_metric_value(metric_name, type))/ (dampening_coeff*self.database.get_ideal_metric_value(metric_name, type))]
-            return  [area_no_dram_norm, area_dram]
+            area_dram_norm = (area_dram - self.database.get_ideal_metric_value(metric_name, type))/ (dampening_coeff*self.database.get_ideal_metric_value(metric_name, type))
+            return  [area_no_dram_norm, area_dram_norm]
         else:
             return [(metric_val - self.database.get_ideal_metric_value(metric_name, type))/ (dampening_coeff*self.database.get_ideal_metric_value(metric_name, type))]
 
@@ -1019,8 +1019,8 @@ class SimDesignPoint(ExDesignPoint):
         self.block_phase_utilization_dict = {}  # utilization done by the block as the system goes through different phases
         self.pipe_cluster_path_phase_work_rate_dict = {}
         self.parallel_kernels = {}
-
-
+        self.krnl_phase_present = {}
+        self.phase_krnl_present = {}
         if config.use_cacti:
             self.cacti_hndlr = cact_handlr.CactiHndlr(config.cact_bin_addr, config.cacti_param_addr,
                                                       config.cacti_data_log_file, config.cacti_input_col_order,
@@ -1029,6 +1029,19 @@ class SimDesignPoint(ExDesignPoint):
         for block in self.get_blocks():
             self.block_phase_work_dict[block] = {}
             self.block_phase_utilization_dict[block] = {}
+
+    def get_tasks_parallel_task_dynamically(self, task):
+        krnl = self.get_kernel_by_task_name(task)
+        phases_present = self.krnl_phase_present[krnl]
+        parallel_krnls = []
+        for phase_ in phases_present:
+            parallel_krnls.extend(self.phase_krnl_present[phase_])
+
+        # get_rid_of duplicates
+        parallel_tasks = set([el.get_task_name() for el in set(parallel_krnls) if not(task.get_name() == el.get_task_name())])
+
+        return list(parallel_tasks)
+
 
 
     # Log the BW data about all the connections it the system

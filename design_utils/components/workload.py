@@ -44,6 +44,8 @@ class Task:
         self.__task_to_family_task_work_unit = {}  # task to family task unit of work. For example
                                                    # work unit from bus and memory perspective is the burst size
                                                    # (in bytes)
+    def get_name(self):
+        return self.name
     # ---------------
     # Functionality:
     #       get a task's family tasks (tasks that it reads from).
