@@ -444,19 +444,22 @@ if __name__ == "__main__":
 
     # set the study parameters
     # set the workload
-    workloads = {"edge_detection"}
+    #workloads = {"edge_detection"}
     #workloads = {"hpvm_cava"}
     #workloads = {"audio_decoder"}
     #workloads = {"SLAM"}
-    #workloads ={"audio_decoder", "edge_detection", "hpvm_cava"}
+    workloads ={"audio_decoder", "edge_detection", "hpvm_cava"}
     #workloads = {"partial_SOC_example_hard"}
     #workloads = {"simple_all_parallel"}
 
     # set the IP spawning params
     ip_loop_unrolling = {"incr": 2, "max_spawn_ip": 17, "spawn_mode": "geometric"}
-    ip_freq_range = {"incr":6, "upper_bound":8}
-    mem_freq_range = {"incr":4, "upper_bound":6}
-    ic_freq_range = {"incr":4, "upper_bound":6}
+    #ip_freq_range = {"incr":3, "upper_bound":8}
+    #mem_freq_range = {"incr":3, "upper_bound":6}
+    #ic_freq_range = {"incr":4, "upper_bound":6}
+    ip_freq_range = [1,4,6,8]
+    mem_freq_range = [1,4,6,8]
+    ic_freq_range = [1,4,6,8]
     tech_node_SF = {"perf":1, "energy":.064, "area":.0374}   # technology node scaling factor
     db_population_misc_knobs = {"ip_freq_correction_ratio": 1, "gpp_freq_correction_ratio": 1,
                                 "ip_spawn": {"ip_loop_unrolling": ip_loop_unrolling, "ip_freq_range": ip_freq_range},
@@ -472,8 +475,8 @@ if __name__ == "__main__":
     sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_scratch",
                                  "workloads": workloads, "misc_knobs": db_population_misc_knobs}
     # for check pointed
-    #sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_check_point",
-    #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
+    sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_check_point",
+                                 "workloads": workloads, "misc_knobs": db_population_misc_knobs}
 
 
     # depending on the study/substudy type, invoke the appropriate function

@@ -193,7 +193,7 @@ def barplot_moves(move_profile):
     move_to_plot = []
     for move in move_profile:
         if config.regulate_move_tracking:
-            if move.get_breadth() == 0 and move.get_depth() == 0 and move.is_valid():
+            if move.get_breadth() == 0 and move.get_depth() == 0 and move.get_mini_breadht() == 0 and move.is_valid():
                 move_to_plot.append(move)
         elif move.is_valid():
             move_to_plot.append(move)

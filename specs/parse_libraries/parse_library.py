@@ -453,15 +453,16 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
                            IP_energy_file_name, IP_area_file_name,
                            Block_char_file_name, task_itr_cnt_file_name, workload, misc_knobs):
 
-    def gen_ip_freq_range(misc_knobs, block_sub_type):
+    def gen_freq_range(misc_knobs, block_sub_type):
         assert(block_sub_type in ["ip", "mem", "ic"])
         if block_sub_type+"_spawn" not in misc_knobs.keys():
             result = [1]
         else:
             spawn = misc_knobs[block_sub_type+"_spawn"]
-            upper_bound = spawn[block_sub_type+"_freq_range"]["upper_bound"]
-            incr = spawn[block_sub_type+"_freq_range"]["incr"]
-            result = list(range(1, int(upper_bound), int(incr)))
+            result = spawn[block_sub_type+"_freq_range"]
+            #upper_bound = spawn[block_sub_type+"_freq_range"]["upper_bound"]
+            #incr = spawn[block_sub_type+"_freq_range"]["incr"]
+            #result = list(range(1, int(upper_bound), int(incr)))
         return result
 
 
@@ -570,7 +571,7 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
                 #print("taskname: " + str(task_name) + ", subtype: gpp, power is"+ str(hardware_library_dict[IP_name]["work_rate"]/hardware_library_dict[IP_name]["work_over_energy"] ))
             else:
                 loop_itr_range_ = gen_loop_itr_range(task_name, task_itr_cnt, misc_knobs)
-                ip_freq_range = gen_ip_freq_range(misc_knobs, "ip")
+                ip_freq_range = gen_freq_range(misc_knobs, "ip")
                 for loop_itr_cnt, ip_freq in itertools.product(loop_itr_range_, ip_freq_range):
                     IP_name_refined = IP_name +"_"+str(loop_itr_cnt) + "_" + str(ip_freq)
                     hardware_library_dict[IP_name_refined] = {}
@@ -586,7 +587,7 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
                     #print("taskname: " + str(task_name) + ", subtype: ip, power is"+ str(hardware_library_dict[IP_name]["work_rate"]/hardware_library_dict[IP_name]["work_over_energy"] ))
 
     for blck_name, blck_value in mems.items():
-        mem_freq_range = gen_ip_freq_range(misc_knobs, "mem")
+        mem_freq_range = gen_freq_range(misc_knobs, "mem")
         for freq in mem_freq_range:
             IP_name_refined = blck_value['Name']+ "_" + str(freq)
             hardware_library_dict[IP_name_refined] = {}
@@ -601,7 +602,7 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
             hardware_library_dict[IP_name_refined]["clock_freq"] = freq*blck_value["Freq"]
             hardware_library_dict[IP_name_refined]["BitWidth"] = blck_value["BitWidth"]
     for blck_name, blck_value in ics.items():
-        ic_freq_range = gen_ip_freq_range(misc_knobs, "ic")
+        ic_freq_range = gen_freq_range(misc_knobs, "ic")
         for freq in ic_freq_range:
             IP_name_refined = blck_value['Name']+ "_" + str(freq)
             hardware_library_dict[IP_name_refined] = {}

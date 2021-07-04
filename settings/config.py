@@ -62,7 +62,7 @@ sel_next_dp = "all_metrics"  # how to select the next desigh, ["all_metrics", "o
 
 # selection algorithm (picking the best neighbour)
 neigh_sel_algorithm = "annealing"
-SA_breadth = 2 # breath of the neighbour search
+SA_breadth = 1 # breath of the neighbour search
 SA_depth = 10 # depth of the neighbour search
 annealing_max_temp = 500
 annealing_temp_dec = 50
@@ -191,7 +191,7 @@ vis_move_trail_ctr_threshold = 20 # how often sample the moves (only applies if 
 cache_seen_designs = False and not(FARSI_memory_consumption == "low") # if True, we cache the designs that we have seen. This way we wont simulate them unnecessarily.
                           # This should be set to false if memory is an issue
 
-VIS_MOVE_TRAIL = DEBUG_MOVE and not NO_VIS and False
+VIS_MOVE_TRAIL = DEBUG_MOVE and not NO_VIS
 eval_mode ="statistical"  # not statistical evaluation ["singular, statistical]. Note that singular is deprecated now
 statistical_reduction_mode = "avg"
 hw_sampling = {"mode":"exact", "population_size":1, "reduction":"avg"}   # mode:["error_integration", "exact"]  # error integration means that our IP library has an error and needs to be taken into account

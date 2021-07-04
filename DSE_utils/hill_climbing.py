@@ -82,6 +82,7 @@ class HillClimbing:
         self.cleanup_ctr = 0  # use this to invoke the cleaner once we pass a threshold
 
         self.SA_current_breadth = -1  # which breadth is current move on
+        self.SA_current_mini_breadth = 0  # which breadth is current move on
         self.SA_current_depth = -1  # which depth is current move on
         self.check_point_folder = config.check_point_folder
 
@@ -157,7 +158,7 @@ class HillClimbing:
         safety_chk_passed = False
         # iterate and continuously generate moves, until one passes some sanity check
         while not safety_chk_passed:
-            move_to_try = self.sel_moves(new_des_tup, "dist_rank")
+            move_to_try, total_transformation_cnt = self.sel_moves(new_des_tup, "dist_rank")
             safety_chk_passed = move_to_try.safety_check(new_ex_dp)
 
         #move_to_try.print_info()
@@ -191,7 +192,7 @@ class HillClimbing:
             else:
                 raise e
 
-        return new_ex_dp_res, move_to_try
+        return new_ex_dp_res, move_to_try, total_transformation_cnt
 
     # ------------------------------
     # Functionality:
@@ -515,7 +516,7 @@ class HillClimbing:
                     if hot_block_type == "pe":
                         feasible_transformations = ["migrate", "split"]  # only for PE since we wont to be low cost, for IC/MEM cost does not increase if you customize
                     else:
-                        feasible_transformations = ["migrate", "split"]#, "swap", "split_swap"]
+                        feasible_transformations = ["migrate", "split"] #, "swap", "split_swap"]
                else:
                     # we can do better by comparing the advantage disadvantage of migrating
                     # (Advantage: slowing down by serialization, and disadvantage: accelerating by parallelization)
@@ -556,11 +557,21 @@ class HillClimbing:
             # if can't find a block that is at least as good as the current block, can't migrate
             feasible_transformations =  set(list(set(feasible_transformations) - set(['migrate'])))
 
-        if len(hot_blck_synced.get_tasks_of_block()) == 1:  # can't split an accelerator
+
+        number_of_task_on_block = 0
+        if hot_blck_synced.type == "pe":
+            number_of_task_on_block = len(hot_blck_synced.get_tasks_of_block())
+        else:
+            number_of_task_on_block = len(hot_blck_synced.get_tasks_of_block_by_dir("write"))
+        if number_of_task_on_block == 1:  # can't split an accelerator
             feasible_transformations =  set(list(set(feasible_transformations) - set(['split', 'split_swap'] )))
         if imm_block.get_generic_instance_name() == hot_blck_synced.get_generic_instance_name():
             # if can't swap improve, get rid of swap
             feasible_transformations = set(list(set(feasible_transformations) - set(['swap'])))
+
+
+        #feasible_transformations = set(list(set(feasible_transformations) - set(['split_swap'])))
+
 
         """
         if (self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp, task_synced, hot_blck_synced)):
@@ -616,7 +627,7 @@ class HillClimbing:
             batch_mode = "single"
         else:
             batch_mode = "irrelevant"
-        return transformation, batch_mode
+        return transformation, batch_mode, len(list(feasible_transformations))
 
     # calculate the cost impact of a kernel improvement
     def get_swap_improvement_cost(self, sim_dp, kernels, selected_metric, dir):
@@ -855,6 +866,10 @@ class HillClimbing:
         for krnl in krnl_contribution_dict.keys():
             krnl_prob_dict[krnl] = krnl_contribution_dict[krnl] * krnl_improvement_ease[krnl]
 
+        # give zero probability to the krnls that you filtered out
+        for krnl in sim_dp.get_dp_stats().get_kernels():
+            if krnl not in krnl_prob_dict.keys():
+                krnl_prob_dict[krnl] = 0
         # sort
         #krnl_prob_dict_sorted = {k: v for k, v in sorted(krnl_prob_dict.items(), key=lambda item: item[1])}
         krnl_prob_dict_sorted = sorted(krnl_prob_dict.items(), key=lambda item: item[1], reverse=True)
@@ -891,6 +906,23 @@ class HillClimbing:
         block_prob_dict = sim_dp.get_dp_stats().get_hot_block_of_krnel_sorted(selected_krnl.get_task_name(), selected_metric)
         return hot_blck, block_prob_dict
 
+    def change_read_task_to_write_if_necessary(self, ex_dp, sim_dp, move_to_apply, selected_krnl):
+        tasks_synced = [task__ for task__ in move_to_apply.get_block_ref().get_tasks_of_block() if
+                        task__.name == selected_krnl.get_task_name()]
+        if len(tasks_synced) == 0:  # this condition happens when we have a read task and we have unloaded reads
+            krnl_s_tsk = ex_dp.get_hardware_graph().get_task_graph().get_task_by_name(
+                move_to_apply.get_kernel_ref().get_task_name())
+            parents_s_task = [el.get_name() for el in
+                              ex_dp.get_hardware_graph().get_task_graph().get_task_s_parents(krnl_s_tsk)]
+            tasks_on_block = [el.get_name() for el in move_to_apply.get_block_ref().get_tasks_of_block()]
+            for parent_task in parents_s_task:
+                if parent_task in tasks_on_block:
+                    parents_task_obj = ex_dp.get_hardware_graph().get_task_graph().get_task_by_name(parent_task)
+                    krnl = sim_dp.get_kernel_by_task_name(parents_task_obj)
+                    move_to_apply.set_krnel_ref(krnl)
+        return
+
+
     # ------------------------------
     # Functionality:
     #    generate a move to apply.  A move consists of a metric, direction, kernel, block and transformation.
@@ -910,7 +942,7 @@ class HillClimbing:
         move_dir = self.select_dir(sim_dp, selected_metric)
         selected_krnl, krnl_prob_dict, krnl_prob_dir_dict_sorted = self.select_kernel(ex_dp, sim_dp, selected_metric, sorted_metric_dir)
         selected_block, block_prob_dict = self.select_block(sim_dp, ex_dp, selected_krnl, selected_metric)
-        transformation_name,transformation_batch_mode = self.select_transformation(ex_dp, sim_dp, selected_block, selected_metric, selected_krnl, sorted_metric_dir)
+        transformation_name,transformation_batch_mode, total_transformation_cnt = self.select_transformation(ex_dp, sim_dp, selected_block, selected_metric, selected_krnl, sorted_metric_dir)
 
         # prepare for move
         # if bus, (forgot which exception), if IP, avoid split .
@@ -959,16 +991,18 @@ class HillClimbing:
                                                  [move_to_apply.get_block_ref().get_tasks_by_name(move_to_apply.get_kernel_ref().get_task_name())])  # immediate block either superior or
             move_to_apply.set_dest_block(imm_block)
 
+            self.dh.unload_read_mem(ex_dp)  # unload memories
+            self.change_read_task_to_write_if_necessary(ex_dp, sim_dp, move_to_apply, selected_krnl)
             migrant_tasks = self.dh.migrant_selection(ex_dp, sim_dp, move_to_apply.get_block_ref(), move_to_apply.get_kernel_ref(),
                                                       move_to_apply.get_transformation_batch())
             #migrant_tasks  = list(set(move_to_apply.get_block_ref().get_tasks()) - set(migrant_tasks_))  # reverse the order to allow for swap to happen on the ref_block
             move_to_apply.set_tasks(migrant_tasks)
         elif move_to_apply.get_transformation_name() in ["split"]:
             # select tasks to migrate
+            #self.change_read_task_to_write_if_necessary(ex_dp, sim_dp, move_to_apply, selected_krnl)
             migrant_tasks = self.dh.migrant_selection(ex_dp, sim_dp, move_to_apply.get_block_ref(), move_to_apply.get_kernel_ref(),
                                                       move_to_apply.get_transformation_batch())
-            #migrant_tasks = self.dh.migrant_selection(move_to_apply.get_block_ref(), move_to_apply.get_kernel_ref(),
-            #                                          tch", sim_dp.dp_stats.get_parallel_kernels())
+
             move_to_apply.set_tasks(migrant_tasks)
             if len(migrant_tasks) == 0:
                 move_to_apply.set_validity(False, "NoParallelTaskException")
@@ -987,19 +1021,7 @@ class HillClimbing:
                                                                                                               move_to_apply.get_kernel_ref())
                 self.dh.unload_buses(ex_dp)  # unload buses
                 self.dh.unload_read_mem(ex_dp)  # unload memories
-                tasks_synced = [task__ for task__ in move_to_apply.get_block_ref().get_tasks_of_block() if
-                                task__.name == selected_krnl.get_task_name()]
-                if len(tasks_synced) == 0:  # this condition happens when we have a read task and we have unloaded reads
-                    krnl_s_tsk = ex_dp.get_hardware_graph().get_task_graph().get_task_by_name(move_to_apply.get_kernel_ref().get_task_name())
-                    parents_s_task = [el.get_name() for el in ex_dp.get_hardware_graph().get_task_graph().get_task_s_parents(krnl_s_tsk)]
-                    tasks_on_block = [el.get_name() for el in move_to_apply.get_block_ref().get_tasks_of_block()]
-                    for parent_task in parents_s_task:
-                        if parent_task in tasks_on_block:
-                            parents_task_obj = ex_dp.get_hardware_graph().get_task_graph().get_task_by_name(parent_task)
-                            krnl = sim_dp.get_kernel_by_task_name(parents_task_obj)
-                            move_to_apply.set_krnel_ref(krnl)
-
-
+                self.change_read_task_to_write_if_necessary(ex_dp, sim_dp, move_to_apply, selected_krnl)
                 if not found_blck_to_mig_to:
                     move_to_apply.set_validity(False, "NoMigrantException")
                     imm_block_present = move_to_apply.get_block_ref()
@@ -1038,8 +1060,8 @@ class HillClimbing:
                         move_to_apply.set_dest_block(imm_block_present)
 
 
-        move_to_apply.set_breadth_depth(self.SA_current_breadth, self.SA_current_depth)  # set depth and breadth (for debugging/ plotting)
-        return move_to_apply
+        move_to_apply.set_breadth_depth(self.SA_current_breadth, self.SA_current_depth, self.SA_current_mini_breadth)  # set depth and breadth (for debugging/ plotting)
+        return move_to_apply, total_transformation_cnt
 
     # ------------------------------
     # Functionality:
@@ -1494,9 +1516,8 @@ class HillClimbing:
     def gen_neigh_and_eval(self, des_tup):
         # "delete this later"
         print("------ depth ------")
-        self.SA_current_depth += 1
         # generate on neighbour
-        ex_dp, move_to_try = self.gen_one_neigh(des_tup)
+        ex_dp, move_to_try,total_trans_cnt = self.gen_one_neigh(des_tup)
 
         # generate a code for the design (that specifies the topology, mapping and scheduling).
         # look into cache and see if this design has been seen before. If so, just use the
@@ -1512,7 +1533,7 @@ class HillClimbing:
 
         # collect the moves for debugging/visualization
         if config.DEBUG_MOVE:
-            if (self.total_itr_ctr % config.vis_reg_ctr_threshold) == 0:
+            if (self.total_itr_ctr % config.vis_reg_ctr_threshold) == 0 and self.SA_current_mini_breadth == 0:
                 self.move_profile.append(move_to_try)  # for debugging
             self.last_move = move_to_try
             sim_dp.set_move_applied(move_to_try)
@@ -1534,7 +1555,7 @@ class HillClimbing:
             print("design's area: " + str(sim_dp.dp_stats.get_system_complex_metric("area")))
             print("design's sub area: " + str(sim_dp.dp_stats.get_system_complex_area_stacked_dram()))
 
-        return (ex_dp, sim_dp)
+        return (ex_dp, sim_dp), total_trans_cnt
 
     # ------------------------------
     # Functionality:
@@ -1553,15 +1574,25 @@ class HillClimbing:
         #des_tup_list = []
         # iterate on breath
         for i in range(0, breath_length):
+            self.SA_current_mini_breadth = 0
             if not(breath_length == 1):
                 self.SA_current_breadth += 1
                 self.SA_current_depth = -1
                 print("--------breadth--------")
             # iterate on depth (generate one neighbour and evaluate it)
-            des_tup_new = self.gen_neigh_and_eval(des_tup)
-
+            self.SA_current_depth += 1
+            des_tup_new, possible_des_cnt = self.gen_neigh_and_eval(des_tup)
             # collect the generate design in a list and run sanity check on it
             des_tup_list.append(des_tup_new)
+
+            # do more coverage if needed
+            """ 
+            for i in range(0, max(possible_des_cnt,1)-1):
+                self.SA_current_mini_breadth += 1
+                des_tup_new_breadth, _ = self.gen_neigh_and_eval(des_tup)
+                des_tup_list.append(des_tup_new_breadth)
+            """
+
             self.gen_some_neighs_and_eval(des_tup_new, 1, depth_length-1, des_tup_list)
             #des_tup_list.extend(self.gen_some_neighs_and_eval(des_tup_new, 1, depth_length-1))
 
@@ -1821,13 +1852,22 @@ class HillClimbing:
             reason_to_terminate = "des_stag_ctr exceeded"
             should_terminate = True
         elif len(self.krnels_not_to_consider) >= (len(self.so_far_best_sim_dp.get_kernels()) - len(self.so_far_best_sim_dp.get_dummy_tasks())):
-            reason_to_terminate = "all kernels already targeted without improvement"
+            if stat_result.fits_budget(1):
+                reason_to_terminate = "met the budget"
+            else:
+                reason_to_terminate = "all kernels already targeted without improvement"
             should_terminate = True
         elif len(tsks_left_to_optimize) == 0:
-            reason_to_terminate = "all kernels already targeted without improvement"
+            if stat_result.fits_budget(1):
+                reason_to_terminate = "met the budget"
+            else:
+                reason_to_terminate = "all kernels already targeted without improvement"
             should_terminate = True
         elif self.total_itr_ctr > self.TOTAL_RUN_THRESHOLD:
-            reason_to_terminate = "exploration (total itr_ctr) iteration threshold reached"
+            if stat_result.fits_budget(1):
+                reason_to_terminate = "met the budget"
+            else:
+                reason_to_terminate = "exploration (total itr_ctr) iteration threshold reached"
             should_terminate = True
 
 

@@ -34,6 +34,7 @@ class move:
         self.valid = True
         self.breadth = 0
         self.depth = 0
+        self.mini_breadth = 0
         self.sorted_kernels = []
         self.sorted_blocks = []
         self.kernel_rnk_to_consider = 0
@@ -82,12 +83,17 @@ class move:
 
     # depth and breadth determine how many designs to generate around (breadth) and
     # chain from (breadth) from the current design
-    def set_breadth_depth(self, breadth, depth):
+    def set_breadth_depth(self, breadth, depth, mini_breadth):
         self.breadth = breadth
         self.depth = depth
+        self.mini_breadth = mini_breadth
 
     def get_depth(self):
         return self.depth
+
+    def get_mini_breadth(self):
+        return self.mini_breadth
+
 
     def get_breadth(self):
         return self.breadth
