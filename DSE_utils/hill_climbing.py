@@ -231,7 +231,7 @@ class HillClimbing:
                     matching_blocks.append((blocks[idx], blocks[idx_2]))
                     matched_idx.append(idx_2)
                 elif blocks[idx].type in ["mem", "ic"] and blocks[idx_2].type in ["mem", "ic"]:  # for mem and ic
-                    if blocks[idx].type == blocks[idx_2].type:
+                    if blocks[idx].subtype == blocks[idx_2].subtype:
                         matching_blocks.append((blocks[idx], blocks[idx_2]))
                         matched_idx.append(idx_2)
         return matching_blocks
@@ -262,14 +262,22 @@ class HillClimbing:
     #        sim_dp: design
     # ------------------------------
     def check_if_any_tasks_on_two_blocks_parallel(self, sim_dp, block_1, block_2):
-        tasks_of_block_1 = [task for task in block_1.get_tasks_of_block() if (not("souurce" in task.name) or not("siink" in task.name))]
-        tasks_of_block_2 = [task for task in block_2.get_tasks_of_block() if (not("souurce" in task.name) or not("siink" in task.name))]
+        tasks_of_block_1 = [task for task in block_1.get_tasks_of_block_by_dir("write") if not task.is_task_dummy()]
+        tasks_of_block_2 = [task for task in block_2.get_tasks_of_block_by_dir("write") if not task.is_task_dummy()]
 
         for idx_1, _ in enumerate(tasks_of_block_1):
+            tsk_1 = tasks_of_block_1[idx_1]
+            parallel_tasks_names = sim_dp.get_dp_rep().get_tasks_parallel_task_dynamically(tsk_1)
             for idx_2, _ in enumerate(tasks_of_block_2):
-                if sim_dp.get_dp_rep().get_hardware_graph().get_task_graph().tasks_can_run_in_parallel(tasks_of_block_2[idx_2], tasks_of_block_1[idx_1]):
-                    return True
-
+                tsk_2  = tasks_of_block_2[idx_2]
+                if tsk_1.get_name() == tsk_2.get_name():
+                    continue
+                if config.parallelism_analysis == "static":
+                    if sim_dp.get_dp_rep().get_hardware_graph().get_task_graph().tasks_can_run_in_parallel(tsk_1, tsk_2):
+                        return True
+                elif config.parallelism_analysis == "dynamic":
+                    if tsk_2.get_name() in parallel_tasks_names:
+                        return True
         return False
 
     # ------------------------------
@@ -405,7 +413,8 @@ class HillClimbing:
     #     is current iteration a clean up iteration (ie., should be used for clean up)
     # ------------------------------
     def is_cleanup_iter(self):
-        return (self.cleanup_ctr % (config.cleaning_threshold)) > (config.cleaning_threshold- config.cleaning_consecutive_iterations)
+        result = (self.cleanup_ctr % (config.cleaning_threshold)) >= (config.cleaning_threshold- config.cleaning_consecutive_iterations)
+        return result
 
     def select_block_to_migrate_to(self, ex_dp, sim_dp, hot_blck_synced, selected_metric, sorted_metric_dir, selected_krnl):
         def get_block_attr(selected_metric):
@@ -442,6 +451,39 @@ class HillClimbing:
                                                                                                      hot_blck_synced)
         inequality_dir = selected_dir*-1
         results_block = [] # results
+
+        task_s_blocks = ex_dp.get_hardware_graph().get_blocks_of_task(task)
+        if len(task_s_blocks) == 0:
+            print("a task must have at lease three blocks")
+            exit(0)
+
+
+        remove_list = []  # list of blocks to remove from equal_imm_blocks_present_for_migration
+        # improve locality by only allowing migration to the PE/MEM close by
+        if hot_blck_synced.type == "mem":
+            # only keep memories that are connected to the IC neighbour of the task's pe
+            # This is to make sure that we keep data local (to the router), instead of migrating to somewhere far
+            task_s_pe = [blk for blk in task_s_blocks if blk.type == "pe"][0] # get task's pe
+            tasks_s_ic = [el for el in task_s_pe.get_neighs() if el.type == "ic"][0] # get pe's ic
+            potential_mems = [el for el in tasks_s_ic.get_neighs() if el.type == "mem"] # get ic's memories
+            for el in equal_imm_blocks_present_for_migration:
+                if el not in potential_mems:
+                    remove_list.append(el)
+            for el in remove_list:
+                equal_imm_blocks_present_for_migration.remove(el)
+        elif hot_blck_synced.type == "pe":
+            # only keep memories that are connected to the IC neighbour of the task's pe
+            # This is to make sure that we keep data local (to the router), instead of migrating to somewhere far
+            task_s_mems = [blk for blk in task_s_blocks if blk.type == "mem"] # get task's pe
+            potential_pes = []
+            for task_s_mem in task_s_mems:
+                tasks_s_ic = [el for el in task_s_mem.get_neighs() if el.type == "ic"][0]  # get pe's ic
+                potential_pes.extend([el for el in tasks_s_ic.get_neighs() if el.type == "pe"])  # get ic's memories
+            for el in equal_imm_blocks_present_for_migration:
+                if el not in potential_pes:
+                    remove_list.append(el)
+            for el in remove_list:
+                equal_imm_blocks_present_for_migration.remove(el)
 
         # iterate through the blocks and find the best one
         for block_to_migrate_to in equal_imm_blocks_present_for_migration:
@@ -866,7 +908,7 @@ class HillClimbing:
         for krnl in krnl_contribution_dict.keys():
             krnl_prob_dict[krnl] = krnl_contribution_dict[krnl] * krnl_improvement_ease[krnl]
 
-        # give zero probability to the krnls that you filtered out
+        # give zero probablity to the krnls that you filtered out
         for krnl in sim_dp.get_dp_stats().get_kernels():
             if krnl not in krnl_prob_dict.keys():
                 krnl_prob_dict[krnl] = 0
@@ -1260,7 +1302,7 @@ class HillClimbing:
                 sim_dp_stat_ann_delta_energy_dict[sim_dp_stat] = sim_dp_stat.dist_to_goal(
                     ["cost", "latency", "power", "area"], "eliminate") - ann_energy_best_dp_so_far
                 sim_dp_stat_ann_delta_energy_dict_all_metrics[sim_dp_stat] = sim_dp_stat.dist_to_goal(
-                    ["latency", "power", "area"], "eliminate") - ann_energy_best_dp_so_far_all_metrics
+                    ["cost", "latency", "power", "area"], "eliminate") - ann_energy_best_dp_so_far_all_metrics
             else:
                 new_design_energy = sim_dp_stat.dist_to_goal([metric_to_target], "dampen")
                 sim_dp_stat_ann_delta_energy_dict[sim_dp_stat] = new_design_energy - ann_energy_best_dp_so_far
@@ -1599,8 +1641,9 @@ class HillClimbing:
             # visualization and sanity checks
             if config.VIS_MOVE_TRAIL:
                 if (self.total_itr_ctr % config.vis_reg_ctr_threshold) == 0:
-                    self.des_trail_list.append((copy.deepcopy(self.so_far_best_sim_dp), copy.deepcopy(des_tup_list[-1][1])))
-                    self.last_des_trail = (copy.deepcopy(self.so_far_best_sim_dp), copy.deepcopy(des_tup_list[-1][1]))
+                    best_design_sim_cpy = copy.deepcopy(self.so_far_best_sim_dp)
+                    self.des_trail_list.append((best_design_sim_cpy, des_tup_list[-1][1]))
+                    self.last_des_trail = (best_design_sim_cpy, des_tup_list[-1][1])
                     #self.des_trail_list.append((cPickle.loads(cPickle.dumps(self.so_far_best_sim_dp, -1)),cPickle.loads(cPickle.dumps(des_tup_list[-1][1], -1))))
                     #self.last_des_trail = (cPickle.loads(cPickle.dumps(self.so_far_best_sim_dp, -1)),cPickle.loads(cPickle.dumps(des_tup_list[-1][1], -1)))
 
@@ -1823,6 +1866,18 @@ class HillClimbing:
     # ------------------------------
     def calc_budget_coeff(self):
         self.budget_coeff = int(((self.TOTAL_RUN_THRESHOLD - self.total_itr_ctr)/self.coeff_slice_size) + 1)
+
+    def reset_ctrs(self):
+        should_terminate = False
+        reason_to_terminate = ""
+        self.fitted_budget_ctr = 0
+        self.krnels_not_to_consider = []
+        self.des_stag_ctr = 0
+        self.krnel_stagnation_ctr = 0
+        self.krnel_rnk_to_consider = 0
+        self.cleanup_ctr  = 0
+        self.des_stag_ctr = 0
+        self.recently_seen_design_ctr = 0
 
     # ------------------------------
     # Functionality:

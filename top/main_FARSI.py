@@ -34,6 +34,7 @@ def run_FARSI(result_folder, unique_number, db_input, hw_sampling, starting_expl
         num_SOCs = 1  # how many SOCs to spread the design across
         so_far_best_ex_dp = None
         boost_SOC = False  # specify whether to stick with the old SOC type or boost it
+        best_design_sim_this_itr = None
 
         # set up the design handler and the design explorer
         dse_handler = DSEHandler(result_folder)
@@ -41,14 +42,28 @@ def run_FARSI(result_folder, unique_number, db_input, hw_sampling, starting_expl
         # then chooses among DSE algorithms (hill climbing) and initializes it
         dse_handler.setup_an_explorer(db_input, hw_sampling)
 
+        # Use the check pointed design, parsed design or generate an simple design point
+        dse_handler.prepare_for_exploration(boost_SOC, starting_exploration_mode)
+
         # iterate until you find a design meeting the constraints or terminate if none found
         while True:
-            # Use the check pointed design, parsed design or generate an simple design point
-            dse_handler.prepare_for_exploration(so_far_best_ex_dp, boost_SOC, starting_exploration_mode)
             # does the simulation for design points (performance, energy, and area core calculations)
             dse_handler.explore()
             dse_handler.check_point_best_design(unique_number)  # check point
-            return dse_handler
+
+            # iterate if budget not met and we have seen improvements
+            best_design_sim_last_itr = best_design_sim_this_itr
+            best_design_sim_this_itr = dse_handler.dse.so_far_best_sim_dp
+            # if did not improve comparing to the last iteration, exit
+            if not best_design_sim_last_itr == None and \
+                    (best_design_sim_this_itr.dp_rep.get_hardware_graph().get_SOC_design_code() ==
+                     best_design_sim_last_itr.dp_rep.get_hardware_graph().get_SOC_design_code()):
+                return dse_handler
+            else:
+                dse_handler.dse.reset_ctrs()
+                dse_handler.dse.init_ex_dp =  dse_handler.dse.so_far_best_ex_dp
+            #if stat_result.fits_budget(1) get_SOC_design_code
+            #return dse_handler
 
 
 # Run FARSI only to simulate one design (parsed, generated or from check point)
@@ -85,7 +100,7 @@ def run_FARSI_only_simulation(result_folder, unique_number, db_input, hw_samplin
         dse_handler.setup_an_explorer(db_input, hw_sampling)
 
         # Use the check pointed design, parsed design or generate an simple design point
-        dse_handler.prepare_for_exploration(so_far_best_ex_dp, boost_SOC, starting_exploration_mode)
+        dse_handler.prepare_for_exploration(boost_SOC, starting_exploration_mode)
         # does the simulation for design points (performance, energy, and area core calculations)
         dse_handler.explore_one_design()
         dse_handler.check_point_best_design(unique_number)  # check point

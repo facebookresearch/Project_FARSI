@@ -987,14 +987,14 @@ class DesignHandler:
         imm_blcks_non_unique = self.database.equal_sample_up_sample_down_sample_block_fast(block, metric, metric_dir,
                                                                            tasks)  # get the first value
 
-        all_compatible_blocks = [blck.get_generic_instance_name() for blck in self.database.find_all_compatible_blocks_fast(block.type, tasks)]
+        imm_blcks_names = [blck.get_generic_instance_name() for blck in imm_blcks_non_unique]
+        #all_compatible_blocks = [blck.get_generic_instance_name() for blck in self.database.find_all_compatible_blocks_fast(block.type, tasks)]
 
         blocks_present = ex_dp.get_blocks()
         result_blocks = []
-        for block_ in imm_blcks_non_unique:
-            for block_present in blocks_present:
-                if not (block.instance_name == block_present.instance_name) and block_present.get_generic_instance_name() in all_compatible_blocks:
-                   result_blocks.append(block_present)
+        for block_present in blocks_present:
+            if not (block.instance_name == block_present.instance_name) and block_present.get_generic_instance_name() in imm_blcks_names:
+               result_blocks.append(block_present)
 
         if len(result_blocks) == 0:
             result_blocks = [block]

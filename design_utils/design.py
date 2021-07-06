@@ -1032,6 +1032,9 @@ class SimDesignPoint(ExDesignPoint):
 
     def get_tasks_parallel_task_dynamically(self, task):
         krnl = self.get_kernel_by_task_name(task)
+        #if krnl not in self.krnl_phase_present.keys():
+        #    print("yeah something has def gone wrong")
+
         phases_present = self.krnl_phase_present[krnl]
         parallel_krnls = []
         for phase_ in phases_present:

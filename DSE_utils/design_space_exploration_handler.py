@@ -213,9 +213,9 @@ class DSEHandler:
     #      boost_SOC: choose a better SOC (This is for multiple SOC design. Not activated yet)
     #      mode: whether to bootstrap exploration from scratch or from an already existing design.
     # ---------------
-    def prepare_for_exploration(self, init_des_point, boost_SOC, starting_exploration_mode="from_scratch"):
+    def prepare_for_exploration(self, boost_SOC, starting_exploration_mode="from_scratch"):
         # either generate an initial design point(dh.gen_init_des()) or use a check_pointed one
-        self.dse.gen_init_ex_dp(init_des_point, starting_exploration_mode)
+        self.dse.gen_init_ex_dp(starting_exploration_mode)
         self.dse.dh.boos_SOC = boost_SOC
 
     # ---------------

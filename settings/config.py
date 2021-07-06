@@ -123,7 +123,7 @@ for metric in all_metrics:
 metric_trans_dict = {"latency": ["split", "swap", "migrate", "split_swap"], "power": ["split", "swap", "migrate", "split_swap"],
                       "area": ["split", "swap", "migrate", "split_swap"]}
 
-cleaning_threshold = 10220  # how often to activate cleaning
+cleaning_threshold = 2000000000000000000000  # how often to activate cleaning
 cleaning_consecutive_iterations = 1  # how many consecutive iterations to clean
 
 move_metric_ranking_mode = "exact"  # exact, prob.  If exact, metrics are ranked (and hence selected) based on

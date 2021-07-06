@@ -475,8 +475,8 @@ if __name__ == "__main__":
     sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_scratch",
                                  "workloads": workloads, "misc_knobs": db_population_misc_knobs}
     # for check pointed
-    sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_check_point",
-                                 "workloads": workloads, "misc_knobs": db_population_misc_knobs}
+    #sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_check_point",
+    #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
 
 
     # depending on the study/substudy type, invoke the appropriate function

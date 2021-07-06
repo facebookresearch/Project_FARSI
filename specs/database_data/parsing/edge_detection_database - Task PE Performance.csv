@@ -5,5 +5,5 @@ laplacianEstimate,421068800,198574080
 computeZeroCrossings,437452800,198574080
 computeGradient,427622400,189071360
 computeMaxGradientLeaf,14749184,3301888
-rejectZeroCrossings,37683200,177602560
+rejectZeroCrossings,376832000,177602560
 siink,0,
