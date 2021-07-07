@@ -114,7 +114,7 @@ class HillClimbing:
     #       init_des_point: initial design point
     #       mode: starting point mode (from scratch or from check point)
     # ------------------------------
-    def gen_init_ex_dp(self, init_des_point="None", mode="generated_from_scratch"):
+    def gen_init_ex_dp(self, mode="generated_from_scratch"):
         if mode == "generated_from_scratch":  # start from the simplest design possible
             self.init_ex_dp = self.dh.gen_init_des()
         elif mode == "generated_from_check_point":

@@ -416,6 +416,10 @@ class Kernel:
         self.block_att_work_rate_dict = defaultdict(dict)  # for the kernel, block and their attainable work rate.
                                                            # attainable work rate is peak work rate (BW or IPC) of the block
                                                            # but attenuated as it is being shared among multiple kernels/fronts
+
+        self.block_path_dir_phase_latency = {}
+        self.path_dir_phase_latency = {}
+        self.pathlet_phase_latency_dict = {}
         self.stats = KernelStats()
         self.workload_pe_total_work, self.workload_fraction, self.pe_s_work_left, self.progress, self.status = [None]*5
         self.block_dir_work_left = defaultdict(dict)  # block and the direction (write/read or loop) and how much work is left for the
@@ -724,21 +728,55 @@ class Kernel:
     # simply go through all the block work rate and pick the smallest
     def calc_block_s_bottleneck(self, block_work_rate_norm_dict):
         # only if work unit is left
-        block_bottleneck = None
-        bottleneck_work_rate = 0
+        block_bottleneck = {"write": None, "read":None}
+        bottleneck_work_rate = {"write": 0, "read":None}
         # iterate through all the blocks/channels and ge the minimum work rate. Since
         # the data is normalized, minimum is the bottleneck
         for block, pipe_cluster_work_rate in block_work_rate_norm_dict.items():
             for pipe_cluster, work_rate in pipe_cluster_work_rate.items():
-                if not block_bottleneck:
-                    block_bottleneck = block
-                    bottleneck_work_rate = work_rate
+                dir_ = pipe_cluster.get_dir()
+                if dir_ == "same":  # same is for PEs. In that case, we will apply it for both the read and write path
+                    dirs = ["write", "read"]
                 else:
-                    if work_rate < bottleneck_work_rate:
-                        bottleneck_work_rate = work_rate
-                        block_bottleneck = block
+                    dirs = [dir_]
+                for dir__ in dirs:
+                    if not block_bottleneck[dir__]:
+                        block_bottleneck[dir__] = block
+                        bottleneck_work_rate[dir__] = work_rate
+                    else:
+                        if work_rate < bottleneck_work_rate[dir__]:
+                            bottleneck_work_rate[dir__] = work_rate
+                            block_bottleneck[dir__] = block
 
         return block_bottleneck, bottleneck_work_rate
+
+
+    # calculate the unnormalized work rate.
+    # Normalization is the process of normalizing the work_rate of each block with respect of the
+    # reference work (work done by the PE). This then allows us to easily find the bottleneck
+    # for the block as we have already normalized the data. Unnormalization is the reverse
+    # process
+    def calc_unnormalize_work_rate_by_dir(self, block_work_rate_norm_dict, bottleneck_work_rate):
+        block_dir_att_work_rate_dict = defaultdict(dict)
+        for block, pipe_cluster_work_rate in block_work_rate_norm_dict.items():
+            if block.type == "pe":
+                continue
+            for pipe_cluster, work_rate in pipe_cluster_work_rate.items():
+                    dir = pipe_cluster.get_dir()
+                    if dir == "same":
+                        dirs = ["write", "read"]
+                    else:
+                        dirs = [dir]
+                    for dir_ in dirs:
+                        work_ratio = self.__task_to_blocks_map.get_workRatio_by_block_name_and_family_member_names_and_channel_eliminating_fake(
+                            block.instance_name, self.get_block_family_tasks_in_use(block), dir_)
+                        if "souurce" in self.get_task_name() or "siink" in self.get_task_name():
+                            work_ratio = 1
+                        block_dir_att_work_rate_dict[block][pipe_cluster] = bottleneck_work_rate[dir_]*work_ratio
+                        #self.update_pipe_cluster_work_rate(pipe_cluster, bottleneck_work_rate)
+
+        return block_dir_att_work_rate_dict
+
 
     # calculate the unnormalized work rate.
     # Normalization is the process of normalizing the work_rate of each block with respect of the
@@ -768,6 +806,37 @@ class Kernel:
 
 
 
+    # latency taken for an ic to wait for the traffic ahead
+    def get_traffic_latency(self, pathlet_, pipe_cluster, scheduled_kernels):
+        traversal_dir_latency = {} # forward/backward latency
+        block_ref = pipe_cluster.get_block_ref()
+        if not block_ref.type == "ic" :
+            traversal_dir_latency["backward"] = 0
+            traversal_dir_latency["forward"] = 0
+            return traversal_dir_latency
+
+        traffic_latency = 0
+        dir_ = pathlet_.get_dir()
+        pipes_with_traffic = self.filter_in_active_pipes(pipe_cluster.get_incoming_pipes(),
+                                                         pipe_cluster.get_outgoing_pipe(), scheduled_kernels)
+
+        pathlets_work_rate, last_phase = pipe_cluster.get_pathlet_last_phase_work_rate()  # last phase work_rate
+        sum_work_rate = max(sum(pathlets_work_rate.values()), .000000000000000000001)  # max is there to avoid division by 0
+
+        for pathlet__, work_rate in pathlets_work_rate.items():
+            if pathlet__ == pathlet_:
+                traffic_latency +=  64/max(work_rate,.0000000000000001)
+                #traffic_latency = sum_work_rate/max(work_rate,.0000000000000001)
+
+        # determine the forward/backward path latency
+        if dir_ == "write":
+            traversal_dir_latency["backward"] = 0
+            traversal_dir_latency["forward"] = traffic_latency
+        if dir_ == "read":
+            traversal_dir_latency["backward"] = 0
+            traversal_dir_latency["forward"] = traffic_latency
+
+        return traversal_dir_latency
 
     # latency taken for an ic to arbiterate between different requests
     def get_arbiteration_latency(self, pathlet_, pipe_cluster, scheduled_kernels):
@@ -784,21 +853,17 @@ class Kernel:
                                                          pipe_cluster.get_outgoing_pipe(), scheduled_kernels)
 
         pathlets_work_rate, last_phase = pipe_cluster.get_pathlet_last_phase_work_rate()  # last phase work_rate
-        sum_work_rate = max(sum(pathlets_work_rate.values()), .000000000000000000001)  # max is there to avoid division by 0
-
-        for pathlet__, work_rate in pathlets_work_rate.items():
-            if pathlet__ == pathlet_:
-                arbiteration_latency = sum_work_rate/max(work_rate,.0000000000000001)
-
-        # determine the forward/backward path latency
+        # aribiteration latency is total_number of working (pathlets - 1) as IC needs to iterate through them all
+        occupided_pathlets = [pathlet for pathlet, work_rate in pathlets_work_rate.items() if work_rate>0]
         if dir_ == "write":
+            traversal_dir_latency["forward"] = len(occupided_pathlets) - 1
             traversal_dir_latency["backward"] = 0
-            traversal_dir_latency["forward"] = arbiteration_latency
-        if dir_ == "read":
-            traversal_dir_latency["backward"] = 0
-            traversal_dir_latency["forward"] = arbiteration_latency
+        elif dir_ == "read":
+            traversal_dir_latency["forward"] = 0
+            traversal_dir_latency["backward"] = len(occupided_pathlets) - 1
 
         return traversal_dir_latency
+
     # latency taken for an ic to generate the fleets of a request
     def get_pathlet_flee_cnt(self, block_ref, pathlet_):
         dir_ = pathlet_.get_dir()
@@ -809,9 +874,9 @@ class Kernel:
         #TODO: for now only pe to ic fleet generation is accounted for,
         # but I believe if there is bus width descrpeency between adjacent blocks,
         # fleets might be generated
-        if in_pipe.get_slave().type == "mem":
-            print("ok")
-        if not (in_pipe.get_master().type == "pe" and dir_ == "write")  or not (in_pipe.get_slave().type == "mem" and dir_ == "read"):
+        #if in_pipe.get_slave().type == "mem":
+        #    print("ok")
+        if not ((in_pipe.get_master().type == "pe" and dir_ == "write")  or (in_pipe.get_slave().type == "mem" and dir_ == "read")):
             return 0
         master_tasks = self.get_masters_relevant_tasks_on_the_pipe_cluster(in_pipe, dir_)
         # calculate work ratio
@@ -826,13 +891,13 @@ class Kernel:
         #if self.task_name in self.
 
         traversal_dir_latency = {} # forward/backward latency
+        dir_ = pathlet_.get_dir()
         block_ref = pipe_cluster.get_block_ref()
-        if not block_ref.type == "ic" or not block_ref.type == "mem":
+        if not ((block_ref.type == "pe" and dir_ == "write") or (block_ref.type == "mem" and dir_ == "read")):
             traversal_dir_latency["backward"] = 0
             traversal_dir_latency["forward"] = 0
             return traversal_dir_latency
 
-        dir_ = pathlet_.get_dir()
         fleet_generation_latency = 0
         for pathlet_ in pipe_cluster.get_pathlets():
             fleet_generation_latency += self.get_pathlet_flee_cnt(block_ref, pathlet_)
@@ -859,10 +924,63 @@ class Kernel:
         if dir_ == "read":
             traversal_dir_latency["backward"] = 0 # at the moment, our back ward hop is zero matching platform architect's default
             traversal_dir_latency["forward"] = 1
+        for k in traversal_dir_latency.keys():
+            traversal_dir_latency[k] = traversal_dir_latency[k]/block_ref.get_block_freq()
+
         return traversal_dir_latency
 
+    def update_path_latency_1(self):
+        for pathlet, trv_dir_phase_num_val in self.pathlet_phase_latency_dict.items():
+            for trv_dir, phase_num_val in trv_dir_phase_num_val.items():
+                for dir_ in ["write", "read"]:
+                    if dir_ not in  self.path_dir_phase_latency.keys():
+                        self.path_dir_phase_latency[dir_] = {}
+                    for phase_num, val in phase_num_val.items():
+                        if phase_num not in self.path_dir_phase_latency[dir_].keys():
+                            self.path_dir_phase_latency[dir_][phase_num] =  0
+
+                        if self.get_task().is_task_dummy():
+                            continue
+                        #blk_freq = pathlet.get_in_pipe().get_slave().get_block_freq()
+                        #self.path_dir_phase_latency[dir_][phase_num] += val
+                        block = pathlet.get_in_pipe().get_slave()
+                        pipe_cluster = pathlet.getma
+                        block_att_work_rate_dict[block][pipe_cluster]
+                        self.path_dir_phase_latency[dir_][phase_num] = 64/self.block_att_work_rate_dict[pathlet.get_in_pipe().get_slave()]
 
     # update paths (inpipe-outpipe) work rate
+    def update_path_latency(self):
+        if self.get_task().is_task_dummy():
+            return
+
+        for block, pipe_cluster_work_rate in self.block_dir_att_work_rate_dict.items():
+            if block.type == "pe":
+                continue
+            if block not in self.block_path_dir_phase_latency.keys():
+                self.block_path_dir_phase_latency[block] = {}
+
+            for pipe_cluster, work_rate in pipe_cluster_work_rate.items():
+                if pipe_cluster not in self.block_path_dir_phase_latency[block].keys():
+                    self.block_path_dir_phase_latency[block][pipe_cluster] = {}
+
+                dir_ =  pipe_cluster.get_dir()
+                if dir_ == "same":
+                    dirs = ["write", "read"]
+                else:
+                    dirs = [dir_]
+                for dir in dirs:
+                    if dir not in self.block_path_dir_phase_latency[block][pipe_cluster].keys():
+                        self.block_path_dir_phase_latency[block][pipe_cluster][dir] = {}
+                    _, last_phase = pipe_cluster.get_pathlet_last_phase_work_rate()  # last phase work_rate
+                    #last_phase = self.phase_num
+                    if last_phase not in self.block_path_dir_phase_latency[block][pipe_cluster][dir].keys():
+                        self.block_path_dir_phase_latency[block][pipe_cluster][dir][last_phase] = 0
+
+                    work_unit = self.get_task().get_smallest_task_work_unit_by_dir(dir)
+                    self.block_path_dir_phase_latency[block][pipe_cluster][dir][last_phase] =  work_unit/ work_rate
+
+    # update paths (inpipe-outpipe) work rate
+    # We are not using the following as it was not usefull (and with verification didn't give us good results)
     def update_pipe_clusters_pathlet_latency(self, scheduled_kernels):
         if "souurce" in self.get_task_name() or "siink" in self.get_task_name() or "dummy_last" in self.get_task_name():
             return
@@ -872,11 +990,17 @@ class Kernel:
                     return
                 for pathlet_ in pipe_cluster.get_pathlets():
                     hop_latency = self.get_hop_latency(pipe_cluster)
-                    arbiteration_latency = self.get_arbiteration_latency(pathlet_, pipe_cluster, scheduled_kernels)
-                    fleet_generation_latency = self.get_fleet_generation_latency(pathlet_, pipe_cluster, scheduled_kernels)
-                    latency_in_cycles_dict = {"hop": hop_latency, "arbiteration": arbiteration_latency, "fleet_generation": fleet_generation_latency}
+                    #arbiteration_latency = self.get_arbiteration_latency(pathlet_, pipe_cluster, scheduled_kernels)
+                    #fleet_generation_latency = self.get_fleet_generation_latency(pathlet_, pipe_cluster, scheduled_kernels)
+                    traffic_latency = self.get_traffic_latency(pathlet_, pipe_cluster, scheduled_kernels)
+                    #arbiteration_latency, fleet_generation_latency = 0
+                    #latency_in_cycles_dict = {"hop": hop_latency, "arbiteration": arbiteration_latency, "fleet_generation": fleet_generation_latency, "traffic_latency":traffic_latency}
+                    latency_in_cycles_dict = {"hop": hop_latency, "traffic_latency":traffic_latency}
                     _, last_phase = pipe_cluster.get_pathlet_last_phase_work_rate()  # last phase work_rate
-                pipe_cluster.set_pathlet_latency(pathlet_, last_phase, latency_in_cycles_dict)
+                    pathlet_latency = pipe_cluster.set_pathlet_latency(pathlet_, last_phase, latency_in_cycles_dict)
+
+                    if pathlet_.get_in_pipe().is_task_present(self.get_task()):
+                        self.pathlet_phase_latency_dict[pathlet_] = pathlet_latency
 
     def get_family_tasks_on_the_pipe_cluster(self, dir_):
         if dir_ == "read":
@@ -970,14 +1094,24 @@ class Kernel:
         self.block_normalized_work_rate = self.consolidate_channels(self.block_normalized_work_rate_unconsolidated)
 
         # identify the block bottleneck
-        self.cur_phase_bottleneck, self.cur_phase_bottleneck_work_rate = self.calc_block_s_bottleneck(self.block_normalized_work_rate)
+        cur_phase_dir_bottleneck, cur_phase_dir_bottleneck_work_rate = self.calc_block_s_bottleneck(self.block_normalized_work_rate)
+        self.cur_phase_bottleneck = list(cur_phase_dir_bottleneck.values())[0]
+        self.cur_phase_bottleneck_work_rate = list(cur_phase_dir_bottleneck_work_rate.values())[0]
+        for dir, work_rate in cur_phase_dir_bottleneck_work_rate.items():
+            if work_rate < self.cur_phase_bottleneck_work_rate:
+                self.cur_phase_bottleneck =  cur_phase_dir_bottleneck[dir]
+                self.cur_phase_bottleneck_work_rate = work_rate
 
         self.kernel_phase_bottleneck_blocks_dict[self.phase_num] = self.cur_phase_bottleneck
         ref_block = self.get_ref_block()
-
         # unnormalized the results (unnormalizing means that actually provide the work rate as opposed
         # to normalizing it to the ref block (which is usally PE) work rate
         self.block_att_work_rate_dict = self.calc_unnormalize_work_rate(self.block_normalized_work_rate, self.cur_phase_bottleneck_work_rate)
+        self.block_dir_att_work_rate_dict = self.calc_unnormalize_work_rate_by_dir(self.block_normalized_work_rate, cur_phase_dir_bottleneck_work_rate)
+
+
+
+
 
     # calculate the completion time for the kernel
     def calc_kernel_completion_time(self):

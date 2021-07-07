@@ -214,15 +214,12 @@ class PerformanceSimulator:
         _ = [kernel.update_block_att_work_rate(self.scheduled_kernels) for kernel in self.scheduled_kernels]
         # update each pipe cluster's paths (inpipe-outpipe) work-rate
 
-        #_ = [kernel.update_pipe_clusters_pathlet_work_rate() for kernel in self.scheduled_kernels]
+        _ = [kernel.update_pipe_clusters_pathlet_work_rate() for kernel in self.scheduled_kernels]
         # update each pipe cluster's paths (inpipe-outpipe) latency. Note that latency update must run after path's work-rate
 
         # update as it depends on it
         #_ = [kernel.update_pipe_clusters_pathlet_latency(self.scheduled_kernels) for kernel in self.scheduled_kernels]
-
-
-        #----_ = [kernel.update_pipe_clusters_path_latency() for kernel in self.scheduled_kernels]
-        #-----self.update_pipe_cluster_work_rate(pipe_cluster, bottleneck_work_rate)
+        _ = [kernel.update_path_latency() for kernel in self.scheduled_kernels]
 
     # ------------------------------
     # Functionality:

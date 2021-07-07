@@ -323,6 +323,22 @@ class Task:
             return 0
         return min([self.get_self_to_family_task_work(task_) for task_ in family_tasks])
 
+    def get_smallest_task_work_unit_by_dir(self, dir):
+        if dir == "write":
+            family_tasks = self.get_children()
+        elif dir == "read":
+            family_tasks = self.get_parents()
+        elif dir == "loop":
+            family_tasks = [self]
+
+        if "souurce" in self.name:
+            return 0
+        if "siink" in self.name:
+            return 0
+        return min([self.get_self_to_family_task_work_unit(task_) for task_ in family_tasks])
+
+
+
     # ---------------
     # Functionality:
     #       add task's work to the distribution work.

@@ -1022,9 +1022,11 @@ class PipeCluster:
             for trv_dir, val in trv_dir_val.items():
                 if trv_dir not in self.pathlet_phase_latency[pathlet].keys():
                     self.pathlet_phase_latency[pathlet][trv_dir] = {}
-                    if phase_num not in self.pathlet_phase_latency[pathlet][trv_dir].keys():
-                        self.pathlet_phase_latency[pathlet][trv_dir][phase_num] = 0
-                    self.pathlet_phase_latency[pathlet][trv_dir][phase_num] += val
+                if phase_num not in self.pathlet_phase_latency[pathlet][trv_dir].keys():
+                    self.pathlet_phase_latency[pathlet][trv_dir][phase_num] = 0
+                self.pathlet_phase_latency[pathlet][trv_dir][phase_num] += val
+        return self.pathlet_phase_latency[pathlet]
+
 
     def get_pathlet_phase_latency(self):
         return self.pathlet_phase_latency
@@ -1116,6 +1118,7 @@ class pipe:
 
     def get_traffic(self):
         return self.traffics
+
 
     def get_traffic_names(self):
         result = []
