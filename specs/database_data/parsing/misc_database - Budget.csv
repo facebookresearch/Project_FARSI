@@ -1,8 +1,8 @@
 Workload,latency,power,area,cost
 audio_decoder,0.021,,,
-edge_detection,.033,,,
-hpvm_cava,.033,,,
+edge_detection,.034,,,
+hpvm_cava,.034,,,
 simple_all_parallel, .100,,,
 SOC_example, .1,,,
 partial_SOC_example_hard, .1,,,
-all,,0.007,0.0001,0.000000001
+all,,0.2,0.0001,0.000000001
