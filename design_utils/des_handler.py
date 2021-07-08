@@ -22,8 +22,9 @@ import _pickle as cPickle
 # Move at the moment has 4 different parts (metric, kernel, block, transformation) that needs to be
 # set
 class move:
-    def __init__(self, transformation_name, batch_mode, dir, metric, blck, krnel, krnl_prob_dict_sorted):
+    def __init__(self, transformation_name, transformation_sub_name, batch_mode, dir, metric, blck, krnel, krnl_prob_dict_sorted):
         self.transformation_name = transformation_name
+        self.transformation_sub_name = transformation_sub_name
         self.metric = metric
         self.batch_mode = batch_mode
         self.dir = dir
@@ -46,6 +47,9 @@ class move:
         self.moved_ex = None
         self.validity_meta_data = ""
         self.krnel_prob_dict_sorted = krnl_prob_dict_sorted
+
+    def get_transformation_sub_name(self):
+        return self.transformation_sub_name
 
     def set_krnel_ref(self, krnel):
         self.krnel = krnel
@@ -1042,6 +1046,19 @@ class DesignHandler:
             else:
                 raise Exception("move:" + move_name + " is not supported")
 
+
+    """
+    # we assume that DRAM can be hanging only from one router.
+    # This check ensures that we only have dram present around one router
+    def improve_locality(self, ex_dp, move_to_apply):
+        # find all the drams and their ics
+        src_block = move_to_apply.get_block_ref()  # memory to move
+        src_block_ic = [el for el in src_block.get_neights() if el.subtype == "ic"]
+        dest_block = move_to_apply.get_des_block()  # destination Ic
+        src_block.disconnect(src_block_ic)
+        dest_block.connect(src_block)
+    """
+
     # we assume that DRAM can be hanging only from one router.
     # This check ensures that we only have dram present around one router
     def fix_dram(self, ex_dp):
@@ -1159,6 +1176,17 @@ class DesignHandler:
             self.unload_read_mem(ex_dp)  # unload memories
             self.fix_dram(ex_dp)
             ex_dp.hardware_graph.update_graph_without_prunning()  # update the hardware graph
+            succeeded = True
+        elif move_to_apply.get_transformation_name() == "transfer":
+            self.unload_buses(ex_dp)  # unload buses
+            self.unload_read_mem(ex_dp)  # unload memories
+            src_block = move_to_apply.get_block_ref()  # memory to move
+            src_block_ic = [el for el in src_block.get_neighs() if el.subtype == "ic"][0]
+            dest_block = move_to_apply.get_des_block()  # destination Ic
+            src_block.disconnect(src_block_ic)
+            dest_block_ic = [el for el in dest_block.get_neighs() if el.subtype == "ic"][0]
+            dest_block_ic.connect(src_block)
+            ex_dp.hardware_graph.update_graph()  # update the hardware graph
             succeeded = True
         else:
             raise Exception("transformation :" + move_to_apply.get_transformation_name() + " is not supported")

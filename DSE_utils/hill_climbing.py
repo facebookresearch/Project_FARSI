@@ -578,6 +578,7 @@ class HillClimbing:
         parallelism_exist = self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp, task, hot_blck_synced)
         other_block_parallelism_exist = False
         all_transformations = config.metric_trans_dict[selected_metric]
+        can_improve_locality = self.can_improve_locality(ex_dp, hot_blck_synced, task)
 
         if parallelism_exist:
            if selected_metric == "latency":
@@ -586,15 +587,19 @@ class HillClimbing:
                         feasible_transformations = ["migrate", "split"]  # only for PE since we wont to be low cost, for IC/MEM cost does not increase if you customize
                     else:
                         feasible_transformations = ["migrate", "split"] #, "swap", "split_swap"]
+                    if can_improve_locality:
+                        feasible_transformations.append("transfer")
                else:
                     # we can do better by comparing the advantage disadvantage of migrating
                     # (Advantage: slowing down by serialization, and disadvantage: accelerating by parallelization)
                    feasible_transformations = ["swap"]
            if selected_metric == "power":
                if selected_dir == -1:
-                       # we can do better by comparing the advantage disadvantage of migrating
-                       # (Advantage: slowing down by serialization, and disadvantage: accelerating by parallelization)
-                       feasible_transformations = ["swap", "split_swap"]
+                   # we can do better by comparing the advantage disadvantage of migrating
+                   # (Advantage: slowing down by serialization, and disadvantage: accelerating by parallelization)
+                   feasible_transformations = ["swap", "split_swap"]
+                   if can_improve_locality:
+                       feasible_transformations.append("transfer")
                else:
                    feasible_transformations = all_transformations
            if selected_metric == "area":
@@ -610,11 +615,15 @@ class HillClimbing:
            if selected_metric == "latency":
                if selected_dir == -1:
                    feasible_transformations = ["swap", "split_swap"]
+                   if can_improve_locality:
+                       feasible_transformations.append("transfer")
                else:
                    feasible_transformations = ["swap", "migrate"]
            if selected_metric == "power":
                if selected_dir == -1:
                    feasible_transformations = ["migrate", "swap", "split_swap"]
+                   if can_improve_locality:
+                       feasible_transformations.append("transfer")
            if selected_metric == "area":
                if selected_dir == -1:
                     feasible_transformations = ["migrate", "swap",]
@@ -689,14 +698,23 @@ class HillClimbing:
         #    transformation = "swap"
         if transformation == "migrate":
             batch_mode = "single"
+            transformation_sub_name = "irrelevant"
         elif transformation == "split":
             # see if any task can run in parallel
             batch_mode = "batch"
+            transformation_sub_name = "irrelevant"
         elif transformation == "split_swap":
             batch_mode = "single"
-        else:
+            transformation_sub_name = "irrelevant"
+        elif transformation == "transfer":
             batch_mode = "irrelevant"
-        return transformation, batch_mode, len(list(feasible_transformations))
+            transformation_sub_name = "locality_improvement"
+        else:
+            transformation_sub_name = "irrelevant"
+            batch_mode = "irrelevant"
+
+
+        return transformation, transformation_sub_name, batch_mode, len(list(feasible_transformations))
 
     # calculate the cost impact of a kernel improvement
     def get_swap_improvement_cost(self, sim_dp, kernels, selected_metric, dir):
@@ -783,6 +801,8 @@ class HillClimbing:
     def get_migrate_cost(self):
         return 0
 
+    def get_transfer_cost(self):
+        return 0
     def get_split_cost(self):
         return 1
 
@@ -808,6 +828,8 @@ class HillClimbing:
                 cost += self.get_swap_cost(sim_dp, krnl, selected_metric, move_sorted_metric_dir)
             elif transformation in ["identity"]:
                 cost = self.get_identity_cost()
+            elif transformation in ["transfer"]:
+                cost = self.get_transfer_cost()
             if cost == 0:
                 cost = self.min_cost_to_consider
             return cost
@@ -998,6 +1020,67 @@ class HillClimbing:
                     move_to_apply.set_krnel_ref(krnl)
         return
 
+    def find_block_with_sharing_tasks(self, ex_dp, selected_block, selected_krnl):
+        succeeded = False
+        # not covering ic at the moment
+        if selected_block.type =="ic":
+            return succeeded, "_"
+
+        # get task of block
+        cur_block_tasks = [el.get_name() for el in selected_block.get_tasks_of_block()]
+        krnl_task = selected_krnl.get_task().get_name()
+        # get other blocks in the system
+        all_blocks = ex_dp.get_hardware_graph().get_blocks()
+        all_blocks_minus_src_block = list(set(all_blocks) - set([selected_block]))
+        assert(len(all_blocks) == len(all_blocks_minus_src_block) +1), "all_blocks must have one more block in it"
+
+        if selected_block.type == "pe":
+            blocks_with_sharing_task_type = "mem"
+        elif selected_block.type == "mem":
+            blocks_with_sharing_task_type = "pe"
+
+        blocks_to_look_at = [blck for blck in all_blocks_minus_src_block if blck.type == blocks_with_sharing_task_type]
+
+        # iterate through ic neighs (of oppotie type, i.e., for mem, look for pe, and for pe look for mem),
+        # and look for shared tasks. If there is no shared task, we should move the block somewhere where there is
+        # sort the neighbours based on the number of sharings.
+        blocks_sorted_based_on_sharing = sorted(blocks_to_look_at,  key=lambda blck: len(list(set(cur_block_tasks) - set([el.get_name() for el in blck.get_tasks_of_block()]))))
+        for block_with_sharing in blocks_sorted_based_on_sharing:
+            block_tasks = [el.get_name() for el in block_with_sharing.get_tasks_of_block()]
+            if krnl_task in block_tasks:
+                return True, block_with_sharing
+        else:
+            return False, "_"
+
+
+    def can_improve_locality(self, ex_dp, selected_block, selected_krnl_task):
+        result = True
+
+        # not covering ic at the moment
+        if selected_block.type =="ic":
+            return False
+
+        # get task of block
+        cur_block_tasks = list(set([el.get_name() for el in selected_block.get_tasks_of_block()]))
+        # get neighbouring ic
+        ic = [neigh for neigh in selected_block.get_neighs() if neigh.type == "ic"][0]
+        if selected_block.type == "pe":
+            blocks_with_sharing_task_type = "mem"
+        elif selected_block.type == "mem":
+            blocks_with_sharing_task_type = "pe"
+
+        ic_neighs = [neigh for neigh in ic.get_neighs() if neigh.type == blocks_with_sharing_task_type]
+
+        # iterate through ic neighs (of oppotie type, i.e., for mem, look for pe, and for pe look for mem),
+        # and look for shared tasks. If there is no shared task, we should move the block somewhere where there is
+        for block in ic_neighs:
+            block_tasks = list(set([el.get_name() for el in block.get_tasks_of_block()]))
+            shared_tasks_exist = len(list(set(cur_block_tasks) - set(block_tasks))) < len(list(set(cur_block_tasks)))
+            if shared_tasks_exist:
+                result = False
+                break
+        return result
+
 
     # ------------------------------
     # Functionality:
@@ -1018,16 +1101,26 @@ class HillClimbing:
         move_dir = self.select_dir(sim_dp, selected_metric)
         selected_krnl, krnl_prob_dict, krnl_prob_dir_dict_sorted = self.select_kernel(ex_dp, sim_dp, selected_metric, sorted_metric_dir)
         selected_block, block_prob_dict = self.select_block(sim_dp, ex_dp, selected_krnl, selected_metric)
-        transformation_name,transformation_batch_mode, total_transformation_cnt = self.select_transformation(ex_dp, sim_dp, selected_block, selected_metric, selected_krnl, sorted_metric_dir)
+        transformation_name,transformation_sub_name, transformation_batch_mode, total_transformation_cnt = self.select_transformation(ex_dp, sim_dp, selected_block, selected_metric, selected_krnl, sorted_metric_dir)
 
+
+        """
+        if sim_dp.dp_stats.fits_budget(1) and self.dram_feasibility_check_pass(ex_dp) and self.can_improve_locality(selected_block, selected_krnl):
+            transformation_sub_name = "transfer_no_prune"
+            transformation_name = "improve_locality"
+            transformation_batch_mode = "single"
+            selected_metric = "cost"
+        """
         # prepare for move
         # if bus, (forgot which exception), if IP, avoid split .
         if sim_dp.dp_stats.fits_budget(1) and not self.dram_feasibility_check_pass(ex_dp):
             transformation_name = "dram_fix"
+            transformation_sub_name = "dram_fix_no_prune"
             transformation_batch_mode = "single"
             selected_metric = "cost"
         elif sim_dp.dp_stats.fits_budget(1) or self.is_cleanup_iter():
             transformation_name = "cleanup"
+            transformation_sub_name = "non"
             transformation_batch_mode = "single"
             selected_metric = "cost"
             #config.VIS_GR_PER_GEN = True
@@ -1035,7 +1128,7 @@ class HillClimbing:
             #config.VIS_GR_PER_GEN = False
 
         # log the data for future profiling/data collection/debugging
-        move_to_apply = move(transformation_name, transformation_batch_mode, move_dir, selected_metric, selected_block, selected_krnl, krnl_prob_dir_dict_sorted)
+        move_to_apply = move(transformation_name, transformation_sub_name, transformation_batch_mode, move_dir, selected_metric, selected_block, selected_krnl, krnl_prob_dir_dict_sorted)
         move_to_apply.set_sorted_metric_dir(sorted_metric_dir)
         move_to_apply.set_logs(sim_dp.dp_stats.get_system_complex_metric("cost"), "cost")
         move_to_apply.set_logs(krnl_prob_dict, "kernels")
@@ -1044,6 +1137,7 @@ class HillClimbing:
         move_to_apply.set_logs(self.krnel_rnk_to_consider, "kernel_rnk_to_consider")
         move_to_apply.set_logs(sim_dp.dp_stats.dist_to_goal(["power", "area", "latency"],
                                                                                 config.metric_sel_dis_mode),"dist_to_goal")
+
         # ------------------------
         # prepare for the move
         # ------------------------
@@ -1120,6 +1214,17 @@ class HillClimbing:
             any_task =  any_block.get_tasks_of_block()[0]
             move_to_apply.set_tasks([any_task]) # this is just dummmy to prevent breaking the plotting
             move_to_apply.set_dest_block(any_block)
+            pass
+        elif move_to_apply.get_transformation_name() == "transfer":
+            if move_to_apply.get_transformation_sub_name() == "locality_improvement":
+                succeeded, dest_block = self.find_block_with_sharing_tasks(ex_dp, selected_block, selected_krnl)
+                if succeeded:
+                    move_to_apply.set_dest_block(dest_block)
+                    move_to_apply.set_tasks([move_to_apply.get_kernel_ref().get_task()])
+                else:
+                    move_to_apply.set_validity(False, "TransferException")
+            else:
+                move_to_apply.set_validity(False, "TransferException")
             pass
         elif move_to_apply.get_transformation_name() == "cleanup":
             move_to_apply.set_validity(False, "CostPairingException")
@@ -1624,7 +1729,10 @@ class HillClimbing:
         # look into cache and see if this design has been seen before. If so, just use the
         # cached value, other wise just use the sim from cache
         design_unique_code = ex_dp.get_hardware_graph().get_SOC_design_code()  # cache index
-        if design_unique_code not in self.cached_SOC_sim.keys():
+        if move_to_try.get_transformation_name() == "identity":
+            # if nothing has changed, just copy the sim from before
+            sim_dp = des_tup[1]
+        elif design_unique_code not in self.cached_SOC_sim.keys():
             sim_dp = self.eval_design(ex_dp, self.database)  # evaluate the designs
             #if config.cache_seen_designs: # this seems to be slower than just simulation, because of deepcopy
             #    self.cached_SOC_sim[design_unique_code] = (ex_dp, sim_dp)
