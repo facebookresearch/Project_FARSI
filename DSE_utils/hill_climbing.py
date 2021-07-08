@@ -533,6 +533,33 @@ class HillClimbing:
 
         return result_block, found_block_to_mig_to, selection_mode
 
+
+    def dram_feasibility_check_pass(self, ex_dp):
+        # find all the drams and their ics
+        all_drams = [el for el in ex_dp.get_hardware_graph().get_blocks() if el.subtype == "dram"]
+        dram_ics = []
+        for dram in all_drams:
+            for neigh in dram.get_neighs():
+                if neigh.type == "ic":
+                    dram_ics.append(neigh)
+
+        system_ic = None
+        for ic in dram_ics:
+            neighs_has_no_pe = len([neigh for neigh in ic.get_neighs() if neigh.type =="pe"]) == 0
+            if neighs_has_no_pe:
+                system_ic = ic
+                break
+        if system_ic == None:
+            return False
+
+        system_ic_drams = [neigh for neigh in system_ic.get_neighs() if neigh.subtype =="dram"]
+        if len(system_ic_drams) == len(all_drams):
+            return True
+        else:
+            return False
+
+
+
     def get_feasible_transformations(self, ex_dp, sim_dp, hot_blck_synced, selected_metric, selected_krnl, sorted_metric_dir):
         imm_block = self.dh.get_immediate_block_multi_metric(hot_blck_synced, selected_metric, sorted_metric_dir,  hot_blck_synced.get_tasks_of_block())
         task = ex_dp.get_hardware_graph().get_task_graph().get_task_by_name(selected_krnl.get_task_name())
@@ -727,6 +754,10 @@ class HillClimbing:
 
         return kernel_improvement_cost_inverse
 
+    def get_identity_cost(self):
+        return self.database.db_input.porting_effort["ip"]
+
+
     # calculate the cost impact of a kernel improvement
     def get_swap_cost(self, sim_dp, krnl, selected_metric, sorted_metric_dir):
         def get_subtype_for_cost(block):
@@ -775,6 +806,8 @@ class HillClimbing:
             elif transformation in ["split_swap"]:
                 cost = self.get_migration_split_cost("split")
                 cost += self.get_swap_cost(sim_dp, krnl, selected_metric, move_sorted_metric_dir)
+            elif transformation in ["identity"]:
+                cost = self.get_identity_cost()
             if cost == 0:
                 cost = self.min_cost_to_consider
             return cost
@@ -790,8 +823,9 @@ class HillClimbing:
             feasible_trans = self.get_feasible_transformations(ex_dp, sim_dp, hot_blck_synced, selected_metric,
                                               krnl,move_sorted_metric_dir)
             for trans in feasible_trans:
-                if trans == "identity":
-                    continue
+                #if trans == "identity":
+                #    krnl_improvement_cost[(krnl, trans)] = 0.000001
+                #    continue
                 cost = get_transformation_cost(sim_dp, selected_metric, move_sorted_metric_dir, krnl, trans)
                 krnl_improvement_cost[(krnl, trans)] = cost
         return krnl_improvement_cost
@@ -988,7 +1022,11 @@ class HillClimbing:
 
         # prepare for move
         # if bus, (forgot which exception), if IP, avoid split .
-        if sim_dp.dp_stats.fits_budget(1) or self.is_cleanup_iter():
+        if sim_dp.dp_stats.fits_budget(1) and not self.dram_feasibility_check_pass(ex_dp):
+            transformation_name = "dram_fix"
+            transformation_batch_mode = "single"
+            selected_metric = "cost"
+        elif sim_dp.dp_stats.fits_budget(1) or self.is_cleanup_iter():
             transformation_name = "cleanup"
             transformation_batch_mode = "single"
             selected_metric = "cost"
@@ -1077,7 +1115,15 @@ class HillClimbing:
                     move_to_apply.set_dest_block(imm_block_present)
             else:
                 move_to_apply.set_validity(False, "ICMigrationException")
+        elif move_to_apply.get_transformation_name() == "dram_fix":
+            any_block = ex_dp.get_hardware_graph().get_blocks()[0]  # this is just dummmy to prevent breaking the plotting
+            any_task =  any_block.get_tasks_of_block()[0]
+            move_to_apply.set_tasks([any_task]) # this is just dummmy to prevent breaking the plotting
+            move_to_apply.set_dest_block(any_block)
+            pass
         elif move_to_apply.get_transformation_name() == "cleanup":
+            move_to_apply.set_validity(False, "CostPairingException")
+
             self.dh.unload_buses(ex_dp)  # unload buses
             self.dh.unload_read_mem(ex_dp)  # unload memories
             task_1, block_task_1, task_2, block_task_2 = self.find_task_with_similar_mappable_ips(des_tup)
@@ -1262,12 +1308,23 @@ class HillClimbing:
             if sim_dp_stat.fits_budget(1):
                 new_designs_meeting_budget.append(sim_dp_stat)
 
+        new_designs_meeting_budget_with_dram = []  # designs that are meeting the budget
+        for sim_dp_stat in sim_dp_stat_list:
+            if sim_dp_stat.fits_budget(1):
+                ex_dp = sim_stat_ex_dp_dict[sim_dp_stat]
+                if self.dram_feasibility_check_pass(ex_dp):
+                    new_designs_meeting_budget_with_dram.append(sim_dp_stat)
+        dram_fixed = False
+        if len(new_designs_meeting_budget_with_dram) > 0 and not self.dram_feasibility_check_pass(best_ex_dp_so_far):
+            dram_fixed = True
+
+
         # find each design's simulated annealing Energy difference with the best design's energy
         # if any of the designs meet the budget or it's a cleanup iteration, include cost in distance calculation.
         # note that when we compare, we need to use the same dist_to_goal calculation, hence
         # ann_energy_best_dp_so_far needs to use the same calculation
         metric_to_target , metric_prob_dict, sorted_metric_dir = self.select_metric(best_sim_dp_so_far_stats.dp)
-        include_cost_in_distance = best_sim_dp_so_far_stats.fits_budget(1) or (len(new_designs_meeting_budget) > 0) or self.is_cleanup_iter()
+        include_cost_in_distance = best_sim_dp_so_far_stats.fits_budget(1) or (len(new_designs_meeting_budget) > 0) or self.is_cleanup_iter() or (len(new_designs_meeting_budget_with_dram)>0)
         if include_cost_in_distance:
             ann_energy_best_dp_so_far = best_sim_dp_so_far_stats.dist_to_goal(["cost", "latency", "power", "area"],
                                                                               "eliminate")
@@ -1292,7 +1349,9 @@ class HillClimbing:
 
         sim_dp_to_look_at = [] # which designs to look at.
         # only look at the designs that meet the budget (if any), basically  prioritize these designs first
-        if len(new_designs_meeting_budget) > 0:
+        if len(new_designs_meeting_budget_with_dram) > 0:
+            sim_dp_to_look_at = new_designs_meeting_budget_with_dram
+        elif len(new_designs_meeting_budget) > 0:
             sim_dp_to_look_at = new_designs_meeting_budget
         else:
             sim_dp_to_look_at = sim_dp_stat_list
@@ -1331,7 +1390,7 @@ class HillClimbing:
 
         # if any negative (desired move) value is detected or there is a design in the new batch
         #  that meet the budget, but the previous best design didn't, we have at least one improved solution
-        found_an_improved_solution = (len(new_designs_meeting_budget)>0 and not(best_sim_dp_so_far_stats).fits_budget(1)) or design_improved
+        found_an_improved_solution = (len(new_designs_meeting_budget)>0 and not(best_sim_dp_so_far_stats).fits_budget(1)) or design_improved or dram_fixed
 
 
         # for debugging. delete later

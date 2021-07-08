@@ -46,6 +46,10 @@ class MultiBusBlockError(Exception):
 class BusWithNoMemError(Exception):
     pass
 
+# bus with no memory was detected
+class SystemICWithPEException(Exception):
+    pass
+
 
 # bus with no PE was detected
 class BusWithNoPEError(Exception):

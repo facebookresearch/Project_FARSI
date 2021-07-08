@@ -1149,6 +1149,9 @@ class HardwareGraph:
 
 
 
+    def get_blocks(self):
+        return self.blocks
+
     # get a pipe, given it's master and slave
     def get_pipe_with_master_slave(self, master_, slave_, dir_):
         for pipe in self.pipes:
@@ -1478,9 +1481,6 @@ class HardwareGraph:
             blck_pipe_traffic = blck_pipe.get_traffic_names()
             neigh_pipe_traffic = neigh_pipe.get_traffic_names()
             traffic_non_overlap = list(set(blck_pipe_traffic) - set(neigh_pipe_traffic))
-            if "sr2" in neigh_pipe.slave.instance_name:
-                print("ok")
-
             return  len(traffic_non_overlap) < len(blck_pipe_traffic)
 
         assert(len(self.pipes) > 0),  "you need to assign pipes first"
@@ -1545,7 +1545,7 @@ class HardwareGraph:
         self.last_pipe_assigned_number = 0
         pes = self.get_blocks_by_type("pe")
         mems = self.get_blocks_by_type("mem")
-
+        ics = self.get_blocks_by_type("ic")
         def seen_pipe(pipe__):
             for pipe in self.pipes:
                 if pipe__.master == pipe.master and pipe__.slave == pipe.slave and pipe__.dir == pipe.dir:
@@ -1556,7 +1556,11 @@ class HardwareGraph:
         for pe in pes:
             for mem  in mems:
                 master_to_slave_path = self.get_path_between_two_vertecies(pe, mem)
+                if len(master_to_slave_path) > len(ics)+2: # two is for pe and memory
+                    print('something has gone wrong with the path calculation')
+                    exit(0)
                 if len(master_to_slave_path) == 0:
+                    master_to_slave_path = self.get_path_between_two_vertecies(pe, mem)
                     continue
                 # get pipes along the way
                 for idx in range(0, len(master_to_slave_path) - 1):
@@ -1600,6 +1604,50 @@ class HardwareGraph:
     #       vertecies_visited: vertices visited already (avoid circular traversal of the graph)
     #       path: the accumulated path so far. At the end, this will contain the total path.
     # --------------------------
+    def get_shortest_path(self, vertex, v_des, vertecies_neigh_visited, path):
+        paths = self.get_shortest_path_helper(vertex, v_des, vertecies_neigh_visited, path)
+        sorted_paths = sorted(paths, key=len)
+        return sorted_paths[0]
+
+    def get_shortest_path_helper(self, vertex, v_des, vertecies_neigh_visited, path):
+        neighs = vertex.get_neighs()
+        path.append(vertex)
+
+        # iterate through neighbours and remove the ones that you have already visited
+        neighs_to_ignore = []
+        for neigh in neighs:
+            if (vertex,neigh) in vertecies_neigh_visited:
+                neighs_to_ignore.append(neigh)
+        neighs_to_look_at = list(set(neighs) - set(neighs_to_ignore))
+
+        if vertex == v_des:
+            return [path]
+        elif len(neighs_to_look_at) == 0:
+            return []
+        else:
+            for neigh in neighs_to_look_at:
+                vertecies_neigh_visited.append((neigh, vertex))
+
+            paths = []
+            for vertex_ in neighs_to_look_at:
+                paths_  = self.get_shortest_path_helper(vertex_, v_des, vertecies_neigh_visited[:], path[:])
+                for path_ in paths_:
+                    if len(path) == 0:
+                        continue
+                    paths.append(path_)
+
+            return paths
+
+
+    # ---------------------------
+    # Functionality:
+    #       finding the path (set of edges) that connect two blocks (nodes) in the hardware graph.
+    # Variables:
+    #       vertex: source vertex
+    #       v_des: destination vertex
+    #       vertecies_visited: vertices visited already (avoid circular traversal of the graph)
+    #       path: the accumulated path so far. At the end, this will contain the total path.
+    # --------------------------
     def get_path_helper(self, vertex, v_des, vertecies_visited, path):
         path.append(vertex)
         if vertex in vertecies_visited:
@@ -1624,7 +1672,10 @@ class HardwareGraph:
         #if (len(path)) <= 0:
         #    print("catch this error")
         #assert(len(path) > 0), "no path between the two nodes"
-        return path
+        shortest_path = self.get_shortest_path(v1, v2, [],[])
+        #if not shortest_path == path:
+        #    print("something gone wrong with path calculation fix this")
+        return shortest_path
 
     # ---------------------------
     # Functionality:

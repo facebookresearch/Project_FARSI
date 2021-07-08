@@ -699,6 +699,9 @@ class Kernel:
         # (3) use peak rate, share of each kernel and work ratio to generate final results
         for block in self.get_blocks():
             for pipe_cluster in block.get_pipe_clusters_of_task(self.get_task()):
+                if self.get_task().is_task_dummy():
+                    block_work_rate_norm_dict[block][pipe_cluster] = 1
+                    continue
                 # calculate share of each kernel
                 allocated_work_rate_relative_to_other_kernels = self.calc_allotted_work_rate_relative_to_other_kernles(mode, pipe_cluster, scheduled_kernels)
                 if allocated_work_rate_relative_to_other_kernels == 0:  # when the channel in the block is not being used
@@ -709,19 +712,16 @@ class Kernel:
                 work_ratio = self.__task_to_blocks_map.get_workRatio_by_block_name_and_family_member_names_and_channel_eliminating_fake(
                     block.instance_name, self.get_block_family_tasks_in_use(block), dir)
 
-                if "souurce" in self.get_task_name() or "siink" in self.get_task_name():
-                    block_work_rate_norm_dict[block][pipe_cluster] = 1
-                else:
-                    if work_ratio == 0:
-                        print("this should be looked at")
-                        work_ratio = self.__task_to_blocks_map.get_workRatio_by_block_name_and_family_member_names_and_channel_eliminating_fake(
-                            block.instance_name, self.get_block_family_tasks_in_use(block), dir)
+                if work_ratio == 0:
+                    print("this should be looked at")
+                    work_ratio = self.__task_to_blocks_map.get_workRatio_by_block_name_and_family_member_names_and_channel_eliminating_fake(
+                        block.instance_name, self.get_block_family_tasks_in_use(block), dir)
 
 
-                    work_rate =  float(block.get_peak_work_rate(self.get_power_knob_id()))*allocated_work_rate_relative_to_other_kernels/work_ratio
-                    block_work_rate_norm_dict[block][pipe_cluster] = float(block.get_peak_work_rate(self.get_power_knob_id()))*allocated_work_rate_relative_to_other_kernels/work_ratio
-                    if block_work_rate_norm_dict[block][pipe_cluster] == 0:
-                        print("what")
+                work_rate =  float(block.get_peak_work_rate(self.get_power_knob_id()))*allocated_work_rate_relative_to_other_kernels/work_ratio
+                block_work_rate_norm_dict[block][pipe_cluster] = float(block.get_peak_work_rate(self.get_power_knob_id()))*allocated_work_rate_relative_to_other_kernels/work_ratio
+                if block_work_rate_norm_dict[block][pipe_cluster] == 0:
+                    print("what")
 
         return block_work_rate_norm_dict
 
@@ -729,7 +729,7 @@ class Kernel:
     def calc_block_s_bottleneck(self, block_work_rate_norm_dict):
         # only if work unit is left
         block_bottleneck = {"write": None, "read":None}
-        bottleneck_work_rate = {"write": 0, "read":None}
+        bottleneck_work_rate = {"write": np.Inf, "read":np.Inf}
         # iterate through all the blocks/channels and ge the minimum work rate. Since
         # the data is normalized, minimum is the bottleneck
         for block, pipe_cluster_work_rate in block_work_rate_norm_dict.items():

@@ -106,6 +106,55 @@ class ExDesignPoint:
         fronts_2 = sum(
             [len(block.get_fronts("task_dir_work_ratio")) for block in self.get_blocks() if block.type == "mem"])
 
+
+    def check_system_ic_exist(self, block):
+        assert (block.type == "ic"), "should be checking this with non ic input"
+        system_ic_exist = False
+        connectd_ics = [block_ for block_ in block.get_neighs() if block_.type == "ic"]
+
+        # iterate though the connected ics, get their neighbouring ics
+        # and make sure there is a ic with only dram
+        system_ic_list = []
+        for neigh_ic in connectd_ics:
+            has_dram = len([neigh for neigh in neigh_ic.get_neighs() if neigh.subtype == "dram"]) >= 1
+            has_pe = len([neigh for neigh in neigh_ic.get_neighs() if neigh.type == "pe"]) >= 1
+            if has_dram:
+                if has_pe:
+                    pass
+                    #return False
+                    #print(" system ic can not have a pe")
+                    #exit(0)
+                else:
+                    system_ic_list.append(neigh_ic)
+
+        if self.block_is_system_ic(block):
+            system_ic_list.append(block)
+
+        if len(set(system_ic_list)) > 1:
+            print("can only have one system ic")
+            exit(0)
+
+        return len(system_ic_list) == 1
+
+
+    def block_is_system_ic(self, block):
+        assert (block.type == "ic"), "should be checking this with non ic input"
+        # iterate though the connected ics, get their neighbouring ics
+        # and make sure there is a ic with only dram
+        system_ic_list = []
+        has_dram = len([neigh for neigh in block.get_neighs() if neigh.subtype == "dram"]) >= 1
+        has_pe = len([neigh for neigh in block.get_neighs() if neigh.type == "pe"]) >= 1
+        if has_dram:
+            if has_pe:
+                pass
+                #print(" system ic can not have a pe")
+                #exit(0)
+            else:
+                return True
+        else:
+            return False
+        return False
+
     # sanity check the design
     def sanity_check(self):
         insanity_list = [] # list of Inanities
@@ -170,14 +219,29 @@ class ExDesignPoint:
             if block.type in ["ic"]:
                 connectd_pes = [True  for block_ in block.get_neighs() if block_.type =="pe" ]
                 connectd_mems = [True  for block_ in block.get_neighs() if block_.type =="mem" ]
-                if len(connectd_mems) == 0:
+                connectd_ics = [True  for block_ in block.get_neighs() if block_.type =="ic" ]
+
+                system_ic_exist = self.check_system_ic_exist(block)
+
+                if len(connectd_mems) == 0 and not system_ic_exist:
                     insanity = Insanity("_",block, "bus_with_no_mem")
                     print(insanity.gen_msg())
                     if self.hardware_graph.generation_mode == "user_generated":
                         print("deactivated Bus with No memory error, since hardware graph was directly user generated/parsed ")
                     else:
                         raise BusWithNoMemError
-                elif len(connectd_pes) == 0:
+                    """
+                    elif len(connectd_pes) > 0 and self.block_is_system_ic(block):
+                        insanity = Insanity("_", block, "system_ic_with_pe")
+                        insanity_list.append(insanity)
+                        print(insanity.gen_msg())
+                        if self.hardware_graph.generation_mode == "user_generated":
+                            print(
+                                "deactivated Bus with No Bus error, since hardware graph was directly user generated/parsed ")
+                        else:
+                            raise SystemICWithPEException
+                    """
+                elif len(connectd_pes) == 0 and not self.block_is_system_ic(block):
                     insanity = Insanity("_", block, "bus_with_no_pes")
                     insanity_list.append(insanity)
                     print(insanity.gen_msg())

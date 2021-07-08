@@ -1042,6 +1042,45 @@ class DesignHandler:
             else:
                 raise Exception("move:" + move_name + " is not supported")
 
+    # we assume that DRAM can be hanging only from one router.
+    # This check ensures that we only have dram present around one router
+    def fix_dram(self, ex_dp):
+        # find all the drams and their ics
+        all_drams = [el for el in ex_dp.get_hardware_graph().get_blocks() if el.subtype == "dram"]
+        dram_ics = []
+        for dram in all_drams:
+            for neigh in dram.get_neighs():
+                if neigh.type == "ic":
+                    dram_ics.append(neigh)
+
+        for ic in dram_ics:
+            neighs_has_no_pe = len([neigh for neigh in ic.get_neighs() if neigh.type == "pe"]) == 0
+            if neighs_has_no_pe:
+                system_ic = ic
+                break
+
+        # find or allocatd (if none exist) the system IC (which DRAM hangs from
+        system_ic = None
+        for ic in dram_ics:
+            ic_has_no_pe = len([neigh for neigh in ic.get_neighs() if neigh.type =="pe"]) == 0
+            if ic_has_no_pe:
+                system_ic = ic
+                break
+        if system_ic == None:
+            dram_ics_sorted = sorted(dram_ics, key=attrgetter("peak_work_rate"), reverse=True)  #
+            system_ic_alike = dram_ics_sorted[0]
+            system_ic = self.allocate_similar_block(system_ic_alike, [])
+
+        # iterate through drams and connect them to he system ic
+        for dram_ic in dram_ics:
+            if dram_ic not in system_ic.get_neighs():
+                dram_ic.connect(system_ic)
+            hanging_drams = [el for el in dram_ic.get_neighs() if el.subtype == "dram"]
+            for hanging_dram in hanging_drams:
+                hanging_dram.disconnect(dram_ic)
+                hanging_dram.connect(system_ic)
+
+
     # ------------------------------
     # Functionality:
     #   By applying the move, the initial design is transformed to a new design
@@ -1115,7 +1154,12 @@ class DesignHandler:
             else:
                 succeeded = False
             if config.DEBUG_SANITY:ex_dp.sanity_check() # sanity check
-
+        elif move_to_apply.get_transformation_name() == "dram_fix":
+            self.unload_buses(ex_dp)  # unload buses
+            self.unload_read_mem(ex_dp)  # unload memories
+            self.fix_dram(ex_dp)
+            ex_dp.hardware_graph.update_graph_without_prunning()  # update the hardware graph
+            succeeded = True
         else:
             raise Exception("transformation :" + move_to_apply.get_transformation_name() + " is not supported")
         ex_dp.hardware_graph.pipe_design()
