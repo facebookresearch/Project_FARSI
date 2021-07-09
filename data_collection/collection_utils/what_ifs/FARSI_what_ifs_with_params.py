@@ -504,7 +504,10 @@ def run_with_params(workloads, SA_depth, freq_range):
         plot_3d_dist(result_dir_addr, full_file_addr, workloads)
 
 if __name__ == "__main__":
-    workloads =[{"audio_decoder"},{"edge_detection"}, {"audio_decoder", "edge_detection"}]
+    workloads =[{"edge_detection"}, {"hpvm_cava"}, {"audio_decoder"}, {"edge_detection", "hpvm_cava"}, {"edge_detection", "audio_decoder"}, {"hpvm_cava", "audio_decoder"}, {"audio_decoder", "edge_detection", "hpvm_cava"}]
     SA_depth = [1,2]
     freq_range = [1,4,6,8]
-    run_with_params(workloads[0], SA_depth[0], freq_range)
+    # run_with_params(workloads[0], SA_depth[0], freq_range)
+    for d in SA_depth:
+        for w in workloads:
+            run_with_params(w, d, freq_range)
