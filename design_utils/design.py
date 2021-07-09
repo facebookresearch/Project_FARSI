@@ -1637,6 +1637,19 @@ class DPStats:
                 print("cost model for ip" + block.instance_name + " is not defined")
                 exit(0)
 
+        pes = [blk for blk in blocks if blk.type == "pe"]
+        mems = [blk for blk in blocks if blk.type == "mem"]
+        for pe in pes:
+            pe_tasks = [el.get_name() for el in pe.get_tasks_of_block()]
+            for mem in mems:
+                mem_tasks = [el.get_name() for el in mem.get_tasks_of_block()]
+                task_share_cnt = len(pe_tasks) - len(list(set(pe_tasks) - set(mem_tasks)))
+                path_length = len(self.dp.get_hardware_graph().get_path_between_two_vertecies(pe, mem))
+                #path_length = len(self.dp.get_hardware_graph().get_shortest_path(pe, mem, [], []))
+                effort = self.database.db_input.porting_effort["ic"]/10
+                dev_cost += (path_length*task_share_cnt)*.1
+
+
         return dev_cost
 
     # pb_type: processing block type

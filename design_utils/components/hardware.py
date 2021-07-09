@@ -715,6 +715,8 @@ class Block:
     #       neigh: neighbour, the block to disconnect from.
     # --------------------------
     def disconnect(self, neigh):
+        if neigh not in self.neighs:
+            return
         self.neighs.remove(neigh)
         neigh.neighs.remove(self)
 
@@ -1272,6 +1274,17 @@ class HardwareGraph:
         return [block for block in self.blocks if block.type == type_]
 
     # get all the blocks that hos the task
+    def get_blocks_of_task_by_name(self, task_name):
+        all_blocks = []
+        for block in self.blocks:
+            task_names = [el.get_name() for el in block.get_tasks_of_block()]
+            if task_name in task_names:
+                all_blocks.append(block)
+
+        return all_blocks
+
+
+    # get all the blocks that hos the task
     def get_blocks_of_task(self, task):
         all_blocks = []
         for block in self.blocks:
@@ -1482,6 +1495,9 @@ class HardwareGraph:
             neigh_pipe_traffic = neigh_pipe.get_traffic_names()
             traffic_non_overlap = list(set(blck_pipe_traffic) - set(neigh_pipe_traffic))
             return  len(traffic_non_overlap) < len(blck_pipe_traffic)
+
+        if (len(self.pipes) == 0):
+            print("something is wrong")
 
         assert(len(self.pipes) > 0),  "you need to assign pipes first"
         pipe_cluster_dict = {}

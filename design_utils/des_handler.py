@@ -113,6 +113,14 @@ class move:
     def set_tasks(self, tasks_):
         self.tasks = tasks_
 
+    # the transformation to target in the move
+    def set_transformation(self, trans):
+        self.transformation_name = trans
+
+    # the transformation to target in the move
+    def set_transformation_sub_name(self, trans_sub_name):
+        self.transformation_sub_name = trans_sub_name
+
     # set this to specify that the move's parameters are fully set
     # and hence the move is ready to be applied
     def set_validity(self, validity, reason=""):
@@ -125,6 +133,7 @@ class move:
     # set the block that we will change the ref_block to.
     def set_dest_block(self, block_):
         self.dest_block = block_
+
 
     # --------------------------------------
     # getters.
@@ -190,6 +199,12 @@ class move:
                 raise ICMigrationException
             elif self.validity_meta_data == "CostPairingException":
                 raise CostPairingException
+            elif self.validity_meta_data == "NoAbsorbee(er)Exception":
+                raise NoAbException
+            elif self.validity_meta_data == "TransferException":
+                raise TransferException
+            elif self.validity_meta_data == "RoutingException":
+                raise RoutingException
             elif self.validity_meta_data == "IPSplitException":
                 raise IPSplitException
             elif self.validity_meta_data == "NoValidTransformationException":
@@ -1098,6 +1113,9 @@ class DesignHandler:
                 hanging_dram.connect(system_ic)
 
 
+
+
+
     # ------------------------------
     # Functionality:
     #   By applying the move, the initial design is transformed to a new design
@@ -1161,6 +1179,24 @@ class DesignHandler:
                 print("something went wrong with split swap")
 
             if config.DEBUG_SANITY:ex_dp.sanity_check() # sanity check
+        elif  move_to_apply.get_transformation_name() == "cleanup":
+            self.unload_buses(ex_dp)  # unload buses
+            self.unload_read_mem(ex_dp)  # unload memories
+            if move_to_apply.get_transformation_sub_name() == "absorb":
+                ref_block_neighs = move_to_apply.get_block_ref().get_neighs()
+                for block in ref_block_neighs:
+                    block.disconnect(move_to_apply.get_block_ref())
+                    block.connect(move_to_apply.get_des_block())
+                ex_dp.hardware_graph.update_graph_without_prunning(block_to_prime_with=move_to_apply.get_des_block())  # update the hardware graph
+                succeeded = True
+            else:
+                if not move_to_apply.get_block_ref().type == "ic":  # ic migration is not supported
+                    succeeded = self.mig_tasks_of_src_to_dest(ex_dp, move_to_apply.get_block_ref(), move_to_apply.get_des_block(), move_to_apply.get_tasks())
+
+                    ex_dp.hardware_graph.update_graph(block_to_prime_with=move_to_apply.get_des_block())  # update the hardware graph
+                else:
+                    succeeded = False
+            if config.DEBUG_SANITY:ex_dp.sanity_check() # sanity check
         elif move_to_apply.get_transformation_name() == "migrate" or move_to_apply.get_transformation_name() == "cleanup":
             self.unload_buses(ex_dp)  # unload buses
             self.unload_read_mem(ex_dp)  # unload memories
@@ -1188,8 +1224,17 @@ class DesignHandler:
             dest_block_ic.connect(src_block)
             ex_dp.hardware_graph.update_graph()  # update the hardware graph
             succeeded = True
+        elif move_to_apply.get_transformation_name() == "routing":
+            self.unload_buses(ex_dp)  # unload buses
+            self.unload_read_mem(ex_dp)  # unload memories
+            src_block = move_to_apply.get_block_ref()  # memory to move
+            dest_block = move_to_apply.get_des_block()  # destination Ic
+            src_block.connect(dest_block)
+            ex_dp.hardware_graph.update_graph()  # update the hardware graph
+            succeeded = True
         else:
             raise Exception("transformation :" + move_to_apply.get_transformation_name() + " is not supported")
+
         ex_dp.hardware_graph.pipe_design()
         return ex_dp, succeeded
 
