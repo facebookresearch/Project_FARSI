@@ -67,6 +67,17 @@ class IPSplitException(Exception):
     pass
 
 
+class NoAbException(Exception):
+    pass
+
+
+class TransferException(Exception):
+    pass
+
+class RoutingException(Exception):
+    pass
+
+
 #  couldn't find two blocks of the same type to use for cleaning up
 class CostPairingException(Exception):
     pass

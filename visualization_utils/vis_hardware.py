@@ -120,7 +120,7 @@ class node_content():
 # ------------------------------
 def build_dot_recursively(parent_block, child_block, blocks_visited, hardware_dot_graph,
                           task_obfuscated_table, block_obfuscatred_table,  graphing_mode):
-    if child_block in blocks_visited:
+    if (child_block, parent_block) in blocks_visited:
         return None
     global ctr
     if parent_block:
@@ -133,7 +133,7 @@ def build_dot_recursively(parent_block, child_block, blocks_visited, hardware_do
         ctr +=1
         if not parent_node.only_dummy and not child_node.only_dummy:
             hardware_dot_graph.add_edge(parent_node.get_content(), child_node.get_content())
-    blocks_visited.append(child_block)
+    blocks_visited.append((child_block, parent_block))
     parent_block = child_block 
     for child_block_ in parent_block.neighs:
         build_dot_recursively(parent_block, child_block_, blocks_visited, hardware_dot_graph, task_obfuscated_table,

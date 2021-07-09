@@ -1110,9 +1110,6 @@ class Kernel:
         self.block_dir_att_work_rate_dict = self.calc_unnormalize_work_rate_by_dir(self.block_normalized_work_rate, cur_phase_dir_bottleneck_work_rate)
 
 
-
-
-
     # calculate the completion time for the kernel
     def calc_kernel_completion_time(self):
         return self.pe_s_work_left/self.block_att_work_rate_dict[self.get_ref_block()][self.get_ref_block().get_pipe_clusters()[0]]

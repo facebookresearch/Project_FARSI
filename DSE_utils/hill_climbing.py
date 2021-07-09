@@ -534,7 +534,22 @@ class HillClimbing:
         return result_block, found_block_to_mig_to, selection_mode
 
 
+    def is_system_ic(self, ex_dp, sim_dp, blck):
+        if not sim_dp.dp_stats.fits_budget(1):
+            return False
+        elif sim_dp.dp_stats.fits_budget(1) and not self.dram_feasibility_check_pass(ex_dp):
+            return False
+        else:
+            for block in ex_dp.get_hardware_graph().get_blocks():
+                neighs = block.get_neighs()
+                if any(el for el in neighs if el.subtype == "dram"):
+                    if block == blck:
+                        return True
+        return False
+
+
     def dram_feasibility_check_pass(self, ex_dp):
+        return True
         # find all the drams and their ics
         all_drams = [el for el in ex_dp.get_hardware_graph().get_blocks() if el.subtype == "dram"]
         dram_ics = []
@@ -579,6 +594,7 @@ class HillClimbing:
         other_block_parallelism_exist = False
         all_transformations = config.metric_trans_dict[selected_metric]
         can_improve_locality = self.can_improve_locality(ex_dp, hot_blck_synced, task)
+        can_improve_routing = self.can_improve_routing(ex_dp, sim_dp, hot_blck_synced, task)
 
         if parallelism_exist:
            if selected_metric == "latency":
@@ -648,6 +664,11 @@ class HillClimbing:
             feasible_transformations = set(list(set(feasible_transformations) - set(['swap'])))
 
 
+        if can_improve_routing:
+            transformation_list = list(feasible_transformations)
+            transformation_list.append('routing')
+            feasible_transformations = set(transformation_list)
+
         #feasible_transformations = set(list(set(feasible_transformations) - set(['split_swap'])))
 
 
@@ -709,6 +730,9 @@ class HillClimbing:
         elif transformation == "transfer":
             batch_mode = "irrelevant"
             transformation_sub_name = "locality_improvement"
+        elif transformation == "routing":
+            batch_mode = "irrelevant"
+            transformation_sub_name = "routing_improvement"
         else:
             transformation_sub_name = "irrelevant"
             batch_mode = "irrelevant"
@@ -803,6 +827,10 @@ class HillClimbing:
 
     def get_transfer_cost(self):
         return 0
+
+    def get_routing_cost(self):
+        return 0
+
     def get_split_cost(self):
         return 1
 
@@ -830,6 +858,8 @@ class HillClimbing:
                 cost = self.get_identity_cost()
             elif transformation in ["transfer"]:
                 cost = self.get_transfer_cost()
+            elif transformation in ["routing"]:
+                cost = self.get_routing_cost()
             if cost == 0:
                 cost = self.min_cost_to_consider
             return cost
@@ -1053,6 +1083,42 @@ class HillClimbing:
             return False, "_"
 
 
+
+    def find_improve_routing(self, ex_dp, sim_dp, selected_block, selected_krnl_task):
+        if not selected_block.type == "ic":
+            return None, None
+        result = True
+        task_name = selected_krnl_task.get_task_name()
+        task_s_blocks = ex_dp.get_hardware_graph().get_blocks_of_task_by_name(task_name)
+        pe = [blk for blk in task_s_blocks if blk.type == "pe"][0]
+        mems =[blk for blk in task_s_blocks if blk.type == "mem"]
+
+        ic_entry, ic_exit = None, None
+        for mem in mems:
+            path= sim_dp.dp.get_hardware_graph().get_path_between_two_vertecies(pe, mem)
+            if len(path)> 4:  # more than two ICs
+                ic_entry = path[1]
+                ic_exit = path[-2]
+                break
+
+        success =  not(ic_entry==None)
+        return success, ic_exit
+
+    def can_improve_routing(self, ex_dp, sim_dp, selected_block, selected_krnl_task):
+        if not selected_block.type == "ic":
+            return False
+        result = True
+        task_name = selected_krnl_task.get_name()
+        task_s_blocks = ex_dp.get_hardware_graph().get_blocks_of_task_by_name(task_name)
+        pe =[blk for blk in task_s_blocks if blk.type == "pe"][0]
+        mems =[blk for blk in task_s_blocks if blk.type == "mem"]
+
+        for mem in mems:
+            path= sim_dp.dp.get_hardware_graph().get_path_between_two_vertecies(pe, mem)
+            if len(path) > 4:  # more than two ICs
+                return True
+        return False
+
     def can_improve_locality(self, ex_dp, selected_block, selected_krnl_task):
         result = True
 
@@ -1081,6 +1147,57 @@ class HillClimbing:
                 break
         return result
 
+    def find_absorbing_block_tuple(self, ex_dp, sim_dp, task_name, block):
+        task_pe = None
+        for blk in ex_dp.get_hardware_graph().get_blocks():
+            # only cover absorbing for PEs
+            if not blk.type == "pe" :
+                continue
+            blk_tasks =  [el.get_name() for el in el.get_tasks_of_block()]
+            if task_name in blk_tasks:
+                task_pe = blk
+                break
+
+        ic_neigh = [neigh for neigh in task_pe.get_neighs() if neigh.type == "ic"][0]
+        ic_neigh_neigh = [neigh for neigh in ic_neigh.get_neighs() if neigh.type == "ic"][0]
+
+        # we don't mess with system ic
+        if self.is_system_ic(ex_dp, sim_dp, ic_neigh):
+            absorbee, absorber = None, None
+        else:
+            # if the ic didn't have any memory attached to it, return true
+            mem_neighs = [neigh for neigh in ic_neigh.get_neighs() if neigh.type == "mem"]
+            if len(mem_neighs) == 0:
+                absorbee, absorber = ic_neigh, ic_neigh_neigh
+            else:
+                absorbee, absorber = None, None
+
+        return absorbee, absorber
+
+    def can_absorb_block(self, ex_dp, sim_dp, task_name):
+        task_pe = None
+        for blk in ex_dp.get_hardware_graph().get_blocks():
+            # only cover absorbing for PEs
+            if not blk.type == "pe" :
+                continue
+            blk_tasks =  [el.get_name() for el in blk.get_tasks_of_block()]
+            if task_name in blk_tasks:
+                task_pe = blk
+                break
+
+        ic_neigh = [neigh for neigh in task_pe.get_neighs() if neigh.type == "ic"][0]
+        # we don't mess with system ic
+        if self.is_system_ic(ex_dp, sim_dp, ic_neigh):
+            result = False
+        else:
+            # if the ic didn't have any memory attached to it, return true
+            mem_neighs = [neigh for neigh in ic_neigh.get_neighs() if neigh.type == "mem"]
+            if len(mem_neighs) == 0:
+                result = True
+            else:
+                result = False
+
+        return result
 
     # ------------------------------
     # Functionality:
@@ -1118,7 +1235,7 @@ class HillClimbing:
             transformation_sub_name = "dram_fix_no_prune"
             transformation_batch_mode = "single"
             selected_metric = "cost"
-        elif sim_dp.dp_stats.fits_budget(1) or self.is_cleanup_iter():
+        elif self.is_cleanup_iter():
             transformation_name = "cleanup"
             transformation_sub_name = "non"
             transformation_batch_mode = "single"
@@ -1226,31 +1343,50 @@ class HillClimbing:
             else:
                 move_to_apply.set_validity(False, "TransferException")
             pass
-        elif move_to_apply.get_transformation_name() == "cleanup":
-            move_to_apply.set_validity(False, "CostPairingException")
-
-            self.dh.unload_buses(ex_dp)  # unload buses
-            self.dh.unload_read_mem(ex_dp)  # unload memories
-            task_1, block_task_1, task_2, block_task_2 = self.find_task_with_similar_mappable_ips(des_tup)
-            # we also randomize
-            if not (task_1 is None) and (random.choice(np.arange(0,1,.1))>.5):
-                move_to_apply.set_ref_block(block_task_1)
-                migrant_tasks = [task_1]
-                imm_block_present = block_task_2
-                move_to_apply.set_tasks(migrant_tasks)
-                move_to_apply.set_dest_block(imm_block_present)
-            else:
-                pair = self.gen_block_match_cleanup_move(des_tup)
-                if len(pair) == 0:
-                    move_to_apply.set_validity(False, "CostPairingException")
+        elif move_to_apply.get_transformation_name() == "routing":
+            if move_to_apply.get_transformation_sub_name() == "routing_improvement":
+                succeeded, dest_block = self.find_improve_routing(ex_dp, sim_dp, selected_block, selected_krnl)
+                if succeeded:
+                    move_to_apply.set_dest_block(dest_block)
+                    move_to_apply.set_tasks([move_to_apply.get_kernel_ref().get_task()])
                 else:
-                    ref_block = pair[0]
-                    if not ref_block.type == "ic":  # ic migration is not supported
-                        move_to_apply.set_ref_block(ref_block)
-                        migrant_tasks = ref_block.get_tasks_of_block()
-                        imm_block_present = pair[1]
-                        move_to_apply.set_tasks(migrant_tasks)
-                        move_to_apply.set_dest_block(imm_block_present)
+                    move_to_apply.set_validity(False, "RoutingException")
+            else:
+                move_to_apply.set_validity(False, "RoutingException")
+            pass
+        elif move_to_apply.get_transformation_name() == "cleanup":
+            if self.can_absorb_block(ex_dp, sim_dp, move_to_apply.get_kernel_ref().get_task_name()):
+                move_to_apply.set_transformation_sub_name("absorb")
+                absorbee, absorber = self.find_absorbing_block_tuple(ex_dp, sim_dp, move_to_apply.get_kernel_ref().get_task_name())
+                if absorber == None or absorbee == "None":
+                    move_to_apply.set_validity(False, "NoAbsorbee(er)Exception")
+                else:
+                    move_to_apply.set_ref_block(absorbee)
+                    move_to_apply.set_dest_block(absorber)
+            else:
+                move_to_apply.set_validity(False, "CostPairingException")
+                self.dh.unload_buses(ex_dp)  # unload buses
+                self.dh.unload_read_mem(ex_dp)  # unload memories
+                task_1, block_task_1, task_2, block_task_2 = self.find_task_with_similar_mappable_ips(des_tup)
+                # we also randomize
+                if not (task_1 is None) and (random.choice(np.arange(0,1,.1))>.5):
+                    move_to_apply.set_ref_block(block_task_1)
+                    migrant_tasks = [task_1]
+                    imm_block_present = block_task_2
+                    move_to_apply.set_tasks(migrant_tasks)
+                    move_to_apply.set_dest_block(imm_block_present)
+                else:
+                    pair = self.gen_block_match_cleanup_move(des_tup)
+                    if len(pair) == 0:
+                        move_to_apply.set_validity(False, "CostPairingException")
+                    else:
+                        ref_block = pair[0]
+                        if not ref_block.type == "ic":  # ic migration is not supported
+                            move_to_apply.set_ref_block(ref_block)
+                            migrant_tasks = ref_block.get_tasks_of_block()
+                            imm_block_present = pair[1]
+                            move_to_apply.set_tasks(migrant_tasks)
+                            move_to_apply.set_dest_block(imm_block_present)
 
 
         move_to_apply.set_breadth_depth(self.SA_current_breadth, self.SA_current_depth, self.SA_current_mini_breadth)  # set depth and breadth (for debugging/ plotting)
