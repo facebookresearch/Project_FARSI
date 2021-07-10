@@ -1126,6 +1126,7 @@ class SimDesignPoint(ExDesignPoint):
         self.krnl_phase_present = {}
         self.phase_krnl_present = {}
         self.iteration_number = 0  # the iteration which the simulation is done
+        self.depth_number = 0  # the depth (within on iteration) which the simulation is done
         self.simulation_time = 0  # how long did it take to do the simulation
         if config.use_cacti:
             self.cacti_hndlr = cact_handlr.CactiHndlr(config.cact_bin_addr, config.cacti_param_addr,
@@ -1144,6 +1145,12 @@ class SimDesignPoint(ExDesignPoint):
 
     def set_iteration_number(self, iteration_number):
         self.iteration_number = iteration_number
+
+    def set_depth_number(self, depth_number):
+        self.depth_number = depth_number
+
+    def get_depth_number(self):
+        return self.depth_number
 
     def get_iteration_number(self):
         return self.iteration_number

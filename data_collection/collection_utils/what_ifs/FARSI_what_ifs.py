@@ -182,11 +182,15 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
         output_fh_minimal.write("reason_to_terminate" + ",")  # for now only write the latency accuracy as the other
 
         output_fh_minimal.write("iteration number" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("iterationxdepth number" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("simulation time" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("move generation time" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("dist_to_goal_all" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("dist_to_goal_non_cost" + ",")  # for now only write the latency accuracy as the other
-        output_fh_minimal.write("SOC_blk_cnt" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("system block count" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("system PE count" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("system bus count" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("system memory count" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("block_impact_sorted" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("kernel_impact_sorted" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("metric_impact_sorted" + ",")  # for now only write the latency accuracy as the other
@@ -196,6 +200,10 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
         output_fh_minimal.write("move_block_name" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("move_block_type" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("move_dir" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("comm_comp" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("high_level_optimization" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("architectural_variable_to_improve" + ",")  # for now only write the latency accuracy as the other
+
 
 
 
@@ -234,6 +242,11 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
         sorted_kernels = convert_tuple_list_to_parsable_csv([(el.get_task_name(), val) for el,val in ma.sorted_kernels.items()])
         blk_instance_name = ma.get_block_ref().get_generic_instance_name()
         blk_type = ma.get_block_ref().type
+
+        comm_comp = (ma.get_system_improvement_log())["comm_comp"]
+        high_level_optimization = (ma.get_system_improvement_log())["high_level_optimization"]
+        architectural_variable_to_improve = (ma.get_system_improvement_log())["architectural_variable_to_improve"]
+
     else: # happens at the very fist iteration
         sorted_metrics = ""
         metric = ""
@@ -246,13 +259,27 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
         sorted_kernels = {}
         blk_instance_name = ''
         blk_type = ''
+        comm_comp = ""
+        high_level_optimization = ""
+        architectural_variable_to_improve = ""
+
+    simple_topology = sim_dp.dp_rep.get_hardware_graph().get_simplified_topology_code()
+    blk_cnt = sum([int(el) for el in simple_topology.split("_")])
+    bus_cnt = [int(el) for el in simple_topology.split("_")][0]
+    mem_cnt = [int(el) for el in simple_topology.split("_")][1]
+    pe_cnt = [int(el) for el in simple_topology.split("_")][2]
+    itr_depth_multiplied = sim_dp.dp_rep.get_iteration_number()*config.SA_depth + sim_dp.dp_rep.get_depth_number()
 
     output_fh_minimal.write(str(sim_dp.dp_rep.get_iteration_number())+ ",")  # for now only write the latency accuracy as the other
+    output_fh_minimal.write(str(itr_depth_multiplied)+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(sim_dp.dp_rep.get_simulation_time())+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(generation_time)+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(sim_dp.dp_stats.dist_to_goal(metrics_to_look_into = ["area", "latency", "power", "cost"], mode = "eliminate")) + ",")
     output_fh_minimal.write(str(sim_dp.dp_stats.dist_to_goal(metrics_to_look_into = ["area", "latency", "power"], mode = "eliminate")) + ",")
-    output_fh_minimal.write(sim_dp.dp_rep.get_hardware_graph().get_simplified_topology_code() + ",")  # for now only write the latency accuracy as the other
+    output_fh_minimal.write(str(blk_cnt) + ",")  # for now only write the latency accuracy as the other
+    output_fh_minimal.write(str(pe_cnt) + ",")  # for now only write the latency accuracy as the other
+    output_fh_minimal.write(str(bus_cnt) + ",")  # for now only write the latency accuracy as the other
+    output_fh_minimal.write(str(mem_cnt) + ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(sorted_blocks) + ",")
     output_fh_minimal.write(str(sorted_kernels) + ",")
     output_fh_minimal.write(str(sorted_metrics)+  ",")
@@ -262,6 +289,10 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
     output_fh_minimal.write(blk_instance_name+",")
     output_fh_minimal.write(blk_type+",")
     output_fh_minimal.write(str(dir)+",")
+    output_fh_minimal.write(str(comm_comp)+",")
+    output_fh_minimal.write(str(high_level_optimization)+",")
+    output_fh_minimal.write(str(architectural_variable_to_improve)+",")
+
 
     output_fh_minimal.close()
 

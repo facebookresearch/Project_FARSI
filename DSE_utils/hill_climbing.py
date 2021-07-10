@@ -1719,8 +1719,12 @@ class HillClimbing:
         t = time.time()
         OSA.simulate()
         sim_time = time.time() - t
+
+        # profile info
         sim_dp.set_iteration_number(self.total_itr_ctr)
+        sim_dp.set_depth_number(self.SA_current_depth)
         sim_dp.set_simulation_time(sim_time)
+
         print("sim time" + str(sim_time))
         return sim_dp
 
@@ -1946,7 +1950,7 @@ class HillClimbing:
 
         # navigate the space using depth and breath parameters
         strt = time.time()
-        print("------------------------ next itr ---------------------")
+        print("------------------------ itr:" + str(self.total_itr_ctr) + " ---------------------")
         self.SA_current_breadth = -1
         self.SA_current_depth = -1
 
