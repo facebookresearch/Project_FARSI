@@ -186,7 +186,7 @@ else:
 
 DEBUG_MOVE =  True and not NO_VIS # if true, we print/collect relevant info about moves
 regulate_move_tracking = (FARSI_memory_consumption == "low") # if true, we don't track and hence graph every move. This helps preventing memory pressure (and avoid getting killed by the OS)
-vis_move_trail_ctr_threshold = 20 # how often sample the moves (only applies if regulat_move_tracking enabled)
+#vis_move_trail_ctr_threshold = 20 # how often sample the moves (only applies if regulat_move_tracking enabled)
 
 cache_seen_designs = False and not(FARSI_memory_consumption == "low") # if True, we cache the designs that we have seen. This way we wont simulate them unnecessarily.
                           # This should be set to false if memory is an issue
@@ -263,11 +263,12 @@ transaction_base_simulation = False   # do not set to true. It doesn't work
 # CACTI
 use_cacti = True and not RUN_VERIFICATION_AT_ALL # if True, use cacti. You have to have cacti installed.j
 # for behzad
-# cact_bin_addr = "/Users/behzadboro/Downloads/cacti/cacti"
-# cacti_param_addr = "/Users/behzadboro/Downloads/cacti/farsi_gen.cfg"
+<<<<<<< HEAD
+cact_bin_addr = "/Users/behzadboro/Downloads/cacti/cacti"
+cacti_param_addr = "/Users/behzadboro/Downloads/cacti/farsi_gen.cfg"
 # for Ying
-cact_bin_addr = "/Users/yingjing_33/Desktop/Project_FARSI/cacti_for_FARSI/cacti"
-cacti_param_addr = "/Users/yingjing_33/Desktop/Project_FARSI/cacti_for_FARSI/farsi_gen.cfg"
+# cact_bin_addr = "/Users/yingjing_33/Desktop/Project_FARSI/cacti_for_FARSI/cacti"
+# cacti_param_addr = "/Users/yingjing_33/Desktop/Project_FARSI/cacti_for_FARSI/farsi_gen.cfg"
 cacti_log_results = False # if true, we log cacti results as we collect them. this allows us to avoid rerunning
 cacti_data_log_file = "/Users/yingjing_33/Desktop/Project_FARSI/cacti_for_FARSI/data_log.csv"
 cacti_input_col_order = ["mem_subtype", "mem_size"]
