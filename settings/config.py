@@ -262,10 +262,14 @@ transaction_base_simulation = False   # do not set to true. It doesn't work
 
 # CACTI
 use_cacti = True and not RUN_VERIFICATION_AT_ALL # if True, use cacti. You have to have cacti installed.j
-cact_bin_addr = "/Users/behzadboro/Downloads/cacti/cacti"
-cacti_param_addr = "/Users/behzadboro/Downloads/cacti/farsi_gen.cfg"
+# for behzad
+# cact_bin_addr = "/Users/behzadboro/Downloads/cacti/cacti"
+# cacti_param_addr = "/Users/behzadboro/Downloads/cacti/farsi_gen.cfg"
+# for Ying
+cact_bin_addr = "/Users/yingjing_33/Desktop/Project_FARSI/cacti_for_FARSI/cacti"
+cacti_param_addr = "/Users/yingjing_33/Desktop/Project_FARSI/cacti_for_FARSI/farsi_gen.cfg"
 cacti_log_results = False # if true, we log cacti results as we collect them. this allows us to avoid rerunning
-cacti_data_log_file = "/Users/behzadboro/Downloads/cacti/data_log.csv"
+cacti_data_log_file = "/Users/yingjing_33/Desktop/Project_FARSI/cacti_for_FARSI/data_log.csv"
 cacti_input_col_order = ["mem_subtype", "mem_size"]
 cacti_output_col_order = ["read_energy_per_byte", "write_energy_per_byte", "area"]
 config.cacti_min_memory_size_in_bytes =  2048 # bellow this value cacti errors out. We can play with burst size and page size to fix this though
