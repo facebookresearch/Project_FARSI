@@ -501,7 +501,7 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
             result = list(range(1, int(max_num_itr), int(loop_itr_incr)))
         elif misc_knobs["ip_spawn"]["ip_loop_unrolling"]["spawn_mode"] == "geometric":
             num_ips_perspective_2 = int(math.log(max_num_itr, loop_itr_incr))
-            result = [loop_itr_incr** (n) for n in range(1, num_ips_perspective_2+ 1)]
+            result = [loop_itr_incr** (n) for n in range(0, num_ips_perspective_2+ 1)]
 
         # cap the result by het maximum_spawn_ip
         if len(result) > max_spawn_ip_by_loop_itr:

@@ -65,6 +65,43 @@ class ExDesignPoint:
         self.FARSI_ex_id = str(-1)
         self.PA_knob_ctr_id = str(-1)
 
+    def eliminate_system_bus(self):
+        all_drams = [el for el in self.get_hardware_graph().get_blocks() if el.subtype == "dram"]
+        ics_with_dram = []
+        for dram in all_drams:
+            for neigh in dram.get_neighs():
+                if neigh.type == "ic":
+                    ics_with_dram.append(neigh)
+
+        # can only have one ic with dram hanging from it
+        return len(ics_with_dram) == 1
+
+
+    def has_system_bus(self):
+        return False
+        # find all the drams and their ics
+        all_drams = [el for el in self.get_hardware_graph().get_blocks() if el.subtype == "dram"]
+        ics_with_dram = []
+        for dram in all_drams:
+            for neigh in dram.get_neighs():
+                if neigh.type == "ic":
+                    ics_with_dram.append(neigh)
+
+        # can only have one ic with dram hanging from it
+        return len(ics_with_dram) == 1
+
+    def get_system_bus(self):
+        if not self.has_system_bus():
+            return None
+        else:
+            all_drams = [el for el in self.get_hardware_graph().get_blocks() if el.subtype == "dram"]
+            ics_with_dram = []
+            for dram in all_drams:
+                for neigh in dram.get_neighs():
+                    if neigh.type == "ic":
+                        neigh.set_as_system_bus()
+                        return neigh
+
     # get hardware blocks of a design
     def get_blocks(self):
         return self.hardware_graph.blocks
@@ -1160,6 +1197,14 @@ class SimDesignPoint(ExDesignPoint):
 
     # run cacti to get results
     def run_and_collect_cacti_data(self, blk, database):
+        tech_node = {}
+        tech_node["energy"] = 1
+        tech_node["area"] = 1
+        sw_hw_database_population =  database.db_input.sw_hw_database_population
+        if "misc_knobs" in sw_hw_database_population.keys():
+            misc_knobs = sw_hw_database_population["misc_knobs"]
+            if "tech_node_SF" in misc_knobs.keys():
+                tech_node = misc_knobs["tech_node_SF"]
 
         if not blk.type == "mem":
             print("Only memory blocks supported in CACTI")
@@ -1181,6 +1226,10 @@ class SimDesignPoint(ExDesignPoint):
         write_energy_per_byte = float(cacti_area_energy_results['Dynamic write energy (nJ)']) * (10 ** -9) / 16
         area = float(cacti_area_energy_results['Area (mm2)']) * (10 ** -6)
 
+        read_energy_per_byte *= tech_node["energy"]
+        write_energy_per_byte *= tech_node["energy"]
+        area *= tech_node["area"]
+
         # log values
         self.cacti_hndlr.cacti_data_container.insert(list(zip(config.cacti_input_col_order +
                                                               config.cacti_output_col_order,
@@ -1190,28 +1239,21 @@ class SimDesignPoint(ExDesignPoint):
 
     # either run or look into the cached data (from CACTI) to get energy/area data
     def collect_cacti_data(self, blk, database):
-        tech_node = {}
-        tech_node["energy"] = 1
-        tech_node["area"] = 1
-        sw_hw_database_population =  database.db_input.sw_hw_database_population
-        if "misc_knobs" in sw_hw_database_population.keys():
-            misc_knobs = sw_hw_database_population["misc_knobs"]
-            if "tech_node_SF" in misc_knobs.keys():
-                tech_node = misc_knobs["tech_node_SF"]
 
         if blk.type == "ic" :
             return 0,0,0,1
         elif blk.type == "mem":
             mem_bytes = max(blk.get_area_in_bytes(), config.cacti_min_memory_size_in_bytes) # to make sure we don't go smaller than cacti's minimum size
             mem_subtype = self.FARSI_to_cacti_mem_type_converter(blk.subtype)
+
             #mem_subtype = "ram" #choose from ["main memory", "ram"]
             found_results, read_energy_per_byte, write_energy_per_byte, area = \
                 self.cacti_hndlr.cacti_data_container.find(list(zip(config.cacti_input_col_order,[mem_subtype, mem_bytes])))
             if not found_results:
                 read_energy_per_byte, write_energy_per_byte, area = self.run_and_collect_cacti_data(blk, database)
-                read_energy_per_byte *= tech_node["energy"]
-                write_energy_per_byte *= tech_node["energy"]
-                area *= tech_node["area"]
+                #read_energy_per_byte *= tech_node["energy"]
+                #write_energy_per_byte *= tech_node["energy"]
+                #area *= tech_node["area"]
             area_per_byte = area/mem_bytes
             return read_energy_per_byte, write_energy_per_byte, area, area_per_byte
 

@@ -547,34 +547,6 @@ class HillClimbing:
                         return True
         return False
 
-
-    def dram_feasibility_check_pass(self, ex_dp):
-        return True
-        # find all the drams and their ics
-        all_drams = [el for el in ex_dp.get_hardware_graph().get_blocks() if el.subtype == "dram"]
-        dram_ics = []
-        for dram in all_drams:
-            for neigh in dram.get_neighs():
-                if neigh.type == "ic":
-                    dram_ics.append(neigh)
-
-        system_ic = None
-        for ic in dram_ics:
-            neighs_has_no_pe = len([neigh for neigh in ic.get_neighs() if neigh.type =="pe"]) == 0
-            if neighs_has_no_pe:
-                system_ic = ic
-                break
-        if system_ic == None:
-            return False
-
-        system_ic_drams = [neigh for neigh in system_ic.get_neighs() if neigh.subtype =="dram"]
-        if len(system_ic_drams) == len(all_drams):
-            return True
-        else:
-            return False
-
-
-
     def get_feasible_transformations(self, ex_dp, sim_dp, hot_blck_synced, selected_metric, selected_krnl, sorted_metric_dir):
         imm_block = self.dh.get_immediate_block_multi_metric(hot_blck_synced, selected_metric, sorted_metric_dir,  hot_blck_synced.get_tasks_of_block())
         task = ex_dp.get_hardware_graph().get_task_graph().get_task_by_name(selected_krnl.get_task_name())
@@ -941,6 +913,7 @@ class HillClimbing:
 
         #krnls = sim_dp.get_dp_stats().get_kernels()
         # filter it kernels whose workload meet the budget
+        selected_metric = "area"
         krnls = self.filter_in_kernels_meeting_budget(selected_metric, sim_dp)
         if krnls == []: # the design meets the budget, hence all kernels can be improved for cost improvement
             krnls = sim_dp.get_dp_stats().get_kernels()
@@ -1230,12 +1203,14 @@ class HillClimbing:
         """
         # prepare for move
         # if bus, (forgot which exception), if IP, avoid split .
+        """
         if sim_dp.dp_stats.fits_budget(1) and not self.dram_feasibility_check_pass(ex_dp):
             transformation_name = "dram_fix"
             transformation_sub_name = "dram_fix_no_prune"
             transformation_batch_mode = "single"
             selected_metric = "cost"
-        elif self.is_cleanup_iter():
+        """
+        if self.is_cleanup_iter():
             transformation_name = "cleanup"
             transformation_sub_name = "non"
             transformation_batch_mode = "single"
@@ -1553,7 +1528,7 @@ class HillClimbing:
         for sim_dp_stat in sim_dp_stat_list:
             if sim_dp_stat.fits_budget(1):
                 ex_dp = sim_stat_ex_dp_dict[sim_dp_stat]
-                if self.dram_feasibility_check_pass(ex_dp):
+                if ex_dp.has_system_bus():
                     new_designs_meeting_budget_with_dram.append(sim_dp_stat)
         dram_fixed = False
         if len(new_designs_meeting_budget_with_dram) > 0 and not self.dram_feasibility_check_pass(best_ex_dp_so_far):
@@ -1865,7 +1840,7 @@ class HillClimbing:
         # look into cache and see if this design has been seen before. If so, just use the
         # cached value, other wise just use the sim from cache
         design_unique_code = ex_dp.get_hardware_graph().get_SOC_design_code()  # cache index
-        if move_to_try.get_transformation_name() == "identity":
+        if move_to_try.get_transformation_name() == "identity" or not move_to_try.is_valid():
             # if nothing has changed, just copy the sim from before
             sim_dp = des_tup[1]
         elif design_unique_code not in self.cached_SOC_sim.keys():
