@@ -54,6 +54,7 @@ def run_FARSI(result_folder, unique_number, db_input, hw_sampling, starting_expl
             # iterate if budget not met and we have seen improvements
             best_design_sim_last_itr = best_design_sim_this_itr
             best_design_sim_this_itr = dse_handler.dse.so_far_best_sim_dp
+
             # if did not improve comparing to the last iteration, exit
             if not best_design_sim_last_itr == None and \
                     (best_design_sim_this_itr.dp_rep.get_hardware_graph().get_SOC_design_code() ==

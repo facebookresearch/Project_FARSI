@@ -513,6 +513,9 @@ class SimDesignPointContainer:
     def set_move_applied(self, move_applied):
         self.move_applied = move_applied
 
+    def get_move_applied(self):
+        return self.move_applied
+
 
     def get_dp_stats(self):
         return self.dp_stats
@@ -1076,7 +1079,7 @@ class DPStatsContainer():
     #        dampen: dampens the impact of the metric that has already met the budget
     def dist_to_goal(self,  metrics_to_look_into=["all"], mode="simple"):  # mode simple, just calculate
         if metrics_to_look_into == ["all"]:
-            metrics_to_look_into = self.database.get_budgetted_metric_names_all_SOCs() + self.database.get_other_metrics_name()  # which metrics to use for distance calculation
+            metrics_to_look_into = self.database.get_budgetted_metric_names_all_SOCs() + self.database.get_other_metric_names_all_SOCs()  # which metrics to use for distance calculation
 
         dist_list = []
         for metric_name in metrics_to_look_into:
@@ -1122,6 +1125,8 @@ class SimDesignPoint(ExDesignPoint):
         self.parallel_kernels = {}
         self.krnl_phase_present = {}
         self.phase_krnl_present = {}
+        self.iteration_number = 0  # the iteration which the simulation is done
+        self.simulation_time = 0  # how long did it take to do the simulation
         if config.use_cacti:
             self.cacti_hndlr = cact_handlr.CactiHndlr(config.cact_bin_addr, config.cacti_param_addr,
                                                       config.cacti_data_log_file, config.cacti_input_col_order,
@@ -1130,6 +1135,18 @@ class SimDesignPoint(ExDesignPoint):
         for block in self.get_blocks():
             self.block_phase_work_dict[block] = {}
             self.block_phase_utilization_dict[block] = {}
+
+    def set_simulation_time(self, simulation_time):
+        self.simulation_time= simulation_time
+
+    def get_simulation_time(self):
+        return self.simulation_time
+
+    def set_iteration_number(self, iteration_number):
+        self.iteration_number = iteration_number
+
+    def get_iteration_number(self):
+        return self.iteration_number
 
     def get_tasks_parallel_task_dynamically(self, task):
         krnl = self.get_kernel_by_task_name(task)

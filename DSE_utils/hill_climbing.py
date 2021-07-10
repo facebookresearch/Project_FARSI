@@ -93,7 +93,8 @@ class HillClimbing:
 
         self.move_s_krnel_selection = config.move_s_krnel_selection
         self.krnels_not_to_consider = []
-
+        self.all_itr_ex_sim_dp_dict: Dict[ExDesignPoint: SimDesignPoint] = {}  # all the designs look at
+        self.reason_to_terminate = ""
 
     def set_check_point_folder(self, check_point_folder):
         self.check_point_folder = check_point_folder
@@ -1717,7 +1718,10 @@ class HillClimbing:
         # Does the actual simulation
         t = time.time()
         OSA.simulate()
-        print("sim time" + str(time.time() -t))
+        sim_time = time.time() - t
+        sim_dp.set_iteration_number(self.total_itr_ctr)
+        sim_dp.set_simulation_time(sim_time)
+        print("sim time" + str(sim_time))
         return sim_dp
 
     # ------------------------------
@@ -1832,8 +1836,12 @@ class HillClimbing:
     def gen_neigh_and_eval(self, des_tup):
         # "delete this later"
         print("------ depth ------")
+
         # generate on neighbour
+        move_strt_time = time.time()
         ex_dp, move_to_try,total_trans_cnt = self.gen_one_neigh(des_tup)
+        move_end_time = time.time()
+        move_to_try.set_generation_time(move_end_time- move_strt_time)
 
         # generate a code for the design (that specifies the topology, mapping and scheduling).
         # look into cache and see if this design has been seen before. If so, just use the
@@ -1873,6 +1881,7 @@ class HillClimbing:
             print("design's power: " + str(sim_dp.dp_stats.get_system_complex_metric("power")))
             print("design's area: " + str(sim_dp.dp_stats.get_system_complex_metric("area")))
             print("design's sub area: " + str(sim_dp.dp_stats.get_system_complex_area_stacked_dram()))
+
 
         return (ex_dp, sim_dp), total_trans_cnt
 
@@ -1923,6 +1932,7 @@ class HillClimbing:
                     self.last_des_trail = (best_design_sim_cpy, des_tup_list[-1][1])
                     #self.des_trail_list.append((cPickle.loads(cPickle.dumps(self.so_far_best_sim_dp, -1)),cPickle.loads(cPickle.dumps(des_tup_list[-1][1], -1))))
                     #self.last_des_trail = (cPickle.loads(cPickle.dumps(self.so_far_best_sim_dp, -1)),cPickle.loads(cPickle.dumps(des_tup_list[-1][1], -1)))
+
 
             #self.vis_move_ctr += 1
             if config.DEBUG_SANITY: des_tup[0].sanity_check()
@@ -2005,6 +2015,7 @@ class HillClimbing:
             self.cur_best_ex_dp, self.cur_best_sim_dp = self.sel_next_dp(this_itr_ex_sim_dp_dict,
                                                                          self.so_far_best_sim_dp, self.so_far_best_ex_dp, cur_temp)
 
+            self.all_itr_ex_sim_dp_dict.update(this_itr_ex_sim_dp_dict)
             print("-------:):):):):)----------")
             print("Best design's latency: " + str(self.cur_best_sim_dp.dp_stats.get_system_complex_metric("latency")))
             print("Best design's power: " + str(self.cur_best_sim_dp.dp_stats.get_system_complex_metric("power")))

@@ -47,12 +47,20 @@ class move:
         self.moved_ex = None
         self.validity_meta_data = ""
         self.krnel_prob_dict_sorted = krnl_prob_dict_sorted
+        self.generation_time = 0
 
     def get_transformation_sub_name(self):
         return self.transformation_sub_name
 
     def set_krnel_ref(self, krnel):
         self.krnel = krnel
+
+    # how long did it take to come up with the move
+    def set_generation_time(self, generation_time):
+        self.generation_time = generation_time
+
+    def get_generation_time(self):
+        return self.generation_time
 
     def set_logs(self, data, type_):
         if type_ == "cost":

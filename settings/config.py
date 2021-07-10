@@ -272,7 +272,7 @@ cacti_log_results = False # if true, we log cacti results as we collect them. th
 cacti_data_log_file = "/Users/behzadboro/Downloads/cacti/data_log.csv"
 cacti_input_col_order = ["mem_subtype", "mem_size"]
 cacti_output_col_order = ["read_energy_per_byte", "write_energy_per_byte", "area"]
-config.cacti_min_memory_size_in_bytes =  2048 # bellow this value cacti errors out. We can play with burst size and page size to fix this though
+cacti_min_memory_size_in_bytes =  2048 # bellow this value cacti errors out. We can play with burst size and page size to fix this though
 
 #ACC_coeff = 128  # comparing to what we have parsed, how much to modify. This is just for some exploration purposes
 	       # It should almost always set to 1
