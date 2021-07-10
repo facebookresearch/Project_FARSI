@@ -375,6 +375,25 @@ class DesignHandler:
     def load_tasks_to_read_mem_and_ic(self, ex_dp):
         # assign buses (for both read and write) and mem for read
         self.load_read_mem_and_ic_recursive(ex_dp, [], ex_dp.get_hardware_graph().get_task_graph().get_root(), [], None)
+        # prune whatever ic connection where there is no traffic on it
+        self.disconnect_ics_with_no_shared_task(ex_dp)
+
+
+    def disconnect_ics_with_no_shared_task(self, ex_dp):
+        design_ics = [blck for blck in ex_dp.get_blocks() if blck.type == "ic"]
+        for ic in design_ics:
+            ic_tasks = [el.get_name() for el in ic.get_tasks_of_block()]
+            ic_neighs = [neigh for neigh in ic.get_neighs() if neigh.type=="ic"]
+            for neigh in ic_neighs:
+                neigh_tasks = [el.get_name() for el in neigh.get_tasks_of_block()]
+                no_task_shared = len(ic_tasks) == len(list(set(ic_tasks) - set(neigh_tasks)))
+                if no_task_shared:
+                    neigh.disconnect(ic)
+                    print("=========== ==========")
+                    print("=========== disconnected a path==========")
+                    print("=========== ==========")
+
+
 
     # check if there is another task (on the block that can run in parallel with the task of interest
     def find_parallel_tasks_of_task_in_block(self, ex_dp, sim_dp, task, block):
@@ -1222,7 +1241,7 @@ class DesignHandler:
             src_block.disconnect(src_block_ic)
             dest_block_ic = [el for el in dest_block.get_neighs() if el.subtype == "ic"][0]
             dest_block_ic.connect(src_block)
-            ex_dp.hardware_graph.update_graph()  # update the hardware graph
+            ex_dp.hardware_graph.update_graph(src_block)  # update the hardware graph
             succeeded = True
         elif move_to_apply.get_transformation_name() == "routing":
             self.unload_buses(ex_dp)  # unload buses
@@ -1230,7 +1249,7 @@ class DesignHandler:
             src_block = move_to_apply.get_block_ref()  # memory to move
             dest_block = move_to_apply.get_des_block()  # destination Ic
             src_block.connect(dest_block)
-            ex_dp.hardware_graph.update_graph()  # update the hardware graph
+            ex_dp.hardware_graph.update_graph(dest_block)  # update the hardware graph
             succeeded = True
         else:
             raise Exception("transformation :" + move_to_apply.get_transformation_name() + " is not supported")

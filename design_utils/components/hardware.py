@@ -128,6 +128,13 @@ class Block:
         # only for memory
         self.area_task_dir_list = []
         self.task_mem_map_dict  = {}  # memory map associated with different tasks for memory
+        self.system_bus_behavior = False # if true, the block is system bus
+
+    def set_system_bus_behavior(self, qualifier):
+        system_bus_behavior = qualifier
+
+    def is_system_bus(self):
+        return self.system_bus_behavior
 
     def get_block_bus_width(self):
         return self.bus_width
@@ -1213,21 +1220,24 @@ class HardwareGraph:
                 connectd_pes = [block_ for block_ in block.get_neighs() if block_.type == "pe"]
                 connectd_mems = [block_ for block_ in block.get_neighs() if block_.type == "mem"]
                 connected_ics = [block_ for block_ in block.get_neighs() if block_.type == "ic"]
-                if len(connectd_mems) == 0:
+                #only_one_pe_one_ic =  len(connectd_mems) == 0 and len(connectd_pes) == 1 and len(connected_ics) == 1
+                no_mem_one_ic =  len(connectd_mems) == 0 and len(connected_ics) == 1
+                no_pe_one_ic_no_system_bus = len(connectd_pes) == 0 and len(connected_ics) == 1 and (True or not block.is_system_ic())
+                no_pe_no_mem = (len(connectd_pes) == 0 and len(connectd_mems) == 0)
+
+                if no_mem_one_ic:
                     ic_to_connect_to = connected_ics[0]
                     for pe in connectd_pes:
                         pe.connect(ic_to_connect_to)
                         pe.disconnect(block)
-                if len(connectd_pes) == 0:
+                elif no_pe_one_ic_no_system_bus:
                     ic_to_connect_to = connected_ics[0]
                     for mem in connectd_mems:
                         mem.connect(ic_to_connect_to)
                         mem.disconnect(block)
-                if len(connectd_mems) == 0 or len(connectd_pes) == 0:
-                    if len(connected_ics)  == 0:
-                        print("some thing went wrong")
-                        exit(0)
-                    elif len(connected_ics) == 1:
+                # if either of above true, take care of ics as well
+                if no_mem_one_ic or no_pe_one_ic_no_system_bus or no_pe_no_mem:
+                    if len(connected_ics) == 1:
                         block.disconnect(connected_ics[0])
                     else:
                         ic_to_connect_to = connected_ics[0]
@@ -1575,9 +1585,6 @@ class HardwareGraph:
                 if len(master_to_slave_path) > len(ics)+2: # two is for pe and memory
                     print('something has gone wrong with the path calculation')
                     exit(0)
-                if len(master_to_slave_path) == 0:
-                    master_to_slave_path = self.get_path_between_two_vertecies(pe, mem)
-                    continue
                 # get pipes along the way
                 for idx in range(0, len(master_to_slave_path) - 1):
                     block_master = master_to_slave_path[idx]

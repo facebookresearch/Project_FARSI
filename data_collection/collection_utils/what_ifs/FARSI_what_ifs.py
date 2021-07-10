@@ -444,11 +444,14 @@ if __name__ == "__main__":
 
     # set the study parameters
     # set the workload
-    #workloads = {"edge_detection"}
+
+    workloads = {"edge_detection"}
     #workloads = {"hpvm_cava"}
     #workloads = {"audio_decoder"}
     #workloads = {"SLAM"}
     workloads ={"audio_decoder", "edge_detection", "hpvm_cava"}
+    #workloads ={"audio_decoder", "edge_detection"}
+
     #workloads = {"partial_SOC_example_hard"}
     #workloads = {"simple_all_parallel"}
 
@@ -457,10 +460,10 @@ if __name__ == "__main__":
     #ip_freq_range = {"incr":3, "upper_bound":8}
     #mem_freq_range = {"incr":3, "upper_bound":6}
     #ic_freq_range = {"incr":4, "upper_bound":6}
-    ip_freq_range = [1,4,6,8]
-    mem_freq_range = [1,4,6,8]
-    ic_freq_range = [1,4,6,8]
-    tech_node_SF = {"perf":1, "energy":.064, "area":.0374}   # technology node scaling factor
+    ip_freq_range = [1,3,5]
+    mem_freq_range = [1,3,5]
+    ic_freq_range = [1,3,5]
+    tech_node_SF = {"perf":1, "energy":.064, "area":.037}   # technology node scaling factor
     db_population_misc_knobs = {"ip_freq_correction_ratio": 1, "gpp_freq_correction_ratio": 1,
                                 "ip_spawn": {"ip_loop_unrolling": ip_loop_unrolling, "ip_freq_range": ip_freq_range},
                                 "mem_spawn": {"mem_freq_range":mem_freq_range},
