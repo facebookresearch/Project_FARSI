@@ -513,6 +513,9 @@ class SimDesignPointContainer:
     def set_move_applied(self, move_applied):
         self.move_applied = move_applied
 
+    def get_move_applied(self):
+        return self.move_applied
+
 
     def get_dp_stats(self):
         return self.dp_stats
@@ -1076,7 +1079,7 @@ class DPStatsContainer():
     #        dampen: dampens the impact of the metric that has already met the budget
     def dist_to_goal(self,  metrics_to_look_into=["all"], mode="simple"):  # mode simple, just calculate
         if metrics_to_look_into == ["all"]:
-            metrics_to_look_into = self.database.get_budgetted_metric_names_all_SOCs() + self.database.get_other_metrics_name()  # which metrics to use for distance calculation
+            metrics_to_look_into = self.database.get_budgetted_metric_names_all_SOCs() + self.database.get_other_metric_names_all_SOCs()  # which metrics to use for distance calculation
 
         dist_list = []
         for metric_name in metrics_to_look_into:
@@ -1122,6 +1125,9 @@ class SimDesignPoint(ExDesignPoint):
         self.parallel_kernels = {}
         self.krnl_phase_present = {}
         self.phase_krnl_present = {}
+        self.iteration_number = 0  # the iteration which the simulation is done
+        self.depth_number = 0  # the depth (within on iteration) which the simulation is done
+        self.simulation_time = 0  # how long did it take to do the simulation
         if config.use_cacti:
             self.cacti_hndlr = cact_handlr.CactiHndlr(config.cact_bin_addr, config.cacti_param_addr,
                                                       config.cacti_data_log_file, config.cacti_input_col_order,
@@ -1130,6 +1136,24 @@ class SimDesignPoint(ExDesignPoint):
         for block in self.get_blocks():
             self.block_phase_work_dict[block] = {}
             self.block_phase_utilization_dict[block] = {}
+
+    def set_simulation_time(self, simulation_time):
+        self.simulation_time= simulation_time
+
+    def get_simulation_time(self):
+        return self.simulation_time
+
+    def set_iteration_number(self, iteration_number):
+        self.iteration_number = iteration_number
+
+    def set_depth_number(self, depth_number):
+        self.depth_number = depth_number
+
+    def get_depth_number(self):
+        return self.depth_number
+
+    def get_iteration_number(self):
+        return self.iteration_number
 
     def get_tasks_parallel_task_dynamically(self, task):
         krnl = self.get_kernel_by_task_name(task)
@@ -1221,7 +1245,13 @@ class SimDesignPoint(ExDesignPoint):
         self.cacti_hndlr.set_cur_cell_type(cell_type)
 
         # run cacti
-        cacti_area_energy_results = self.cacti_hndlr.collect_cati_data()
+        try:
+            cacti_area_energy_results = self.cacti_hndlr.collect_cati_data()
+        except Exception as e:
+            print("Using cacti, the following memory config tried and failed")
+            print(self.cacti_hndlr.get_config())
+            raise e
+
         read_energy_per_byte = float(cacti_area_energy_results['Dynamic read energy (nJ)']) * (10 ** -9) / 16
         write_energy_per_byte = float(cacti_area_energy_results['Dynamic write energy (nJ)']) * (10 ** -9) / 16
         area = float(cacti_area_energy_results['Area (mm2)']) * (10 ** -6)
@@ -1622,8 +1652,7 @@ class DPStats:
     # of using a specific IC.
     def IC_cost_model(self, task_normalized_work, block, block_type, model_type="linear"):
         if model_type == "linear":
-            complexity_comparing_to_simplest_bus = block.get_peak_work_rate()/self.database.sample_most_inferior_blocks_by_type("random", [], "ic").get_peak_work_rate()
-            return task_normalized_work*self.database.db_input.porting_effort[block_type]*complexity_comparing_to_simplest_bus
+            return task_normalized_work*self.database.db_input.porting_effort[block_type]
         else:
             print("this cost model is not defined")
             exit(0)
@@ -1686,6 +1715,8 @@ class DPStats:
             for mem in mems:
                 mem_tasks = [el.get_name() for el in mem.get_tasks_of_block()]
                 task_share_cnt = len(pe_tasks) - len(list(set(pe_tasks) - set(mem_tasks)))
+                if task_share_cnt == 0:  # this condition to avoid finding paths between vertecies, which is pretty comp intensive
+                    continue
                 path_length = len(self.dp.get_hardware_graph().get_path_between_two_vertecies(pe, mem))
                 #path_length = len(self.dp.get_hardware_graph().get_shortest_path(pe, mem, [], []))
                 effort = self.database.db_input.porting_effort["ic"]/10

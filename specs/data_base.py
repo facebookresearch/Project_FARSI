@@ -131,7 +131,7 @@ class DataBase:
     def get_other_metric_names_all_SOCs(self):
         result = []
         for SOCL in self.SOCsL:
-            result.extend(SOCL.get_other_metrics_names())
+            result.extend(SOCL.get_other_metric_names())
 
         return np.unique(result).tolist()
 

@@ -1691,7 +1691,7 @@ class HardwareGraph:
     #       v2: destination vertex
     # --------------------------
     def get_path_between_two_vertecies(self, v1, v2):
-        path = self.get_path_helper(v1, v2, [], [])
+        #path = self.get_path_helper(v1, v2, [], [])
         #if (len(path)) <= 0:
         #    print("catch this error")
         #assert(len(path) > 0), "no path between the two nodes"

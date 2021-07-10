@@ -47,12 +47,75 @@ class move:
         self.moved_ex = None
         self.validity_meta_data = ""
         self.krnel_prob_dict_sorted = krnl_prob_dict_sorted
+        self.generation_time = 0
+        self.system_improvement_dict = {}
+        self.populate_system_improvement_log()
+
+    def get_system_improvement_log(self):
+        return self.system_improvement_dict
+
+    def populate_system_improvement_log(self):
+        # communication vs computation
+        if self.get_block_ref().type in ["ic","mem"]:
+            comm_comp = "comm"
+        else:
+            comm_comp = "comp"
+
+        # which high level optimization targgeted: topology/mapping/tunning
+        if self.get_transformation_name() in ["swap"]:
+            high_level_optimization = "tunning"
+        elif self.get_transformation_name() in ["migrate"]:
+            high_level_optimization = "mapping"
+        elif self.get_transformation_name() in ["split_swap", "split", "transfer","routing"]:
+            high_level_optimization = "topology"
+        elif self.get_transformation_name() in ["cost"]:
+            high_level_optimization = "cost"
+        elif self.get_transformation_name() in ["dram_fix"]:
+            high_level_optimization = "dram_fix"
+        elif self.get_transformation_name() in ["identity"]:
+            high_level_optimization = "identity"
+        else:
+            print(self.get_transformation_name() + " high level optimization is not specified")
+            exit(0)
+
+        # which architectural variable targgeted: topology/mapping/tunning
+        if self.get_transformation_name() in ["split"]:
+            architectural_variable_to_improve = "parallelization"
+        elif self.get_transformation_name() in ["migrate"]:
+            architectural_variable_to_improve = "parallelism"
+        elif self.get_transformation_name() in ["split_swap", "swap"]:
+            architectural_variable_to_improve = "customization"
+        elif self.get_transformation_name() in ["transfer","routing"]:
+            architectural_variable_to_improve = "locality"
+        elif self.get_transformation_name() in ["cost"]:
+            architectural_variable_to_improve = "cost"
+        elif self.get_transformation_name() in ["dram_fix"]:
+            architectural_variable_to_improve = "dram_fix"
+        elif self.get_transformation_name() in ["identity"]:
+            high_level_optimization = "identity"
+        else:
+            print(self.get_transformation_name() + " high level optimization is not specified")
+            exit(0)
+
+
+        self.system_improvement_dict["comm_comp"] = comm_comp
+        self.system_improvement_dict["high_level_optimization"] = high_level_optimization
+        self.system_improvement_dict["architectural_variable_to_improve"] = architectural_variable_to_improve
+
+
 
     def get_transformation_sub_name(self):
         return self.transformation_sub_name
 
     def set_krnel_ref(self, krnel):
         self.krnel = krnel
+
+    # how long did it take to come up with the move
+    def set_generation_time(self, generation_time):
+        self.generation_time = generation_time
+
+    def get_generation_time(self):
+        return self.generation_time
 
     def set_logs(self, data, type_):
         if type_ == "cost":
