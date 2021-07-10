@@ -92,17 +92,14 @@ class move:
         elif self.get_transformation_name() in ["dram_fix"]:
             architectural_variable_to_improve = "dram_fix"
         elif self.get_transformation_name() in ["identity"]:
-            high_level_optimization = "identity"
+            architectural_variable_to_improve = "identity"
         else:
             print(self.get_transformation_name() + " high level optimization is not specified")
             exit(0)
 
-
         self.system_improvement_dict["comm_comp"] = comm_comp
         self.system_improvement_dict["high_level_optimization"] = high_level_optimization
         self.system_improvement_dict["architectural_variable_to_improve"] = architectural_variable_to_improve
-
-
 
     def get_transformation_sub_name(self):
         return self.transformation_sub_name
@@ -160,7 +157,6 @@ class move:
 
     def get_mini_breadth(self):
         return self.mini_breadth
-
 
     def get_breadth(self):
         return self.breadth
