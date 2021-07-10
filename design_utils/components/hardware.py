@@ -1370,6 +1370,24 @@ class HardwareGraph:
             self.set_simplified_topology_code()
         return self.simplified_topology_code
 
+    def get_routing_complexity(self):
+        pes = self.get_blocks_by_type("pe")
+        mems = self.get_blocks_by_type("mem")
+        ics = self.get_blocks_by_type("ic")
+
+        # a measure of how hard it is to rout,
+        # which depends on how many different paths that can be taken between master and slaves
+        complexity = 0
+
+        for pe in pes:
+            for mem in mems:
+                all_paths = self.get_all_paths_between_two_vertecies(pe, mem)
+                complexity += len(all_paths)
+
+        # normalized to the number of master slaves
+        complexity = complexity/(len(pes)*len(mems))
+        return complexity
+
     def get_config_code(self):
         if self.config_code == "-1":
             self.set_config_code()
@@ -1620,6 +1638,21 @@ class HardwareGraph:
 
     # ---------------------------
     # Functionality:
+    #       finding all the paths (set of edges) that connect two blocks (nodes) in the hardware graph.
+    # Variables:
+    #       vertex: source vertex
+    #       v_des: destination vertex
+    #       vertecies_visited: vertices visited already (avoid circular traversal of the graph)
+    #       path: the accumulated path so far. At the end, this will contain the total path.
+    # --------------------------
+    def get_all_paths(self, vertex, v_des, vertecies_neigh_visited, path):
+        paths = self.get_shortest_path_helper(vertex, v_des, vertecies_neigh_visited, path)
+        #sorted_paths = sorted(paths, key=len)
+        return paths
+
+
+    # ---------------------------
+    # Functionality:
     #       finding the path (set of edges) that connect two blocks (nodes) in the hardware graph.
     # Variables:
     #       vertex: source vertex
@@ -1699,6 +1732,20 @@ class HardwareGraph:
         #if not shortest_path == path:
         #    print("something gone wrong with path calculation fix this")
         return shortest_path
+
+    # ---------------------------
+    # Functionality:
+    #       finding all the paths (set of edges) that connet two blocks (nodes) in the hardware graph.
+    # Variables:
+    #       v1: source vertex
+    #       v2: destination vertex
+    # --------------------------
+    def get_all_paths_between_two_vertecies(self, v1, v2):
+        all_paths = self.get_all_paths(v1, v2, [],[])
+        return all_paths
+
+
+
 
     # ---------------------------
     # Functionality:

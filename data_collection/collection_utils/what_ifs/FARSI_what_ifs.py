@@ -191,6 +191,7 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
         output_fh_minimal.write("system PE count" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("system bus count" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("system memory count" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("routing complexity" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("block_impact_sorted" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("kernel_impact_sorted" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("metric_impact_sorted" + ",")  # for now only write the latency accuracy as the other
@@ -263,6 +264,7 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
         high_level_optimization = ""
         architectural_variable_to_improve = ""
 
+    routing_complexity = sim_dp.dp_rep.get_hardware_graph().get_routing_complexity()
     simple_topology = sim_dp.dp_rep.get_hardware_graph().get_simplified_topology_code()
     blk_cnt = sum([int(el) for el in simple_topology.split("_")])
     bus_cnt = [int(el) for el in simple_topology.split("_")][0]
@@ -279,7 +281,8 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
     output_fh_minimal.write(str(blk_cnt) + ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(pe_cnt) + ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(bus_cnt) + ",")  # for now only write the latency accuracy as the other
-    output_fh_minimal.write(str(mem_cnt) + ",")  # for now only write the latency accuracy as the other
+    output_fh_minimal.write(str(mem_cnt) + ",") # for now only write the latency accuracy as the other
+    output_fh_minimal.write(str(routing_complexity) + ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(sorted_blocks) + ",")
     output_fh_minimal.write(str(sorted_kernels) + ",")
     output_fh_minimal.write(str(sorted_metrics)+  ",")
@@ -572,9 +575,9 @@ if __name__ == "__main__":
     # set the study parameters
     # set the workload
 
-    #workloads = {"edge_detection"}
+    workloads = {"edge_detection"}
     #workloads = {"hpvm_cava"}
-    workloads = {"audio_decoder"}
+    #workloads = {"audio_decoder"}
     #workloads = {"SLAM"}
     #workloads ={"audio_decoder", "edge_detection", "hpvm_cava"}
     #workloads ={"audio_decoder", "edge_detection"}
