@@ -446,7 +446,7 @@ if __name__ == "__main__":
     # set the workload
 
     workloads = {"edge_detection"}
-    workloads = {"hpvm_cava"}
+    #workloads = {"hpvm_cava"}
     #workloads = {"audio_decoder"}
     #workloads = {"SLAM"}
     #workloads ={"audio_decoder", "edge_detection", "hpvm_cava"}

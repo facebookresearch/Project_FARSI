@@ -913,7 +913,6 @@ class HillClimbing:
 
         #krnls = sim_dp.get_dp_stats().get_kernels()
         # filter it kernels whose workload meet the budget
-        selected_metric = "area"
         krnls = self.filter_in_kernels_meeting_budget(selected_metric, sim_dp)
         if krnls == []: # the design meets the budget, hence all kernels can be improved for cost improvement
             krnls = sim_dp.get_dp_stats().get_kernels()

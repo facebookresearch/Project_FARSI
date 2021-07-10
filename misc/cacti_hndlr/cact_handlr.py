@@ -50,6 +50,9 @@ class CactiHndlr():
         self.input_cfg = param_file_copy_name
         self.output_cfg = self.input_cfg +".out"
 
+    def get_config(self):
+        return {"mem_size":self.cur_mem_size, "mem_type":self.cur_mem_type, "cell_type:":self.cur_cell_type}
+
     def run_bin(self):
         bin_dir = "/".join(self.bin_addr.split("/")[:-1])
         os.chdir(bin_dir)
