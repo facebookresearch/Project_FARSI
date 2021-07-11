@@ -148,9 +148,9 @@ class HillClimbing:
         #new_ex_dp_pre_mod = copy.deepcopy(ex_dp)  # getting a copy before modifying
         #new_sim_dp_pre_mod = copy.deepcopy(sim_dp) # getting a copy before modifying
         #new_ex_dp = copy.deepcopy(ex_dp)
-        #gc.disable()
+        gc.disable()
         new_ex_dp = cPickle.loads(cPickle.dumps(ex_dp, -1))
-        #gc.enable()
+        gc.enable()
         #new_sim_dp = copy.deepcopy(sim_dp)
         new_des_tup = (new_ex_dp, sim_dp)
 
@@ -576,7 +576,7 @@ class HillClimbing:
                     if hot_block_type == "pe":
                         feasible_transformations = ["migrate", "split"]  # only for PE since we wont to be low cost, for IC/MEM cost does not increase if you customize
                     else:
-                        feasible_transformations = ["migrate", "split", "swap", "split_swap"]
+                        feasible_transformations = ["migrate", "split"] #", "swap", "split_swap"]
                     if can_improve_locality:
                         feasible_transformations.append("transfer")
                else:
@@ -1746,9 +1746,9 @@ class HillClimbing:
     # ------------------------------
     def generate_sample(self, ex_dp, hw_sampling):
         #new_ex_dp = copy.deepcopy(ex_dp)
-        #gc.disable()
+        gc.disable()
         new_ex_dp = cPickle.loads(cPickle.dumps(ex_dp, -1))
-        #gc.enable()
+        gc.enable()
         new_ex_dp.sample_hardware_graph(hw_sampling)
         return new_ex_dp
 
