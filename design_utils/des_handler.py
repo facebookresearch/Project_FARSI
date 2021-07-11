@@ -51,6 +51,11 @@ class move:
         self.system_improvement_dict = {}
         self.populate_system_improvement_log()
 
+        self.transformation_selection_time = 0
+        self.block_selection_time = 0
+        self.kernel_selection_time = 0
+
+
     def get_system_improvement_log(self):
         return self.system_improvement_dict
 
@@ -117,6 +122,12 @@ class move:
     def set_logs(self, data, type_):
         if type_ == "cost":
             self.cost = data
+        if type_ == "kernel_selection_time":
+            self.kernel_selection_time = data
+        if type_ == "block_selection_time":
+            self.block_selection_time = data
+        if type_ == "transformation_selection_time":
+            self.transformation_selection_time = data
         if type_ == "kernels":
             self.sorted_kernels = data
         if type_ == "blocks":
@@ -144,6 +155,13 @@ class move:
             return self.kernel_rnk_to_consider
         if type_ == "dist_to_goal":
             return self.dist_to_goal
+        if type_ == "kernel_selection_time":
+            return self.kernel_selection_time
+        if type_ == "block_selection_time":
+            return self.block_selection_time
+        if type_ == "transformation_selection_time":
+            return self.transformation_selection_time
+
 
     # depth and breadth determine how many designs to generate around (breadth) and
     # chain from (breadth) from the current design
@@ -1202,19 +1220,21 @@ class DesignHandler:
     # ------------------------------
     def apply_move(self, des_tup, move_to_apply):
         ex_dp, sim_dp = des_tup
-
+        blck_ref = move_to_apply.get_block_ref()
         #print("applying move  " +  move.name + " -----" )
         #pre_moved_ex = copy.deepcopy(ex_dp)  # this is just for move sanity checking
+        gc.disable()
         pre_moved_ex = cPickle.loads(cPickle.dumps(ex_dp, -1))
+        gc.enable()
 
         if move_to_apply.get_transformation_name() == "identity":
             return ex_dp, True
         if move_to_apply.get_transformation_name() == "swap":
-            if not move_to_apply.get_block_ref().type == "ic": self.unload_buses(ex_dp)  # unload buses
+            if not blck_ref.type == "ic": self.unload_buses(ex_dp)  # unload buses
             else: self.unload_read_buses(ex_dp)  # unload buses
-            succeeded = self.swap_block(move_to_apply.get_block_ref(), move_to_apply.get_des_block())
+            succeeded = self.swap_block(blck_ref, move_to_apply.get_des_block())
             #succeeded = self.mig_cur_tasks_of_src_to_dest(move_to_apply.get_block_ref(), move_to_apply.get_des_block())  # migrate tasks over
-            succeeded = self.mig_tasks_of_src_to_dest(ex_dp, move_to_apply.get_block_ref(),
+            succeeded = self.mig_tasks_of_src_to_dest(ex_dp, blck_ref,
                                                       move_to_apply.get_des_block(), move_to_apply.get_tasks())
             self.unload_buses(ex_dp)  # unload buses
             self.unload_read_mem(ex_dp)  # unload memories
@@ -1222,20 +1242,20 @@ class DesignHandler:
             if config.DEBUG_SANITY:ex_dp.sanity_check() # sanity check
         elif move_to_apply.get_transformation_name() == "split":
             self.unload_buses(ex_dp)  # unload buss
-            if move_to_apply.get_block_ref().type == "ic":
-                succeeded = self.fork_bus(ex_dp, move_to_apply.get_block_ref(), move_to_apply.get_tasks())
+            if blck_ref.type == "ic":
+                succeeded = self.fork_bus(ex_dp, blck_ref, move_to_apply.get_tasks())
             else:
-                succeeded = self.fork_block(ex_dp, move_to_apply.get_block_ref(), move_to_apply.get_tasks())
+                succeeded = self.fork_block(ex_dp, blck_ref, move_to_apply.get_tasks())
             if config.DEBUG_SANITY:ex_dp.sanity_check() # sanity check
         elif move_to_apply.get_transformation_name() == "split_swap":
             # first split
             previous_designs_blocks = ex_dp.get_blocks()
             self.unload_buses(ex_dp)  # unload buss
-            if move_to_apply.get_block_ref().type == "ic":
-                succeeded = self.fork_bus(ex_dp, move_to_apply.get_block_ref(), move_to_apply.get_tasks())
+            if blck_ref.type == "ic":
+                succeeded = self.fork_bus(ex_dp, blck_ref, move_to_apply.get_tasks())
             else:
-                succeeded = self.fork_block(ex_dp, move_to_apply.get_block_ref(), move_to_apply.get_tasks())
-            ex_dp.hardware_graph.update_graph(block_to_prime_with=move_to_apply.get_block_ref())  # update the hardware graph
+                succeeded = self.fork_block(ex_dp, blck_ref, move_to_apply.get_tasks())
+            ex_dp.hardware_graph.update_graph(block_to_prime_with=blck_ref)  # update the hardware graph
             if succeeded:
                 current_blocks = ex_dp.get_blocks()
                 new_block = list(set(current_blocks) - set(previous_designs_blocks))[0]
@@ -1245,7 +1265,7 @@ class DesignHandler:
                 if len(new_block.get_tasks_of_block()) == 1:
                     block_to_swap = new_block
                 else:
-                    block_to_swap = move_to_apply.get_block_ref()
+                    block_to_swap =blck_ref
                 if config.DEBUG_SANITY:ex_dp.sanity_check() # sanity check
                 succeeded = self.swap_block(block_to_swap, move_to_apply.get_des_block())
                 succeeded = self.mig_tasks_of_src_to_dest(ex_dp, block_to_swap,
@@ -1261,15 +1281,15 @@ class DesignHandler:
             self.unload_buses(ex_dp)  # unload buses
             self.unload_read_mem(ex_dp)  # unload memories
             if move_to_apply.get_transformation_sub_name() == "absorb":
-                ref_block_neighs = move_to_apply.get_block_ref().get_neighs()
+                ref_block_neighs = blck_ref.get_neighs()
                 for block in ref_block_neighs:
-                    block.disconnect(move_to_apply.get_block_ref())
+                    block.disconnect(blck_ref)
                     block.connect(move_to_apply.get_des_block())
                 ex_dp.hardware_graph.update_graph_without_prunning(block_to_prime_with=move_to_apply.get_des_block())  # update the hardware graph
                 succeeded = True
             else:
-                if not move_to_apply.get_block_ref().type == "ic":  # ic migration is not supported
-                    succeeded = self.mig_tasks_of_src_to_dest(ex_dp, move_to_apply.get_block_ref(), move_to_apply.get_des_block(), move_to_apply.get_tasks())
+                if not blck_ref.type == "ic":  # ic migration is not supported
+                    succeeded = self.mig_tasks_of_src_to_dest(ex_dp, blck_ref, move_to_apply.get_des_block(), move_to_apply.get_tasks())
 
                     ex_dp.hardware_graph.update_graph(block_to_prime_with=move_to_apply.get_des_block())  # update the hardware graph
                 else:
@@ -1278,8 +1298,8 @@ class DesignHandler:
         elif move_to_apply.get_transformation_name() == "migrate" or move_to_apply.get_transformation_name() == "cleanup":
             self.unload_buses(ex_dp)  # unload buses
             self.unload_read_mem(ex_dp)  # unload memories
-            if not move_to_apply.get_block_ref().type == "ic":  # ic migration is not supported
-                succeeded = self.mig_tasks_of_src_to_dest(ex_dp, move_to_apply.get_block_ref(), move_to_apply.get_des_block(), move_to_apply.get_tasks())
+            if not blck_ref.type == "ic":  # ic migration is not supported
+                succeeded = self.mig_tasks_of_src_to_dest(ex_dp, blck_ref, move_to_apply.get_des_block(), move_to_apply.get_tasks())
 
                 ex_dp.hardware_graph.update_graph(block_to_prime_with=move_to_apply.get_des_block())  # update the hardware graph
             else:
@@ -1294,7 +1314,7 @@ class DesignHandler:
         elif move_to_apply.get_transformation_name() == "transfer":
             self.unload_buses(ex_dp)  # unload buses
             self.unload_read_mem(ex_dp)  # unload memories
-            src_block = move_to_apply.get_block_ref()  # memory to move
+            src_block = blck_ref # memory to move
             src_block_ic = [el for el in src_block.get_neighs() if el.subtype == "ic"][0]
             dest_block = move_to_apply.get_des_block()  # destination Ic
             src_block.disconnect(src_block_ic)
@@ -1305,7 +1325,7 @@ class DesignHandler:
         elif move_to_apply.get_transformation_name() == "routing":
             self.unload_buses(ex_dp)  # unload buses
             self.unload_read_mem(ex_dp)  # unload memories
-            src_block = move_to_apply.get_block_ref()  # memory to move
+            src_block = blck_ref # memory to move
             dest_block = move_to_apply.get_des_block()  # destination Ic
             src_block.connect(dest_block)
             ex_dp.hardware_graph.update_graph(dest_block)  # update the hardware graph

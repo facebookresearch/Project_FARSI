@@ -19,6 +19,7 @@ from visualization_utils import vis_sim
 import dill
 import pickle
 import importlib
+import gc
 import difflib
 # ------------------------------
 # This class is responsible for design space exploration using our proprietary hill-climbing algorithm.
@@ -146,7 +147,9 @@ class HillClimbing:
         #new_ex_dp_pre_mod = copy.deepcopy(ex_dp)  # getting a copy before modifying
         #new_sim_dp_pre_mod = copy.deepcopy(sim_dp) # getting a copy before modifying
         #new_ex_dp = copy.deepcopy(ex_dp)
+        gc.disable()
         new_ex_dp = cPickle.loads(cPickle.dumps(ex_dp, -1))
+        gc.enable()
         #new_sim_dp = copy.deepcopy(sim_dp)
         new_des_tup = (new_ex_dp, sim_dp)
 
@@ -431,14 +434,6 @@ class HillClimbing:
             return selected_metric_to_sort
 
         # get initial information
-        """
-        tasks_synced = [task__ for task__ in hot_blck_synced.get_tasks_of_block() if task__.name == selected_krnl.get_task_name()]
-        if len(tasks_synced)  == 0: # this condition happens when we have a read task and we have unloaded reads
-            found_block_to_mig_to = False
-            selection_mode = "single"
-            return hot_blck_synced, found_block_to_mig_to, selection_mode
-        task_synced = tasks_synced[0]
-        """
         task = ex_dp.get_hardware_graph().get_task_graph().get_task_by_name(selected_krnl.get_task_name())
         selected_metric = list(sorted_metric_dir.keys())[-1]
         selected_dir = sorted_metric_dir[selected_metric]
@@ -498,13 +493,18 @@ class HillClimbing:
                 # blocks have similar attr value
 
                 if (selected_metric == "power" and selected_dir == -1)  or \
-                    (selected_metric == "latency" and selected_dir == 1) or selected_metric == "area":
+                    (selected_metric == "latency" and selected_dir == 1) or (selected_metric == "area"):
                     # if we want to slow down (reduce latency, improve power), look for parallel task on the other block
                     block_to_mig_to_parallelism_exist = self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp,
                                                                                                                task,
                                                                                                                block_to_migrate_to)
-                    if block_to_mig_to_parallelism_exist:
-                        results_block.append(block_to_migrate_to)
+                    if (selected_metric == "area" and selected_dir == -1):
+                        # no parallelism possibly allows for theo the other memory to shrink
+                        if not block_to_mig_to_parallelism_exist:
+                            results_block.append(block_to_migrate_to)
+                    else:
+                        if block_to_mig_to_parallelism_exist:
+                            results_block.append(block_to_migrate_to)
                 else:
                     # if we want to accelerate (improve latency, get more power), look for parallel task on the same block
                     if current_block_parallelism_exist:
@@ -1189,10 +1189,14 @@ class HillClimbing:
         # select move components
         selected_metric, metric_prob_dir_dict, sorted_metric_dir = self.select_metric(sim_dp)
         move_dir = self.select_dir(sim_dp, selected_metric)
-        selected_krnl, krnl_prob_dict, krnl_prob_dir_dict_sorted = self.select_kernel(ex_dp, sim_dp, selected_metric, sorted_metric_dir)
-        selected_block, block_prob_dict = self.select_block(sim_dp, ex_dp, selected_krnl, selected_metric)
-        transformation_name,transformation_sub_name, transformation_batch_mode, total_transformation_cnt = self.select_transformation(ex_dp, sim_dp, selected_block, selected_metric, selected_krnl, sorted_metric_dir)
 
+        t_1 = time.time()
+        selected_krnl, krnl_prob_dict, krnl_prob_dir_dict_sorted = self.select_kernel(ex_dp, sim_dp, selected_metric, sorted_metric_dir)
+        t_2 = time.time()
+        selected_block, block_prob_dict = self.select_block(sim_dp, ex_dp, selected_krnl, selected_metric)
+        t_3 = time.time()
+        transformation_name,transformation_sub_name, transformation_batch_mode, total_transformation_cnt = self.select_transformation(ex_dp, sim_dp, selected_block, selected_metric, selected_krnl, sorted_metric_dir)
+        t_4 = time.time()
 
         """
         if sim_dp.dp_stats.fits_budget(1) and self.dram_feasibility_check_pass(ex_dp) and self.can_improve_locality(selected_block, selected_krnl):
@@ -1229,7 +1233,12 @@ class HillClimbing:
         move_to_apply.set_logs(self.krnel_rnk_to_consider, "kernel_rnk_to_consider")
         move_to_apply.set_logs(sim_dp.dp_stats.dist_to_goal(["power", "area", "latency"],
                                                                                 config.metric_sel_dis_mode),"dist_to_goal")
+        move_to_apply.set_logs(t_2 - t_1, "kernel_selection_time")
+        move_to_apply.set_logs(t_3 - t_2, "block_selection_time")
+        move_to_apply.set_logs(t_4 - t_3, "transformation_selection_time")
 
+
+        blck_ref = move_to_apply.get_block_ref()
         # ------------------------
         # prepare for the move
         # ------------------------
@@ -1238,41 +1247,41 @@ class HillClimbing:
             #move_to_apply.set_validity(False, "NoValidTransformationException")
         if move_to_apply.get_transformation_name() == "swap":
             self.dh.unload_read_mem(ex_dp)  # unload memories
-            if not move_to_apply.get_block_ref().type == "ic":
+            if not blck_ref.type == "ic":
                 self.dh.unload_buses(ex_dp)  # unload buses
             else:
                 self.dh.unload_read_buses(ex_dp)  # unload buses
             # get immediate superior/inferior block (based on the desired direction)
-            imm_block = self.dh.get_immediate_block_multi_metric(move_to_apply.get_block_ref(),
+            imm_block = self.dh.get_immediate_block_multi_metric(blck_ref,
                                                  move_to_apply.get_metric(), move_to_apply.get_sorted_metric_dir(),
-                                                 move_to_apply.get_block_ref().get_tasks_of_block())  # immediate block either superior or
+                                                 blck_ref.get_tasks_of_block())  # immediate block either superior or
             move_to_apply.set_dest_block(imm_block)
 
-            move_to_apply.set_tasks(move_to_apply.get_block_ref().get_tasks_of_block())
+            move_to_apply.set_tasks(blck_ref.get_tasks_of_block())
         elif move_to_apply.get_transformation_name() in ["split_swap"]:
             self.dh.unload_buses(ex_dp)  # unload buses
             # get immediate superior/inferior block (based on the desired direction)
-            imm_block = self.dh.get_immediate_block_multi_metric(move_to_apply.get_block_ref(),
+            imm_block = self.dh.get_immediate_block_multi_metric(blck_ref,
                                                  move_to_apply.get_metric(), move_to_apply.get_sorted_metric_dir(),
-                                                 [move_to_apply.get_block_ref().get_tasks_by_name(move_to_apply.get_kernel_ref().get_task_name())])  # immediate block either superior or
+                                                 [blck_ref.get_tasks_by_name(move_to_apply.get_kernel_ref().get_task_name())])  # immediate block either superior or
             move_to_apply.set_dest_block(imm_block)
 
             self.dh.unload_read_mem(ex_dp)  # unload memories
             self.change_read_task_to_write_if_necessary(ex_dp, sim_dp, move_to_apply, selected_krnl)
-            migrant_tasks = self.dh.migrant_selection(ex_dp, sim_dp, move_to_apply.get_block_ref(), move_to_apply.get_kernel_ref(),
+            migrant_tasks = self.dh.migrant_selection(ex_dp, sim_dp, blck_ref, move_to_apply.get_kernel_ref(),
                                                       move_to_apply.get_transformation_batch())
             #migrant_tasks  = list(set(move_to_apply.get_block_ref().get_tasks()) - set(migrant_tasks_))  # reverse the order to allow for swap to happen on the ref_block
             move_to_apply.set_tasks(migrant_tasks)
         elif move_to_apply.get_transformation_name() in ["split"]:
             # select tasks to migrate
             #self.change_read_task_to_write_if_necessary(ex_dp, sim_dp, move_to_apply, selected_krnl)
-            migrant_tasks = self.dh.migrant_selection(ex_dp, sim_dp, move_to_apply.get_block_ref(), move_to_apply.get_kernel_ref(),
+            migrant_tasks = self.dh.migrant_selection(ex_dp, sim_dp, blck_ref, move_to_apply.get_kernel_ref(),
                                                       move_to_apply.get_transformation_batch())
 
             move_to_apply.set_tasks(migrant_tasks)
             if len(migrant_tasks) == 0:
                 move_to_apply.set_validity(False, "NoParallelTaskException")
-            if move_to_apply.get_block_ref().subtype == "ip": # makes no sense to split the IPs,
+            if blck_ref.subtype == "ip": # makes no sense to split the IPs,
                                                               # it can actually cause problems where
                                                               # we end up duplicating the hardware
                 move_to_apply.set_validity(False, "IPSplitException")
@@ -1281,7 +1290,7 @@ class HillClimbing:
                 # check and see if tasks exist (if not, it was a read)
                 imm_block_present, found_blck_to_mig_to, mig_selection_mode = self.select_block_to_migrate_to(ex_dp,
                                                                                                               sim_dp,
-                                                                                                              move_to_apply.get_block_ref(),
+                                                                                                              blck_ref,
                                                                                                               move_to_apply.get_metric(),
                                                                                                               move_to_apply.get_sorted_metric_dir(),
                                                                                                               move_to_apply.get_kernel_ref())
@@ -1290,12 +1299,12 @@ class HillClimbing:
                 self.change_read_task_to_write_if_necessary(ex_dp, sim_dp, move_to_apply, selected_krnl)
                 if not found_blck_to_mig_to:
                     move_to_apply.set_validity(False, "NoMigrantException")
-                    imm_block_present = move_to_apply.get_block_ref()
+                    imm_block_present = blck_ref
                 elif move_to_apply.get_kernel_ref().get_task_name() in ["souurce", "siink", "dummy_last"]:
                     move_to_apply.set_validity(False, "NoMigrantException")
-                    imm_block_present = move_to_apply.get_block_ref()
+                    imm_block_present = blck_ref
                 else:
-                    migrant_tasks = self.dh.migrant_selection(ex_dp, sim_dp, move_to_apply.get_block_ref(), move_to_apply.get_kernel_ref(),
+                    migrant_tasks = self.dh.migrant_selection(ex_dp, sim_dp, blck_ref, move_to_apply.get_kernel_ref(),
                                                               mig_selection_mode)
                     move_to_apply.set_tasks(migrant_tasks)
                     move_to_apply.set_dest_block(imm_block_present)
@@ -1736,7 +1745,9 @@ class HillClimbing:
     # ------------------------------
     def generate_sample(self, ex_dp, hw_sampling):
         #new_ex_dp = copy.deepcopy(ex_dp)
+        gc.disable()
         new_ex_dp = cPickle.loads(cPickle.dumps(ex_dp, -1))
+        gc.enable()
         new_ex_dp.sample_hardware_graph(hw_sampling)
         return new_ex_dp
 

@@ -12,6 +12,7 @@ import collections
 import datetime
 from datetime import datetime
 from error_handling.custom_error import  *
+import gc
 
 if config.use_cacti:
     from misc.cacti_hndlr import cact_handlr
@@ -620,7 +621,9 @@ class DPStatsContainer():
         res = {}
         for SOCs_latency in dictionaries:
             #res = copy.deepcopy(self.operate_on_two_dic_values(res, SOCs_latency, operator))
+            gc.disable()
             res = cPickle.loads(cPickle.dumps(self.operate_on_two_dic_values(res, SOCs_latency, operator), -1))
+            gc.enable()
         return res
 
     # reduce the (list of) values based on a statistical  parameter (such as average)
@@ -1290,9 +1293,11 @@ class SimDesignPoint(ExDesignPoint):
     # For each kernel, update the energy and power using cacti
     def cacti_update_energy_area_of_kernel(self, krnl, database):
         # iterate through block/phases, collect data and insert them up
+        blk_area_dict = {}
         for blk, phase_metric in krnl.block_phase_energy_dict.items():
             # only for memory and ic
             if blk.type not in ["mem", "ic"]:
+                blk_area_dict[blk] = krnl.stats.get_block_area()[blk]
                 continue
             read_energy_per_byte, write_energy_per_byte, area, area_per_byte = self.collect_cacti_data(blk, database)
             for phase, metric in phase_metric.items():
@@ -1302,11 +1307,21 @@ class SimDesignPoint(ExDesignPoint):
                                                                phase] * write_energy_per_byte
                 krnl.block_phase_area_dict[blk][phase] = area
 
+            blk_area_dict[blk] = area
+
         # apply aggregates, which is iterate through every phase, scratch their values, and aggregates all the block energies
         # areas.
         krnl.stats.phase_energy_dict = krnl.aggregate_energy_of_for_every_phase()
         krnl.stats.phase_area_dict = krnl.aggregate_area_of_for_every_phase()
-        krnl.set_stats()
+
+        # for debugging; delete later
+        for el in krnl.stats.get_block_area().keys():
+            if el not in blk_area_dict.keys():
+                print(" for debugging now delete later")
+                exit(0)
+
+        krnl.stats.set_block_area(blk_area_dict)
+        krnl.stats.set_stats() # do not call it on set_stats directly, as it repopoluates without cacti
 
         return "_"
 
@@ -1770,7 +1785,9 @@ class DPStats:
         res = {}
         for SOCs_latency in dictionaries:
             #res = copy.deepcopy(self.operate_on_two_dic_values(res, SOCs_latency, operator))
+            gc.disable()
             res = cPickle.loads(cPickle.dumps(self.operate_on_two_dic_values(res, SOCs_latency, operator), -1))
+            gc.enable()
         return res
 
     # set the metric (power, area, ...) for the entire system complex
