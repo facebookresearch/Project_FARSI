@@ -316,6 +316,7 @@ class DataBase:
     #      blockL: blockL under query.
     # -------------------------------------------
     def get_block_power_knobs(self, blockL):
+        return 0
         blockL = list(filter(lambda block: block.block_instance_name == blockL.block_instance_name, self.blocksL))
         assert(len(blockL) == 1)
         return blockL[0].power_knobs

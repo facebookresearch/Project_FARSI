@@ -12,6 +12,7 @@ import collections
 import datetime
 from datetime import datetime
 from error_handling.custom_error import  *
+import gc
 
 if config.use_cacti:
     from misc.cacti_hndlr import cact_handlr
@@ -620,7 +621,9 @@ class DPStatsContainer():
         res = {}
         for SOCs_latency in dictionaries:
             #res = copy.deepcopy(self.operate_on_two_dic_values(res, SOCs_latency, operator))
+            gc.disable()
             res = cPickle.loads(cPickle.dumps(self.operate_on_two_dic_values(res, SOCs_latency, operator), -1))
+            gc.enable()
         return res
 
     # reduce the (list of) values based on a statistical  parameter (such as average)
@@ -1782,7 +1785,9 @@ class DPStats:
         res = {}
         for SOCs_latency in dictionaries:
             #res = copy.deepcopy(self.operate_on_two_dic_values(res, SOCs_latency, operator))
+            gc.disable()
             res = cPickle.loads(cPickle.dumps(self.operate_on_two_dic_values(res, SOCs_latency, operator), -1))
+            gc.enable()
         return res
 
     # set the metric (power, area, ...) for the entire system complex

@@ -101,7 +101,7 @@ class Block:
         # Indices of power knobs that can be used for the slow-down mode (decrease performance)
         self.slow_down_power_knob_indices = []
         # divide power knobs to turbo and slow down ones
-        self.categorize_power_knobs()
+        #self.categorize_power_knobs()
 
         self.pipes = []  # these are the queues that connect different block
         self.pipe_clusters = []
