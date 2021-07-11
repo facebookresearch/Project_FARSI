@@ -169,6 +169,9 @@ class KernelStats:
     def get_block_power_bottleneck(self, phase):
         return (sorted(self.blck_pwr.items(), key=operator.itemgetter(1))[-1])[0]
 
+    def get_block_area(self):
+        return self.blck_area
+
     # get the block bottleneck from area perspective
     # phase: Simulation phases
     def get_block_area_bottleneck(self, phase):

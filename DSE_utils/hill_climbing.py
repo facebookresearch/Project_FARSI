@@ -431,14 +431,6 @@ class HillClimbing:
             return selected_metric_to_sort
 
         # get initial information
-        """
-        tasks_synced = [task__ for task__ in hot_blck_synced.get_tasks_of_block() if task__.name == selected_krnl.get_task_name()]
-        if len(tasks_synced)  == 0: # this condition happens when we have a read task and we have unloaded reads
-            found_block_to_mig_to = False
-            selection_mode = "single"
-            return hot_blck_synced, found_block_to_mig_to, selection_mode
-        task_synced = tasks_synced[0]
-        """
         task = ex_dp.get_hardware_graph().get_task_graph().get_task_by_name(selected_krnl.get_task_name())
         selected_metric = list(sorted_metric_dir.keys())[-1]
         selected_dir = sorted_metric_dir[selected_metric]
@@ -498,13 +490,18 @@ class HillClimbing:
                 # blocks have similar attr value
 
                 if (selected_metric == "power" and selected_dir == -1)  or \
-                    (selected_metric == "latency" and selected_dir == 1) or selected_metric == "area":
+                    (selected_metric == "latency" and selected_dir == 1) or (selected_metric == "area"):
                     # if we want to slow down (reduce latency, improve power), look for parallel task on the other block
                     block_to_mig_to_parallelism_exist = self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp,
                                                                                                                task,
                                                                                                                block_to_migrate_to)
-                    if block_to_mig_to_parallelism_exist:
-                        results_block.append(block_to_migrate_to)
+                    if (selected_metric == "area" and selected_dir == -1):
+                        # no parallelism possibly allows for theo the other memory to shrink
+                        if not block_to_mig_to_parallelism_exist:
+                            results_block.append(block_to_migrate_to)
+                    else:
+                        if block_to_mig_to_parallelism_exist:
+                            results_block.append(block_to_migrate_to)
                 else:
                     # if we want to accelerate (improve latency, get more power), look for parallel task on the same block
                     if current_block_parallelism_exist:
@@ -1189,10 +1186,14 @@ class HillClimbing:
         # select move components
         selected_metric, metric_prob_dir_dict, sorted_metric_dir = self.select_metric(sim_dp)
         move_dir = self.select_dir(sim_dp, selected_metric)
-        selected_krnl, krnl_prob_dict, krnl_prob_dir_dict_sorted = self.select_kernel(ex_dp, sim_dp, selected_metric, sorted_metric_dir)
-        selected_block, block_prob_dict = self.select_block(sim_dp, ex_dp, selected_krnl, selected_metric)
-        transformation_name,transformation_sub_name, transformation_batch_mode, total_transformation_cnt = self.select_transformation(ex_dp, sim_dp, selected_block, selected_metric, selected_krnl, sorted_metric_dir)
 
+        t_1 = time.time()
+        selected_krnl, krnl_prob_dict, krnl_prob_dir_dict_sorted = self.select_kernel(ex_dp, sim_dp, selected_metric, sorted_metric_dir)
+        t_2 = time.time()
+        selected_block, block_prob_dict = self.select_block(sim_dp, ex_dp, selected_krnl, selected_metric)
+        t_3 = time.time()
+        transformation_name,transformation_sub_name, transformation_batch_mode, total_transformation_cnt = self.select_transformation(ex_dp, sim_dp, selected_block, selected_metric, selected_krnl, sorted_metric_dir)
+        t_4 = time.time()
 
         """
         if sim_dp.dp_stats.fits_budget(1) and self.dram_feasibility_check_pass(ex_dp) and self.can_improve_locality(selected_block, selected_krnl):
@@ -1229,6 +1230,11 @@ class HillClimbing:
         move_to_apply.set_logs(self.krnel_rnk_to_consider, "kernel_rnk_to_consider")
         move_to_apply.set_logs(sim_dp.dp_stats.dist_to_goal(["power", "area", "latency"],
                                                                                 config.metric_sel_dis_mode),"dist_to_goal")
+        move_to_apply.set_logs(t_2 - t_1, "kernel_selection_time")
+        move_to_apply.set_logs(t_3 - t_2, "block_selection_time")
+        move_to_apply.set_logs(t_4 - t_3, "transformation_selection_time")
+
+
 
         # ------------------------
         # prepare for the move

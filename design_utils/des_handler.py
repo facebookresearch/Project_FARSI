@@ -51,6 +51,11 @@ class move:
         self.system_improvement_dict = {}
         self.populate_system_improvement_log()
 
+        self.transformation_selection_time = 0
+        self.block_selection_time = 0
+        self.kernel_selection_time = 0
+
+
     def get_system_improvement_log(self):
         return self.system_improvement_dict
 
@@ -117,6 +122,12 @@ class move:
     def set_logs(self, data, type_):
         if type_ == "cost":
             self.cost = data
+        if type_ == "kernel_selection_time":
+            self.kernel_selection_time = data
+        if type_ == "block_selection_time":
+            self.block_selection_time = data
+        if type_ == "transformation_selection_time":
+            self.transformation_selection_time = data
         if type_ == "kernels":
             self.sorted_kernels = data
         if type_ == "blocks":
@@ -144,6 +155,13 @@ class move:
             return self.kernel_rnk_to_consider
         if type_ == "dist_to_goal":
             return self.dist_to_goal
+        if type_ == "kernel_selection_time":
+            return self.kernel_selection_time
+        if type_ == "block_selection_time":
+            return self.block_selection_time
+        if type_ == "transformation_selection_time":
+            return self.transformation_selection_time
+
 
     # depth and breadth determine how many designs to generate around (breadth) and
     # chain from (breadth) from the current design
