@@ -1223,9 +1223,9 @@ class DesignHandler:
         blck_ref = move_to_apply.get_block_ref()
         #print("applying move  " +  move.name + " -----" )
         #pre_moved_ex = copy.deepcopy(ex_dp)  # this is just for move sanity checking
-        gc.disable()
+        #gc.disable()
         pre_moved_ex = cPickle.loads(cPickle.dumps(ex_dp, -1))
-        gc.enable()
+        #gc.enable()
 
         if move_to_apply.get_transformation_name() == "identity":
             return ex_dp, True
