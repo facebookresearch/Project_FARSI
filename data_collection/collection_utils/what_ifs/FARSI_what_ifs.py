@@ -185,12 +185,16 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
         output_fh_minimal.write("iterationxdepth number" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("simulation time" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("move generation time" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("kernel selection time" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("block selection time" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("transformation selection time" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("dist_to_goal_all" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("dist_to_goal_non_cost" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("system block count" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("system PE count" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("system bus count" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("system memory count" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("routing complexity" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("block_impact_sorted" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("kernel_impact_sorted" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("metric_impact_sorted" + ",")  # for now only write the latency accuracy as the other
@@ -246,7 +250,9 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
         comm_comp = (ma.get_system_improvement_log())["comm_comp"]
         high_level_optimization = (ma.get_system_improvement_log())["high_level_optimization"]
         architectural_variable_to_improve = (ma.get_system_improvement_log())["architectural_variable_to_improve"]
-
+        block_selection_time = ma.get_logs("block_selection_time")
+        kernel_selection_time = ma.get_logs("kernel_selection_time")
+        transformation_selection_time = ma.get_logs("transformation_selection_time")
     else: # happens at the very fist iteration
         sorted_metrics = ""
         metric = ""
@@ -262,7 +268,11 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
         comm_comp = ""
         high_level_optimization = ""
         architectural_variable_to_improve = ""
+        block_selection_time = ""
+        kernel_selection_time = ""
+        transformation_selection_time = ""
 
+    routing_complexity = sim_dp.dp_rep.get_hardware_graph().get_routing_complexity()
     simple_topology = sim_dp.dp_rep.get_hardware_graph().get_simplified_topology_code()
     blk_cnt = sum([int(el) for el in simple_topology.split("_")])
     bus_cnt = [int(el) for el in simple_topology.split("_")][0]
@@ -274,12 +284,16 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
     output_fh_minimal.write(str(itr_depth_multiplied)+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(sim_dp.dp_rep.get_simulation_time())+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(generation_time)+ ",")  # for now only write the latency accuracy as the other
+    output_fh_minimal.write(str(kernel_selection_time)+ ",")  # for now only write the latency accuracy as the other
+    output_fh_minimal.write(str(block_selection_time)+ ",")  # for now only write the latency accuracy as the other
+    output_fh_minimal.write(str(transformation_selection_time)+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(sim_dp.dp_stats.dist_to_goal(metrics_to_look_into = ["area", "latency", "power", "cost"], mode = "eliminate")) + ",")
     output_fh_minimal.write(str(sim_dp.dp_stats.dist_to_goal(metrics_to_look_into = ["area", "latency", "power"], mode = "eliminate")) + ",")
     output_fh_minimal.write(str(blk_cnt) + ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(pe_cnt) + ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(bus_cnt) + ",")  # for now only write the latency accuracy as the other
-    output_fh_minimal.write(str(mem_cnt) + ",")  # for now only write the latency accuracy as the other
+    output_fh_minimal.write(str(mem_cnt) + ",") # for now only write the latency accuracy as the other
+    output_fh_minimal.write(str(routing_complexity) + ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(sorted_blocks) + ",")
     output_fh_minimal.write(str(sorted_kernels) + ",")
     output_fh_minimal.write(str(sorted_metrics)+  ",")
@@ -572,12 +586,12 @@ if __name__ == "__main__":
     # set the study parameters
     # set the workload
 
-    #workloads = {"edge_detection"}
+    workloads = {"edge_detection"}
     #workloads = {"hpvm_cava"}
-    workloads = {"audio_decoder"}
+    #workloads = {"audio_decoder"}
     #workloads = {"SLAM"}
     #workloads ={"audio_decoder", "edge_detection", "hpvm_cava"}
-    #workloads ={"audio_decoder", "edge_detection"}
+    workloads ={"audio_decoder", "edge_detection"}
 
     #workloads = {"partial_SOC_example_hard"}
     #workloads = {"simple_all_parallel"}
