@@ -71,7 +71,7 @@ class CactiHndlr():
     def parse_and_find(self, kwords):
         results_dict = {}
         ctr =0
-        while not os.path.isfile(self.output_cfg) and ctr < 5:
+        while not os.path.isfile(self.output_cfg) and ctr < 20:
             time.sleep(1)
             ctr +=1
 
