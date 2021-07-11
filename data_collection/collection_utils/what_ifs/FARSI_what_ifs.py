@@ -116,20 +116,15 @@ def copy_DSE_data(result_dir):
     #result_dir_specific = os.path.join(result_dirresult_summary")
     os.system("cp " + config.latest_visualization+"/*" + " " + result_dir)
 
-
-
-
-
-
-
-
-def write_all_results(all_sim_dps, reason_to_terminate, case_study, result_dir_specific, unique_number, file_name):
-    for sim_dp in all_sim_dps:
-        write_one_results(sim_dp, reason_to_terminate, case_study,
-                          result_dir_specific, unique_number,
-                          file_name+"_all_results")
-
-
+def write_data_log(log_data, reason_to_terminate, case_study, result_dir_specific, unique_number, file_name):
+    output_file_all = os.path.join(result_dir_specific, file_name+ "_all_reults.csv")
+    csv_columns = list(log_data[0].keys())
+    # minimal output
+    with open(output_file_all, 'w') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
+        writer.writeheader()
+        for data in log_data:
+            writer.writerow(data)
 
 # ------------------------------
 # Functionality:
@@ -178,9 +173,9 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
         output_fh_minimal.write("output_design_status"+ ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("case_study"+ ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("unique_number" + ",")  # for now only write the latency accuracy as the other
+
         output_fh_minimal.write("SA_total_depth,")
         output_fh_minimal.write("reason_to_terminate" + ",")  # for now only write the latency accuracy as the other
-
         output_fh_minimal.write("iteration number" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("iterationxdepth number" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("simulation time" + ",")  # for now only write the latency accuracy as the other
@@ -208,10 +203,6 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
         output_fh_minimal.write("high_level_optimization" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("architectural_variable_to_improve" + ",")  # for now only write the latency accuracy as the other
 
-
-
-
-
     output_fh_minimal.write("\n")
     for metric in config.all_metrics:
         output_fh_minimal.write(str(sim_dp.dp_stats.get_system_complex_metric(metric)) + ",")
@@ -230,6 +221,7 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
         output_fh_minimal.write("budget_not_met" + ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(case_study + ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(unique_number)+ ",")  # for now only write the latency accuracy as the other
+
     output_fh_minimal.write(str(config.SA_depth)+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(reason_to_terminate)+ ",")  # for now only write the latency accuracy as the other
 
@@ -365,10 +357,10 @@ def simple_run(result_folder, sw_hw_database_population, system_workers=(1, 1)):
         run_ctr += 1
         # write the results in the general folder
         result_dir_specific = os.path.join(result_folder, "result_summary")
-        write_all_results(list(dse_hndlr.dse.all_itr_ex_sim_dp_dict.values()), dse_hndlr.dse.reason_to_terminate, case_study, result_dir_specific, unique_suffix,
-                      config.FARSI_simple_run_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
-
-        write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse.reason_to_terminate, case_study, result_dir_specific, unique_suffix,
+        write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse.reason_to_terminate, case_study,
+                          result_dir_specific, unique_suffix,
+                          config.FARSI_simple_run_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
+        write_data_log(list(dse_hndlr.dse.get_log_data()), dse_hndlr.dse.reason_to_terminate, case_study, result_dir_specific, unique_suffix,
                       config.FARSI_simple_run_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
 
         # write the results in the specific folder
@@ -586,12 +578,12 @@ if __name__ == "__main__":
     # set the study parameters
     # set the workload
 
-    workloads = {"edge_detection"}
+    #workloads = {"edge_detection"}
     #workloads = {"hpvm_cava"}
-    #workloads = {"audio_decoder"}
+    workloads = {"audio_decoder"}
     #workloads = {"SLAM"}
     #workloads ={"audio_decoder", "edge_detection", "hpvm_cava"}
-    workloads ={"audio_decoder", "edge_detection"}
+    #workloads ={"audio_decoder", "edge_detection"}
 
     #workloads = {"partial_SOC_example_hard"}
     #workloads = {"simple_all_parallel"}
