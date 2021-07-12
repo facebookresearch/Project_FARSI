@@ -89,6 +89,11 @@ all_metrics = ["latency",  "power", "area", "energy", "cost"]    # all the metri
 budgetted_metrics = ["latency",  "power", "area"]
 other_metrics = ["cost"]
 
+budget_dict = {}
+budget_dict["glass"] = {}
+budget_dict["glass"]["power"] = .2
+budget_dict["glass"]["area"] = .00004
+
 home_dir = home_settings.home_dir
 #home_dir = os.getcwd()+"/../../"
 
