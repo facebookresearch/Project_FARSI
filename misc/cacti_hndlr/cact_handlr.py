@@ -8,6 +8,8 @@ import pandas as pd
 import math
 import numpy as np
 import time
+import shutil
+import subprocess
 #from settings import config
 
 # This class at the moment only handls very specific cases,
@@ -37,8 +39,9 @@ class CactiHndlr():
 
     def set_params(self):
         param_file_copy_name= "/".join(self.param_file.split("/")[:-1]) + "/" + self.param_file.split("/")[-1] +"_cp"
-        os.system("cp " + self.param_file + " "  + param_file_copy_name)
-
+        #os.system("cp " + self.param_file + " "  + param_file_copy_name)
+        shutil.copy(self.param_file, param_file_copy_name)
+        time.sleep(.05)
         file1 = open(param_file_copy_name, "a")  # append mode
         size_cmd = "-size (bytes) " + str(self.cur_mem_size)
         cur_mem_type_cmd = "-cache type \"" + self.cur_mem_type + "\""
@@ -57,8 +60,9 @@ class CactiHndlr():
     def run_bin(self):
         bin_dir = "/".join(self.bin_addr.split("/")[:-1])
         os.chdir(bin_dir)
-        cmd = self.bin_addr + " " + "-infile " + self.input_cfg
-        os.system(cmd)
+        #cmd = self.bin_addr + " " + "-infile " + self.input_cfg
+        subprocess.call([self.bin_addr, "-infile", self.input_cfg])
+        #os.system(cmd)
 
     def run_cacti(self):
         self.set_params()

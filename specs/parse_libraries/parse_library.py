@@ -620,7 +620,6 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
 
 # collect budget values for each workload
 def collect_budgets(workloads_to_consider, library_dir, prefix=""):
-
     # get files
     file_list = [f for f in os.listdir(library_dir) if os.path.isfile(os.path.join(library_dir, f))]
     misc_file_name = get_full_file_name(prefix + "Budget.csv", file_list)
@@ -639,6 +638,9 @@ def collect_budgets(workloads_to_consider, library_dir, prefix=""):
     for metric in config.budgetted_metrics:
         if metric in ["power", "area"]:
             budgets_dict["glass"][metric] = (df.loc[df['Workload'] == "all"])[metric].values[0]
+            # this is a hack for now. change later.
+            # but used for budget sweep for now
+            budgets_dict["glass"][metric] = config.budget_dict["glass"][metric]
         elif metric in ["latency"]:
             for idx in range(0, len(workloads)):
                 workload_name = workloads[idx]

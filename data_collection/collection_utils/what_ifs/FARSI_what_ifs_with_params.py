@@ -37,8 +37,10 @@ else:
 
 
 
-def run_with_params(workloads, SA_depth, freq_range):
+def run_with_params(workloads, SA_depth, freq_range, power_budget, area_budget):
     config.SA_depth = SA_depth
+    config.budget_dict["glass"]["power"]= power_budget
+    config.budget_dict["glass"]["area"]= area_budget
     # set the number of workers to be used (parallelism applied)
     current_process_id = 0
     total_process_cnt = 1
@@ -118,10 +120,13 @@ def run_with_params(workloads, SA_depth, freq_range):
         plot_3d_dist(result_dir_addr, full_file_addr, workloads)
 
 if __name__ == "__main__":
-    workloads =[{"hpvm_cava"}, {"edge_detection"}, {"audio_decoder"}, {"edge_detection", "hpvm_cava"}, {"edge_detection", "audio_decoder"}, {"hpvm_cava", "audio_decoder"}, {"audio_decoder", "edge_detection", "hpvm_cava"}]
-    SA_depth = [10,20]
+    workloads =[{"edge_detection"}, {"hpvm_cava"}, {"audio_decoder"}, {"edge_detection", "hpvm_cava"}, {"edge_detection", "audio_decoder"}, {"hpvm_cava", "audio_decoder"}, {"audio_decoder", "edge_detection", "hpvm_cava"}]
+    SA_depth = [10]
     freq_range = [1,4,6,8]
+    power_budget_range = [.2,.1,.05]  #mW
+    area_budget_range = [.0001,.00005,.00003,.00001] # mm2
     # run_with_params(workloads[0], SA_depth[0], freq_range)
     for d in SA_depth:
         for w in workloads:
-            run_with_params(w, d, freq_range)
+            for power_budget, area_budget in itertools.product(power_budget_range, area_budget_range):
+                run_with_params(w, d, freq_range, power_budget, area_budget)

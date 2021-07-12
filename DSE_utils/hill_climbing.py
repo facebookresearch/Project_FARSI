@@ -96,6 +96,7 @@ class HillClimbing:
         self.krnels_not_to_consider = []
         self.all_itr_ex_sim_dp_dict: Dict[ExDesignPoint: SimDesignPoint] = {}  # all the designs look at
         self.reason_to_terminate = ""
+        self.log_data_list = []
 
     def set_check_point_folder(self, check_point_folder):
         self.check_point_folder = check_point_folder
@@ -575,7 +576,7 @@ class HillClimbing:
                     if hot_block_type == "pe":
                         feasible_transformations = ["migrate", "split"]  # only for PE since we wont to be low cost, for IC/MEM cost does not increase if you customize
                     else:
-                        feasible_transformations = ["migrate", "split"] #, "swap", "split_swap"]
+                        feasible_transformations = ["migrate", "split"] #", "swap", "split_swap"]
                     if can_improve_locality:
                         feasible_transformations.append("transfer")
                else:
@@ -1980,6 +1981,11 @@ class HillClimbing:
         return this_itr_ex_sim_dp_dict
 
 
+    def convert_tuple_list_to_parsable_csv(self, list_):
+        result = ""
+        for k, v in list_:
+            result +=str(k) + "=" + str(v) + "___"
+        return result
 
 
     # ------------------------------
@@ -1997,6 +2003,106 @@ class HillClimbing:
         vis_hardware.vis_hardware(self.so_far_best_sim_dp.get_dp_rep())
         if config.RUN_VERIFICATION_PER_GEN or config.RUN_VERIFICATION_PER_IMPROVMENT or config.RUN_VERIFICATION_PER_NEW_CONFIG:
             self.gen_verification_data(self.so_far_best_sim_dp, self.so_far_best_ex_dp)
+
+    def get_log_data(self):
+        return self.log_data_list
+
+    # ------------------------------
+    # Functionality:
+    #      log the data for plotting and such
+    # ------------------------------
+    def log_data(self, this_itr_ex_sim_dp_dict):
+        ctr = len(self.log_data_list)
+        for sim_dp in this_itr_ex_sim_dp_dict.values():
+            ma = sim_dp.get_move_applied()  # move applied
+            if not ma == None:
+                sorted_metrics = self.convert_tuple_list_to_parsable_csv(
+                    [(el, val) for el, val in ma.sorted_metrics.items()])
+                metric = ma.get_metric()
+                transformation_name = ma.get_transformation_name()
+                task_name = ma.get_kernel_ref().get_task_name()
+                block_type = ma.get_block_ref().type
+                dir = ma.get_dir()
+                generation_time = ma.get_generation_time()
+                sorted_blocks = self.convert_tuple_list_to_parsable_csv(
+                    [(el.get_generic_instance_name(), val) for el, val in ma.sorted_blocks])
+                sorted_kernels = self.convert_tuple_list_to_parsable_csv(
+                    [(el.get_task_name(), val) for el, val in ma.sorted_kernels.items()])
+                blk_instance_name = ma.get_block_ref().get_generic_instance_name()
+                blk_type = ma.get_block_ref().type
+                comm_comp = (ma.get_system_improvement_log())["comm_comp"]
+                high_level_optimization = (ma.get_system_improvement_log())["high_level_optimization"]
+                architectural_variable_to_improve = (ma.get_system_improvement_log())[
+                    "architectural_variable_to_improve"]
+                block_selection_time = ma.get_logs("block_selection_time")
+                kernel_selection_time = ma.get_logs("kernel_selection_time")
+                transformation_selection_time = ma.get_logs("transformation_selection_time")
+            else:  # happens at the very fist iteration
+                sorted_metrics = ""
+                metric = ""
+                transformation_name = ""
+                task_name = ""
+                block_type = ""
+                dir = ""
+                generation_time = ''
+                sorted_blocks = ''
+                sorted_kernels = {}
+                blk_instance_name = ''
+                blk_type = ''
+                comm_comp = ""
+                high_level_optimization = ""
+                architectural_variable_to_improve = ""
+                block_selection_time = ""
+                kernel_selection_time = ""
+                transformation_selection_time = ""
+
+            routing_complexity = sim_dp.dp_rep.get_hardware_graph().get_routing_complexity()
+            simple_topology = sim_dp.dp_rep.get_hardware_graph().get_simplified_topology_code()
+            blk_cnt = sum([int(el) for el in simple_topology.split("_")])
+            bus_cnt = [int(el) for el in simple_topology.split("_")][0]
+            mem_cnt = [int(el) for el in simple_topology.split("_")][1]
+            pe_cnt = [int(el) for el in simple_topology.split("_")][2]
+            itr_depth_multiplied = sim_dp.dp_rep.get_iteration_number() * config.SA_depth + sim_dp.dp_rep.get_depth_number()
+
+
+            data = {
+                    "data_number": ctr,
+                    "iterationxdepth number" : itr_depth_multiplied,
+                    "SA_total_depth": str(config.SA_depth),
+                    "iteration number": sim_dp.dp_rep.get_iteration_number(),
+                    "simulation time" : sim_dp.dp_rep.get_simulation_time(),
+                    "move generation time" : generation_time,
+                    "kernel selection time" :kernel_selection_time,
+                    "block selection time" : block_selection_time,
+                    "transformation selection time" : transformation_selection_time,
+                    "dist_to_goal_all" : sim_dp.dp_stats.dist_to_goal(metrics_to_look_into=["area", "latency", "power", "cost"],
+                                                                      mode="eliminate"),
+                    "dist_to_goal_non_cost" : sim_dp.dp_stats.dist_to_goal(metrics_to_look_into=["area", "latency", "power"],
+                                                                           mode="eliminate"),
+                    "system block count" : blk_cnt,
+                    "system PE count" : pe_cnt,
+                    "system bus count" : bus_cnt,
+                    "system memory count" : mem_cnt,
+                    "routing complexity" : routing_complexity,
+                    "block_impact_sorted" : sorted_blocks,
+                    "kernel_impact_sorted" : sorted_kernels,
+                    "metric_impact_sorted" : sorted_metrics,
+                    "move_metric" : metric,
+                    "move_transformation_name" : transformation_name,
+                    "move_kernel" : task_name,
+                    "move_block_name" : blk_instance_name,
+                    "move_block_type" : blk_type,
+                    "move_dir" : dir,
+                    "comm_comp" : comm_comp,
+                    "high_level_optimization" : high_level_optimization,
+                    "architectural_variable_to_improve" : architectural_variable_to_improve}
+
+            for metric in config.all_metrics:
+                data[metric] = sim_dp.dp_stats.get_system_complex_metric(metric)
+                if metric in sim_dp.database.db_input.get_budget_dict("glass").keys():
+                    data[metric +"_budget"] = sim_dp.database.db_input.get_budget_dict("glass")[metric]
+            ctr +=1
+            self.log_data_list.append(data)
 
     # ------------------------------
     # Functionality:
@@ -2030,7 +2136,7 @@ class HillClimbing:
             self.cur_best_ex_dp, self.cur_best_sim_dp = self.sel_next_dp(this_itr_ex_sim_dp_dict,
                                                                          self.so_far_best_sim_dp, self.so_far_best_ex_dp, cur_temp)
 
-            self.all_itr_ex_sim_dp_dict.update(this_itr_ex_sim_dp_dict)
+            self.log_data(this_itr_ex_sim_dp_dict)
             print("-------:):):):):)----------")
             print("Best design's latency: " + str(self.cur_best_sim_dp.dp_stats.get_system_complex_metric("latency")))
             print("Best design's power: " + str(self.cur_best_sim_dp.dp_stats.get_system_complex_metric("power")))

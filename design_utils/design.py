@@ -621,9 +621,9 @@ class DPStatsContainer():
         res = {}
         for SOCs_latency in dictionaries:
             #res = copy.deepcopy(self.operate_on_two_dic_values(res, SOCs_latency, operator))
-            gc.disable()
+            #gc.disable()
             res = cPickle.loads(cPickle.dumps(self.operate_on_two_dic_values(res, SOCs_latency, operator), -1))
-            gc.enable()
+            #gc.enable()
         return res
 
     # reduce the (list of) values based on a statistical  parameter (such as average)
@@ -1314,12 +1314,13 @@ class SimDesignPoint(ExDesignPoint):
         krnl.stats.phase_energy_dict = krnl.aggregate_energy_of_for_every_phase()
         krnl.stats.phase_area_dict = krnl.aggregate_area_of_for_every_phase()
 
+        """
         # for debugging; delete later
         for el in krnl.stats.get_block_area().keys():
             if el not in blk_area_dict.keys():
                 print(" for debugging now delete later")
                 exit(0)
-
+        """
         krnl.stats.set_block_area(blk_area_dict)
         krnl.stats.set_stats() # do not call it on set_stats directly, as it repopoluates without cacti
 
@@ -1785,9 +1786,9 @@ class DPStats:
         res = {}
         for SOCs_latency in dictionaries:
             #res = copy.deepcopy(self.operate_on_two_dic_values(res, SOCs_latency, operator))
-            gc.disable()
+            #gc.disable()
             res = cPickle.loads(cPickle.dumps(self.operate_on_two_dic_values(res, SOCs_latency, operator), -1))
-            gc.enable()
+            #gc.enable()
         return res
 
     # set the metric (power, area, ...) for the entire system complex
