@@ -483,7 +483,10 @@ class DesignHandler:
                 if ex_dp.get_hardware_graph().get_task_graph().tasks_can_run_in_parallel(task_, task_synced):
                     parallel_tasks.append(task_)
         elif config.parallelism_analysis == "dynamic":
-            parallel_tasks_names = sim_dp.get_dp_rep().get_tasks_parallel_task_dynamically(task)
+            parallel_tasks_names_ = sim_dp.get_dp_rep().get_tasks_parallel_task_dynamically(task)
+            tasks_using_diff_pipe_cluster = sim_dp.get_dp_rep().get_tasks_using_the_different_pipe_cluster(task, block)
+
+            parallel_tasks_names= list(set(parallel_tasks_names_) - set(tasks_using_diff_pipe_cluster))
             for task_ in tasks_of_block:
                 if task_.get_name() in  parallel_tasks_names:
                     parallel_tasks.append(task_)
@@ -1645,6 +1648,36 @@ class DesignHandler:
         tasks = src_blck.get_tasks_of_block()
         _ = [self.mig_one_task(dest_blck, src_blck, task) for task in tasks]
 
+    # used when forking buses.
+    # a special procedure needs to be followed
+    # just as deciding on disconnecting and connecting the neighbouring PEs/MEMS and buses
+    def attach_alloc_block_to_bus(self, ex_dp, block_to_mimic, mimicee_block, migrant_tasks):
+        pe_neighs = [neigh for neigh in block_to_mimic.neighs if neigh.type == "pe"]
+        mem_neighs = [neigh for neigh in block_to_mimic.neighs if neigh.type == "mem"]
+        ic_neighs = [neigh for neigh in block_to_mimic.neighs if neigh.type == "ic"]
+        migrant_tasks_names = [el.get_name() for el in migrant_tasks]
+        for neigh in  pe_neighs + mem_neighs:
+            neigh_tasks = [el.get_name() for el in neigh.get_tasks_of_block()]
+            # if no overlap skip
+            if len(list(set(migrant_tasks_names) - set(neigh_tasks) )) == len(migrant_tasks_names):
+                continue
+            else:
+                mimicee_block.connect(neigh)
+                block_to_mimic.disconnect(neigh)
+
+        # randomly connect the ics.
+        # we can do better here
+        ctr = 0
+        for ic in ic_neighs:
+            if (ctr %2) == 1:
+                ic.disconnect(block_to_mimic)
+                ic.connect(mimicee_block)
+            ctr +=1
+        mimicee_block.connect(block_to_mimic)
+
+
+
+
     # ------------------------------
     # attach through the shared bus
     # block_to_mimic: this is the block which we use as a template for connections
@@ -1727,10 +1760,18 @@ class DesignHandler:
     # Variables:
     #       block: block where tasks resides in.
     # ------------------------------
-    def migrant_selection(self, ex_dp, sim_dp, block, selected_kernel, selection_mode):
+    def migrant_selection(self, ex_dp, sim_dp, block_after_unload, block_before_unload, selected_kernel, selection_mode):
         if config.DEBUG_FIX: random.seed(0)
         else: time.sleep(.00001), random.seed(datetime.now().microsecond)
-        clustered_tasks = self.cluster_tasks(ex_dp,sim_dp, block, selected_kernel, selection_mode)
+        clustered_tasks = self.cluster_tasks(ex_dp,sim_dp, block_after_unload, selected_kernel, selection_mode)
+        """ 
+        clusters_tasks_0_names = [tsk.get_name() for tsk in clustered_tasks[0]]
+        result = []
+        for task in block_after_unload.get_tasks_of_block():
+            if task.get_name() in clusters_tasks_0_names:
+                result.append(task)
+        return  result
+        """
         return clustered_tasks[0]
 
     # ------------------------------
@@ -1758,17 +1799,23 @@ class DesignHandler:
     #      block: block of interest
     #      mode: deprecated. TODO: get rid of it.
     # ------------------------------
-    def fork_block(self, ex_dp, block, migrant_tasks):
+    def fork_block(self, ex_dp, block, migrant_tasks_non_filtered):
 
+        migrant_tasks = []  # filter the tasks that don' exist on the block. This usually happens because we might unload the bus/memory
         # transformation gaurds
         if len(block.get_tasks_of_block()) < config.num_clusters:
             return False
         else:
-            for task__ in migrant_tasks:
+            for task__ in migrant_tasks_non_filtered:
                 # if tasks to migrate does not exist on the src block
                 if not(task__.name in [task.name for task in block.get_tasks_of_block()]):  # this only should occur for reads,
                                                                                             # since we unload the reads
-                    return False
+                    continue
+                else:
+                    migrant_tasks.append(task__)
+
+        if len(migrant_tasks) == 0:
+            return False
 
         # find and attach a similar block
         alloc_block = self.allocate_similar_block(block, migrant_tasks)
@@ -1889,13 +1936,22 @@ class DesignHandler:
 
         # allocate and attach a similar bus
         alloc_block = self.allocate_similar_block(block, [])
-        self.attach_alloc_block(ex_dp, block, alloc_block)
-        ex_dp.hardware_graph.update_graph(block_to_prime_with=block)
-        #if config.VIS_GR_PER_GEN: vis_hardware(ex_dp)
 
-        # prune blocks (memory and processing elements) from the previous pus
-        self.prune(ex_dp, block, alloc_block)
-        block.connect(alloc_block)
+
+
+        # at the moment, we don't support the smarter version of attaching the blocks for buses
+        if config.RUN_VERIFICATION_PER_GEN or config.RUN_VERIFICATION_PER_IMPROVMENT or config.RUN_VERIFICATION_PER_NEW_CONFIG:
+            self.attach_alloc_block(ex_dp, block, alloc_block)
+            ex_dp.hardware_graph.update_graph(block_to_prime_with=block)
+            #if config.VIS_GR_PER_GEN: vis_hardware(ex_dp)
+
+            # prune blocks (memory and processing elements) from the previous pus
+            self.prune(ex_dp, block, alloc_block)
+            block.connect(alloc_block)
+        else:
+            self.attach_alloc_block_to_bus(ex_dp, block, alloc_block, migrant_tasks)
+
+
         ex_dp.hardware_graph.update_graph(block_to_prime_with=block)
         return True
 
