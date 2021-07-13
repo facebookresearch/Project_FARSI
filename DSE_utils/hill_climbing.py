@@ -1285,8 +1285,11 @@ class HillClimbing:
         move_to_apply.set_logs(metric_prob_dir_dict, "metrics")
         move_to_apply.set_logs(block_prob_dict, "blocks")
         move_to_apply.set_logs(self.krnel_rnk_to_consider, "kernel_rnk_to_consider")
+        move_to_apply.set_logs(sim_dp.dp_stats.dist_to_goal(["power", "area", "latency", "cost"],
+                                                                                config.metric_sel_dis_mode),"ref_des_dist_to_goal_all")
         move_to_apply.set_logs(sim_dp.dp_stats.dist_to_goal(["power", "area", "latency"],
-                                                                                config.metric_sel_dis_mode),"dist_to_goal")
+                                                                                config.metric_sel_dis_mode),"ref_des_dist_to_goal_non_cost")
+
         move_to_apply.set_logs(t_2 - t_1, "kernel_selection_time")
         move_to_apply.set_logs(t_3 - t_2, "block_selection_time")
         move_to_apply.set_logs(t_4 - t_3, "transformation_selection_time")
@@ -2101,6 +2104,9 @@ class HillClimbing:
                 block_selection_time = ma.get_logs("block_selection_time")
                 kernel_selection_time = ma.get_logs("kernel_selection_time")
                 transformation_selection_time = ma.get_logs("transformation_selection_time")
+                move_validity = ma.is_valid()
+                ref_des_dist_to_goal_all = ma.get_logs("ref_des_dist_to_goal_all")
+                ref_des_dist_to_goal_non_cost = ma.get_logs("ref_des_dist_to_goal_non_cost")
             else:  # happens at the very fist iteration
                 sorted_metrics = ""
                 metric = ""
@@ -2119,6 +2125,9 @@ class HillClimbing:
                 block_selection_time = ""
                 kernel_selection_time = ""
                 transformation_selection_time = ""
+                move_validity = ""
+                ref_des_dist_to_goal_all = ""
+                ref_des_dist_to_goal_non_cost = ""
 
             routing_complexity = sim_dp.dp_rep.get_hardware_graph().get_routing_complexity()
             simple_topology = sim_dp.dp_rep.get_hardware_graph().get_simplified_topology_code()
@@ -2143,6 +2152,8 @@ class HillClimbing:
                                                                       mode="eliminate"),
                     "dist_to_goal_non_cost" : sim_dp.dp_stats.dist_to_goal(metrics_to_look_into=["area", "latency", "power"],
                                                                            mode="eliminate"),
+                    "ref_des_dist_to_goal_all" : ref_des_dist_to_goal_all,
+                    "ref_des_dist_to_goal_non_cost" : ref_des_dist_to_goal_non_cost,
                     "system block count" : blk_cnt,
                     "system PE count" : pe_cnt,
                     "system bus count" : bus_cnt,
@@ -2152,6 +2163,7 @@ class HillClimbing:
                     "kernel_impact_sorted" : sorted_kernels,
                     "metric_impact_sorted" : sorted_metrics,
                     "transformation_metric" : metric,
+                    "move validity" : move_validity,
                     "move name" : transformation_name,
                     "transformation_kernel" : task_name,
                     "transformation_block_name" : blk_instance_name,
