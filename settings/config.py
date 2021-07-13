@@ -7,6 +7,7 @@ from collections import defaultdict
 import home_settings
 from specs.LW_cl import  *
 import os
+import settings.config_cacti as CC
 termination_mode = "workload_completion"  # when to terminate the exploration
 assert termination_mode in ["workload_completion", "time_budget_reached"], "termination_mode:" +\
                                                                            termination_mode + " not defined"
@@ -266,15 +267,10 @@ transaction_base_simulation = False   # do not set to true. It doesn't work
 
 
 # CACTI
-use_cacti = True and not RUN_VERIFICATION_AT_ALL # if True, use cacti. You have to have cacti installed.
-# for behzad
-cact_bin_addr = "/Users/behzadboro/Downloads/cacti/cacti"
-cacti_param_addr = "/Users/behzadboro/Downloads/cacti/farsi_gen.cfg"
-# for Ying
-#cact_bin_addr = "/home/yingj4/Desktop/Project_FARSI/cacti_for_FARSI/cacti"
-#cacti_param_addr = "/home/yingj4/Desktop/Project_FARSI/cacti_for_FARSI/farsi_gen.cfg"
-cacti_log_results = False # if true, we log cacti results as we collect them. this allows us to avoid rerunning
-cacti_data_log_file = "/home/yingj4/Desktop/Project_FARSI/cacti_for_FARSI/data_log.csv"
+use_cacti = True and not RUN_VERIFICATION_AT_ALL # if True, use cacti. You have to have cacti installed.j
+cact_bin_addr = CC.cact_bin_addr
+cacti_param_addr = CC.cacti_param_addr
+cacti_data_log_file = CC.cacti_data_log_file
 cacti_input_col_order = ["mem_subtype", "mem_size"]
 cacti_output_col_order = ["read_energy_per_byte", "write_energy_per_byte", "area"]
 cacti_min_memory_size_in_bytes =  2048 # bellow this value cacti errors out. We can play with burst size and page size to fix this though
