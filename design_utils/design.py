@@ -1174,6 +1174,18 @@ class SimDesignPoint(ExDesignPoint):
         return list(parallel_tasks)
 
 
+    def get_tasks_using_the_different_pipe_cluster(self, task, block):
+        task_pipe_clusters = block.get_pipe_clusters_of_task(task)
+        tasks_of_block = block.get_tasks_of_block()
+        results = []
+        for task_ in tasks_of_block:
+            if task == task_:
+               continue
+            task__pipe_clusters = block.get_pipe_clusters_of_task(task_)
+            if len(list(set(task_pipe_clusters) - set(task__pipe_clusters))) == len(task_pipe_clusters):
+                results.append(task_.get_name())
+        return results
+
 
     # Log the BW data about all the connections it the system
     def dump_mem_bus_connection_bw(self, result_folder):  # batch means that all the blocks of similar type have similar props

@@ -113,7 +113,7 @@ metric_improvement_dir["power"] = -1  # direction of improvement is reduction, a
 metric_improvement_dir["energy"] = -1 # direction of improvement is reduction, and hence -1
 metric_improvement_dir["area"] = -1  # direction of improvement is reduction, and hence -1
 metric_improvement_dir["cost"] = -1 # direction of improvement is reduction, and hence -1
-move_s_krnel_selection = ["bottleneck", "improvement_ease"]   # options are :bottleneck, improvement_ease
+move_s_krnel_selection = ["bottleneck"]   # options are :bottleneck, improvement_ease
 
 
 for metric in all_metrics:
