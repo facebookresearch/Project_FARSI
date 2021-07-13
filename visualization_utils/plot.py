@@ -266,7 +266,7 @@ def barplot_moves(move_profile):
     height_list = []
     for move_ in move_to_plot:
         # get metric values
-        dist_to_goal = move_.get_logs("dist_to_goal")
+        dist_to_goal = move_.get_logs("ref_des_dist_to_goal_non_cost")
         metrics = move_.get_logs("metrics")
         for metric_name in metric_names:
             metric_dict[metric_name].append(metrics[metric_name]*dist_to_goal*100)
@@ -517,7 +517,7 @@ def barplot_moves(move_profile):
     fig, ax = plt.subplots(figsize=(9.4, 4.8))
     y = []
     for move_ in move_to_plot:
-        y.append(100*move_.get_logs("dist_to_goal"))
+        y.append(100*move_.get_logs("ref_des_dist_to_goal_non_cost"))
     x = np.arange(len(y))  # the label locations
     ax.set_ylabel('(Normalized) Distance to Goal (%)', fontsize=15)
     ax.set_xlabel('Iteration ', fontsize=15)

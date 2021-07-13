@@ -40,7 +40,8 @@ class move:
         self.sorted_blocks = []
         self.kernel_rnk_to_consider = 0
         self.sorted_metrics = []
-        self.dist_to_goal = 0
+        self.ref_des_dist_to_goal_all = 0
+        self.ref_des_dist_to_goal_non_cost = 0
         self.cost = 0
         self.sorted_metric_dir = {}
         self.pre_move_ex = None
@@ -87,7 +88,7 @@ class move:
         if self.get_transformation_name() in ["split"]:
             architectural_variable_to_improve = "parallelization"
         elif self.get_transformation_name() in ["migrate"]:
-            architectural_variable_to_improve = "parallelism"
+            architectural_variable_to_improve = "parallelization"
         elif self.get_transformation_name() in ["split_swap", "swap"]:
             architectural_variable_to_improve = "customization"
         elif self.get_transformation_name() in ["transfer","routing"]:
@@ -136,8 +137,10 @@ class move:
             self.sorted_metrics = data
         if type_ == "kernel_rnk_to_consider":
             self.kernel_rnk_to_consider = data
-        if type_ == "dist_to_goal":
-            self.dist_to_goal = data
+        if type_ == "ref_des_dist_to_goal_all":
+            self.ref_des_dist_to_goal_all = data
+        if type_ == "ref_des_dist_to_goal_non_cost":
+            self.ref_des_dist_to_goal_non_cost = data
 
     def get_transformation_batch(self):
         return self.batch_mode
@@ -153,8 +156,10 @@ class move:
             return self.sorted_metrics
         if type_ == "kernel_rnk_to_consider":
             return self.kernel_rnk_to_consider
-        if type_ == "dist_to_goal":
-            return self.dist_to_goal
+        if type_ == "ref_des_dist_to_goal_all":
+            return self.ref_des_dist_to_goal_all
+        if type_ == "ref_des_dist_to_goal_non_cost":
+            return self.ref_des_dist_to_goal_non_cost
         if type_ == "kernel_selection_time":
             return self.kernel_selection_time
         if type_ == "block_selection_time":
