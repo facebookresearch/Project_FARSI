@@ -981,7 +981,7 @@ class PipeCluster:
 
     def is_task_present(self, task):
         if self.get_block_ref().type == "pe":
-            return task in self.dummy_tasks
+            return task.get_name() in [el.get_name() for el in self.dummy_tasks]
         elif self.get_block_ref().type in ["ic"]:
             return self.outgoing_pipe.is_task_present(task)
         else:

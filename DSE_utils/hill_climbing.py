@@ -181,6 +181,7 @@ class HillClimbing:
             new_ex_dp_res.sanity_check()  # sanity check
             move_to_try.sanity_check()
             self.dh.load_tasks_to_read_mem_and_ic(new_ex_dp_res)  # loading the tasks on to memory and ic
+            new_ex_dp_res.hardware_graph.pipe_design()
             new_ex_dp_res.sanity_check()
         except Exception as e:
             # if the error is already something that we are familiar with
@@ -245,14 +246,20 @@ class HillClimbing:
     def check_if_task_can_run_with_any_other_task_in_parallel(self, sim_dp, task, block):
         if task.get_name() in ["souurce", "siink", "dummy_last"]:
             return False
-        tasks_of_block = [task_ for task_ in block.get_tasks_of_block() if
+        if block.type == "pe":
+            task_dir = "loop_back"
+        else:
+            task_dir = "write"
+        tasks_of_block = [task_ for task_ in block.get_tasks_of_block_by_dir(task_dir) if
                           (not ("souurce" in task_.name) or not ("siink" in task_.name))]
         if config.parallelism_analysis == "static":
             for task_ in tasks_of_block:
                 if sim_dp.get_dp_rep().get_hardware_graph().get_task_graph().tasks_can_run_in_parallel(task_, task):
                     return True
         elif config.parallelism_analysis == "dynamic":
-            parallel_tasks_names = sim_dp.get_dp_rep().get_tasks_parallel_task_dynamically(task)
+            parallel_tasks_names_ = sim_dp.get_dp_rep().get_tasks_parallel_task_dynamically(task)
+            tasks_using_diff_pipe_cluster = sim_dp.get_dp_rep().get_tasks_using_the_different_pipe_cluster(task, block)
+            parallel_tasks_names= list(set(parallel_tasks_names_) - set(tasks_using_diff_pipe_cluster))
             for task_ in tasks_of_block:
                 if task_.get_name() in  parallel_tasks_names:
                     return True
@@ -272,7 +279,11 @@ class HillClimbing:
 
         for idx_1, _ in enumerate(tasks_of_block_1):
             tsk_1 = tasks_of_block_1[idx_1]
-            parallel_tasks_names = sim_dp.get_dp_rep().get_tasks_parallel_task_dynamically(tsk_1)
+            parallel_tasks_names_ = sim_dp.get_dp_rep().get_tasks_parallel_task_dynamically(tsk_1)
+            tasks_using_diff_pipe_cluster = sim_dp.get_dp_rep().get_tasks_using_the_different_pipe_cluster(tsk_1, block_1)
+            parallel_tasks_names = list(set(parallel_tasks_names_) - set(tasks_using_diff_pipe_cluster))
+
+
             for idx_2, _ in enumerate(tasks_of_block_2):
                 tsk_2  = tasks_of_block_2[idx_2]
                 if tsk_1.get_name() == tsk_2.get_name():
@@ -549,6 +560,43 @@ class HillClimbing:
                         return True
         return False
 
+    def bus_has_pe_mem_topology_for_split(self, ex_dp, sim_dp, ref_task, block):
+        if not block.type == "ic" or ref_task.is_task_dummy():
+            return False
+        found_pe_block = False
+        found_mem_block = False
+
+        migrant_tasks  = self.dh.find_parallel_tasks_of_task_in_block(ex_dp, sim_dp, ref_task, block)[0]
+        migrant_tasks_names = [el.get_name() for el in migrant_tasks]
+        mem_neighs = [el for el in block.get_neighs() if el.type == "mem"]
+        pe_neighs = [el for el in block.get_neighs() if el.type == "pe"]
+
+        for neigh in  pe_neighs:
+            neigh_tasks = [el.get_name() for el in neigh.get_tasks_of_block_by_dir("loop_back")]
+            # if no overlap skip
+            if len(list(set(migrant_tasks_names) - set(neigh_tasks) )) == len(migrant_tasks_names):
+                continue
+            else:
+                found_pe_block = True
+                break
+
+        for neigh in  mem_neighs:
+            neigh_tasks = [el.get_name() for el in neigh.get_tasks_of_block_by_dir("write")]
+            # if no overlap skip
+            if len(list(set(migrant_tasks_names) - set(neigh_tasks) )) == len(migrant_tasks_names):
+                continue
+            else:
+                found_mem_block = True
+                break
+
+
+        if found_pe_block and found_mem_block :
+            return True
+        else:
+            return False
+
+
+
     def get_feasible_transformations(self, ex_dp, sim_dp, hot_blck_synced, selected_metric, selected_krnl, sorted_metric_dir):
         imm_block = self.dh.get_immediate_block_multi_metric(hot_blck_synced, selected_metric, sorted_metric_dir,  hot_blck_synced.get_tasks_of_block())
         task = ex_dp.get_hardware_graph().get_task_graph().get_task_by_name(selected_krnl.get_task_name())
@@ -564,21 +612,32 @@ class HillClimbing:
 
         hot_block_type = hot_blck_synced.type
         hot_block_subtype = hot_blck_synced.subtype
+
         parallelism_exist = self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp, task, hot_blck_synced)
         other_block_parallelism_exist = False
         all_transformations = config.metric_trans_dict[selected_metric]
         can_improve_locality = self.can_improve_locality(ex_dp, hot_blck_synced, task)
         can_improve_routing = self.can_improve_routing(ex_dp, sim_dp, hot_blck_synced, task)
 
+        bus_has_pe_mem_topology_for_split = self.bus_has_pe_mem_topology_for_split(ex_dp, sim_dp, task,hot_blck_synced)
+        # ------------------------
+        # based on parallelism, generate feasible transformations
+        # ------------------------
         if parallelism_exist:
            if selected_metric == "latency":
                if selected_dir == -1:
                     if hot_block_type == "pe":
                         feasible_transformations = ["migrate", "split"]  # only for PE since we wont to be low cost, for IC/MEM cost does not increase if you customize
                     else:
-                        feasible_transformations = ["migrate", "split"] #", "swap", "split_swap"]
-                    if can_improve_locality:
-                        feasible_transformations.append("transfer")
+                        if hot_block_type == "ic":
+                            mem_neighs = [el for el in hot_blck_synced.get_neighs() if el.type == "mem"]
+                            pe_neighs = [el for el in hot_blck_synced.get_neighs() if el.type == "pe"]
+                            if len(mem_neighs) <= 1 or len(pe_neighs)  <= 1 or not bus_has_pe_mem_topology_for_split:
+                                feasible_transformations = ["swap", "split_swap"]  # ", "swap", "split_swap"]
+                            else:
+                                feasible_transformations = ["migrate", "split"]  # ", "swap", "split_swap"]
+                        else:
+                            feasible_transformations = ["migrate", "split"] #", "swap", "split_swap"]
                else:
                     # we can do better by comparing the advantage disadvantage of migrating
                     # (Advantage: slowing down by serialization, and disadvantage: accelerating by parallelization)
@@ -588,8 +647,6 @@ class HillClimbing:
                    # we can do better by comparing the advantage disadvantage of migrating
                    # (Advantage: slowing down by serialization, and disadvantage: accelerating by parallelization)
                    feasible_transformations = ["swap", "split_swap"]
-                   if can_improve_locality:
-                       feasible_transformations.append("transfer")
                else:
                    feasible_transformations = all_transformations
            if selected_metric == "area":
@@ -600,32 +657,47 @@ class HillClimbing:
                        feasible_transformations = ["migrate", "swap", "split_swap"]
                else:
                    feasible_transformations = all_transformations
-
-        if not parallelism_exist:
+        elif not parallelism_exist:
            if selected_metric == "latency":
                if selected_dir == -1:
                    feasible_transformations = ["swap", "split_swap"]
-                   if can_improve_locality:
-                       feasible_transformations.append("transfer")
                else:
                    feasible_transformations = ["swap", "migrate"]
            if selected_metric == "power":
                if selected_dir == -1:
                    feasible_transformations = ["migrate", "swap", "split_swap"]
-                   if can_improve_locality:
-                       feasible_transformations.append("transfer")
            if selected_metric == "area":
                if selected_dir == -1:
                     feasible_transformations = ["migrate", "swap",]
                else:
                    feasible_transformations = ["migrate", "swap", "split"]
 
-        # filter transformations accordingly
+        # ------------------------
+        # based on locality, generate feasible transformations
+        # ------------------------
+        if can_improve_locality:
+            # locality not gonna improve area with the current set up
+            if not selected_metric == "area" and selected_dir == -1:
+                feasible_transformations.append("transfer")
+
+        #------------------------
+        # there is a on opportunity for routing
+        #------------------------
+        if can_improve_routing:
+            transformation_list = list(feasible_transformations)
+            transformation_list.append('routing')
+            feasible_transformations = set(transformation_list)
+
+
+        #------------------------
+        # post processing of the destination blocks to eliminate transformations
+        #------------------------
+        # filter migrate
         if not found_blck_to_mig_to:
             # if can't find a block that is at least as good as the current block, can't migrate
             feasible_transformations =  set(list(set(feasible_transformations) - set(['migrate'])))
 
-
+        # filter split
         number_of_task_on_block = 0
         if hot_blck_synced.type == "pe":
             number_of_task_on_block = len(hot_blck_synced.get_tasks_of_block())
@@ -633,34 +705,13 @@ class HillClimbing:
             number_of_task_on_block = len(hot_blck_synced.get_tasks_of_block_by_dir("write"))
         if number_of_task_on_block == 1:  # can't split an accelerator
             feasible_transformations =  set(list(set(feasible_transformations) - set(['split', 'split_swap'] )))
+
+        # filter swap
         if imm_block.get_generic_instance_name() == hot_blck_synced.get_generic_instance_name():
             # if can't swap improve, get rid of swap
             feasible_transformations = set(list(set(feasible_transformations) - set(['swap'])))
 
-
-        if can_improve_routing:
-            transformation_list = list(feasible_transformations)
-            transformation_list.append('routing')
-            feasible_transformations = set(transformation_list)
-
-        #feasible_transformations = set(list(set(feasible_transformations) - set(['split_swap'])))
-
-
-        """
-        if (self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp, task_synced, hot_blck_synced)):
-            if selected_metric == "latency" and selected_dir == -1:
-                # take advantage of parallelism when exists
-                feasible_transformations = set(list(feasible_transformations - set(['swap', 'split_swap'])))
-        if not (self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp, task_synced, hot_blck_synced)):
-            # no parallelism
-            # only customize to reduce latency
-            if selected_metric == "latency" and selected_dir == -1:
-                feasible_transformations = set(list(feasible_transformations - set(['split', 'migrate'])))
-            # no split when area is too high, as it inevitably increases the area
-            if selected_metric == "area" and selected_dir == -1:
-                feasible_transformations = set(list(feasible_transformations - set(['split'])))
-        """
-
+        # for IC's we don't use migrate
         if hot_blck_synced.type in ["ic"]:
             # we don't cover migrate for ICs at the moment
             # TODO: add this feature later
@@ -685,6 +736,8 @@ class HillClimbing:
                                                                     selected_krnl, sorted_metric_dir)
         print(list(feasible_transformations))
         random.seed(datetime.now().microsecond)
+        # pick randomly at the moment.
+        # TODO: possibly can do better
         transformation = random.choice(list(feasible_transformations))
 
         #if len(hot_blck_synced.get_tasks_of_block_by_dir("write")) > 1:
@@ -1240,6 +1293,9 @@ class HillClimbing:
 
 
         blck_ref = move_to_apply.get_block_ref()
+        gc.disable()
+        blck_ref_cp = cPickle.loads(cPickle.dumps(blck_ref, -1))
+        gc.enable()
         # ------------------------
         # prepare for the move
         # ------------------------
@@ -1269,15 +1325,19 @@ class HillClimbing:
 
             self.dh.unload_read_mem(ex_dp)  # unload memories
             self.change_read_task_to_write_if_necessary(ex_dp, sim_dp, move_to_apply, selected_krnl)
-            migrant_tasks = self.dh.migrant_selection(ex_dp, sim_dp, blck_ref, move_to_apply.get_kernel_ref(),
+            migrant_tasks = self.dh.migrant_selection(ex_dp, sim_dp, blck_ref, blck_ref_cp, move_to_apply.get_kernel_ref(),
                                                       move_to_apply.get_transformation_batch())
             #migrant_tasks  = list(set(move_to_apply.get_block_ref().get_tasks()) - set(migrant_tasks_))  # reverse the order to allow for swap to happen on the ref_block
             move_to_apply.set_tasks(migrant_tasks)
         elif move_to_apply.get_transformation_name() in ["split"]:
             # select tasks to migrate
             #self.change_read_task_to_write_if_necessary(ex_dp, sim_dp, move_to_apply, selected_krnl)
-            migrant_tasks = self.dh.migrant_selection(ex_dp, sim_dp, blck_ref, move_to_apply.get_kernel_ref(),
+            migrant_tasks = self.dh.migrant_selection(ex_dp, sim_dp, blck_ref, blck_ref_cp, move_to_apply.get_kernel_ref(),
                                                       move_to_apply.get_transformation_batch())
+
+            if len(migrant_tasks) == 0:
+                self.select_transformation(ex_dp, sim_dp, selected_block, selected_metric, selected_krnl,
+                                           sorted_metric_dir)
 
             move_to_apply.set_tasks(migrant_tasks)
             if len(migrant_tasks) == 0:
@@ -1291,7 +1351,7 @@ class HillClimbing:
                 # check and see if tasks exist (if not, it was a read)
                 imm_block_present, found_blck_to_mig_to, mig_selection_mode = self.select_block_to_migrate_to(ex_dp,
                                                                                                               sim_dp,
-                                                                                                              blck_ref,
+                                                                                                              blck_ref_cp,
                                                                                                               move_to_apply.get_metric(),
                                                                                                               move_to_apply.get_sorted_metric_dir(),
                                                                                                               move_to_apply.get_kernel_ref())
@@ -1305,8 +1365,12 @@ class HillClimbing:
                     move_to_apply.set_validity(False, "NoMigrantException")
                     imm_block_present = blck_ref
                 else:
-                    migrant_tasks = self.dh.migrant_selection(ex_dp, sim_dp, blck_ref, move_to_apply.get_kernel_ref(),
+                    migrant_tasks = self.dh.migrant_selection(ex_dp, sim_dp, blck_ref, blck_ref_cp, move_to_apply.get_kernel_ref(),
                                                               mig_selection_mode)
+                    if len(migrant_tasks)  == 0:
+                        self.select_transformation(ex_dp, sim_dp, selected_block, selected_metric, selected_krnl,
+                                              sorted_metric_dir)
+
                     move_to_apply.set_tasks(migrant_tasks)
                     move_to_apply.set_dest_block(imm_block_present)
             else:
@@ -2087,15 +2151,15 @@ class HillClimbing:
                     "block_impact_sorted" : sorted_blocks,
                     "kernel_impact_sorted" : sorted_kernels,
                     "metric_impact_sorted" : sorted_metrics,
-                    "move_metric" : metric,
-                    "move_transformation_name" : transformation_name,
-                    "move_kernel" : task_name,
-                    "move_block_name" : blk_instance_name,
-                    "move_block_type" : blk_type,
-                    "move_dir" : dir,
+                    "transformation_metric" : metric,
+                    "move name" : transformation_name,
+                    "transformation_kernel" : task_name,
+                    "transformation_block_name" : blk_instance_name,
+                    "transformation_block_type" : blk_type,
+                    "transformation_dir" : dir,
                     "comm_comp" : comm_comp,
-                    "high_level_optimization" : high_level_optimization,
-                    "architectural_variable_to_improve" : architectural_variable_to_improve}
+                    "optimization name" : high_level_optimization,
+                    "architectural principle" : architectural_variable_to_improve}
 
             for metric in config.all_metrics:
                 data[metric] = sim_dp.dp_stats.get_system_complex_metric(metric)
