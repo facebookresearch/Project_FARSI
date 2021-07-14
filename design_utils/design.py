@@ -1275,7 +1275,7 @@ class SimDesignPoint(ExDesignPoint):
 
         read_energy_per_byte *= tech_node["energy"]
         write_energy_per_byte *= tech_node["energy"]
-        area *= tech_node["area"]
+        area *= tech_node["area"]["mem"]
 
         # log values
         self.cacti_hndlr.cacti_data_container.insert(list(zip(config.cacti_input_col_order +
