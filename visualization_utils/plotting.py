@@ -5,6 +5,7 @@
 import csv
 import os
 import matplotlib.pyplot as plt
+import pandas as pd
 
 # the function to plot the frequency of all comm_comp in the pie chart
 def plotCommCompAll(dirName, fileName):
@@ -190,6 +191,101 @@ def plotRefDistToGoalVSitr(dirName, fileName):
         plt.show()
 
 # the function to plot distance to goal vs. iteration x depth
+def plotSimTimeVSmoveNameZoneDist(dirName, fileName):
+    with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
+        resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+
+        splitSwapSimTimeZone0 = 0
+        splitSimTimeZone0 = 0
+        migrateSimTimeZone0 = 0
+        swapSimTimeZone0 = 0
+        idenSimTimeZone0 = 0
+        splitSwapSimTimeZone1 = 0
+        splitSimTimeZone1 = 0
+        migrateSimTimeZone1 = 0
+        swapSimTimeZone1 = 0
+        idenSimTimeZone1 = 0
+        splitSwapSimTimeZone2 = 0
+        splitSimTimeZone2 = 0
+        migrateSimTimeZone2 = 0
+        swapSimTimeZone2 = 0
+        idenSimTimeZone2 = 0
+        splitSwapSimTimeZone3 = 0
+        splitSimTimeZone3 = 0
+        migrateSimTimeZone3 = 0
+        swapSimTimeZone3 = 0
+        idenSimTimeZone3 = 0
+
+        maxDist = 0
+
+        for i, row in enumerate(resultReader):
+            # print('"' + row[1] + '"\t"' + row[4] + '"\t"' + row[5] + '"\t"' + row[10] + '"\t"' + row[12] + '"\t"' + row[13] + '"\t"' + row[22] + '"\t"' + row[23] + '"\t"' + row[28] + '"\t' + row[29] + '"\t"' + row[30] + '"')
+            if row[22] != "True":
+                continue
+
+            if i == 2:
+                maxDist = float(row[10])
+
+            if i > 1:
+                if row[23] == "split_swap" and float(row[10]) > maxDist * 3 // 4:
+                    splitSwapSimTimeZone0 += float(row[4])
+                elif row[23] == "split" and float(row[10]) > maxDist * 3 // 4:
+                    splitSimTimeZone0 += float(row[4])
+                elif row[23] == "migrate" and float(row[10]) > maxDist * 3 // 4:
+                    migrateSimTimeZone0 += float(row[4])
+                elif row[23] == "swap" and float(row[10]) > maxDist * 3 // 4:
+                    swapSimTimeZone0 += float(row[4])
+                elif row[23] == "identity" and float(row[10]) > maxDist * 3 // 4:
+                    idenSimTimeZone0 += float(row[4])
+                elif row[23] == "split_swap" and float(row[10]) <= maxDist * 3 // 4 and float(row[10]) > maxDist // 2:
+                    splitSwapSimTimeZone1 += float(row[4])
+                elif row[23] == "split" and float(row[10]) <= maxDist * 3 // 4 and float(row[10]) > maxDist // 2:
+                    splitSimTimeZone1 += float(row[4])
+                elif row[23] == "migrate" and float(row[10]) <= maxDist * 3 // 4 and float(row[10]) > maxDist // 2:
+                    migrateSimTimeZone1 += float(row[4])
+                elif row[23] == "swap" and float(row[10]) <= maxDist * 3 // 4 and float(row[10]) > maxDist // 2:
+                    swapSimTimeZone1 += float(row[4])
+                elif row[23] == "identity" and float(row[10]) <= maxDist * 3 // 4 and float(row[10]) > maxDist // 2:
+                    idenSimTimeZone1 += float(row[4])
+                elif row[23] == "split_swap" and float(row[10]) <= maxDist // 2 and float(row[10]) > maxDist // 4:
+                    splitSwapSimTimeZone2 += float(row[4])
+                elif row[23] == "split" and float(row[10]) <= maxDist // 2 and float(row[10]) > maxDist // 4:
+                    splitSimTimeZone2 += float(row[4])
+                elif row[23] == "migrate" and float(row[10]) <= maxDist // 2 and float(row[10]) > maxDist // 4:
+                    migrateSimTimeZone2 += float(row[4])
+                elif row[23] == "swap" and float(row[10]) <= maxDist // 2 and float(row[10]) > maxDist // 4:
+                    swapSimTimeZone2 += float(row[4])
+                elif row[23] == "identity" and float(row[10]) <= maxDist // 2 and float(row[10]) > maxDist // 4:
+                    idenSimTimeZone2 += float(row[4])
+                elif row[23] == "split_swap" and float(row[10]) <= maxDist // 4:
+                    splitSwapSimTimeZone3 += float(row[4])
+                elif row[23] == "split" and float(row[10]) <= maxDist // 4:
+                    splitSimTimeZone3 += float(row[4])
+                elif row[23] == "migrate" and float(row[10]) <= maxDist // 4:
+                    migrateSimTimeZone3 += float(row[4])
+                elif row[23] == "swap" and float(row[10]) <= maxDist // 4:
+                    swapSimTimeZone3 += float(row[4])
+                elif row[23] == "identity" and float(row[10]) <= maxDist // 4:
+                    idenSimTimeZone3 += float(row[4])
+                else:
+                    raise Exception("move name is not split_swap or split or migrate or swap or identity! The new type: " + row[23])
+        
+        plotdata = pd.DataFrame({
+            "split_swap":[splitSwapSimTimeZone0, splitSwapSimTimeZone1, splitSwapSimTimeZone2, splitSwapSimTimeZone3],
+            "split":[splitSimTimeZone0, splitSimTimeZone1, splitSimTimeZone2, splitSimTimeZone3],
+            "migrate":[migrateSimTimeZone0, migrateSimTimeZone1, migrateSimTimeZone2, migrateSimTimeZone3],
+            "swap":[swapSimTimeZone0, swapSimTimeZone1, swapSimTimeZone2, swapSimTimeZone3],
+            "identity":[idenSimTimeZone0, idenSimTimeZone1, idenSimTimeZone2, idenSimTimeZone3]
+        }, index = ["1~3/4", "3/4~1/2", "1/2~1/4", "1/4~0"]
+        )
+        plotdata.plot(kind = 'bar', stacked = True)
+        plt.xlabel("Zone decided by the max distance to goal")
+        plt.ylabel("Simulation Time")
+        plt.title("Simulation Time in Each Zone based on Move Name")
+        plt.savefig(dirName + fileName + "/simTimeVSmoveNameZoneDist-" + fileName + ".png")
+        plt.show()
+
+# the function to plot distance to goal vs. iteration x depth
 def plotSimTimeVScommCompZoneDist(dirName, fileName):
     with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
         resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
@@ -206,7 +302,7 @@ def plotSimTimeVScommCompZoneDist(dirName, fileName):
         maxDist = 0
 
         for i, row in enumerate(resultReader):
-            print('"' + row[1] + '"\t"' + row[4] + '"\t"' + row[5] + '"\t"' + row[10] + '"\t"' + row[12] + '"\t"' + row[13] + '"\t"' + row[22] + '"\t"' + row[23] + '"\t"' + row[28] + '"\t' + row[29] + '"\t"' + row[30] + '"')
+            # print('"' + row[1] + '"\t"' + row[4] + '"\t"' + row[5] + '"\t"' + row[10] + '"\t"' + row[12] + '"\t"' + row[13] + '"\t"' + row[22] + '"\t"' + row[23] + '"\t"' + row[28] + '"\t' + row[29] + '"\t"' + row[30] + '"')
             if row[22] != "True":
                 continue
 
@@ -233,18 +329,15 @@ def plotSimTimeVScommCompZoneDist(dirName, fileName):
                 else:
                     raise Exception("comm_comp is not giving comm or comp! The new type: " + row[28])
         
-        dist = ["1~3/4 Max Dist", "3/4~1/2 Max Dist", "1/2~1/4 Max Dist", "1/4~0 Max Dist"]
-        commSim = [commSimTimeZone0, commSimTimeZone1, commSimTimeZone2, commSimTimeZone3]
-        compSim = [compSimTimeZone0, compSimTimeZone1, compSimTimeZone2, compSimTimeZone3]
-        # print(commSim)
-        # print(compSim)
-        fig, ax = plt.subplots()
-        ax.bar(dist, commSim, label = 'comm')
-        ax.bar(dist, compSim, label = 'comp')
-        ax.legend()
+        plotdata = pd.DataFrame({
+            "comm":[commSimTimeZone0, commSimTimeZone1, commSimTimeZone2, commSimTimeZone3],
+            "comp":[compSimTimeZone0, compSimTimeZone1, compSimTimeZone2, compSimTimeZone3]
+        }, index = ["1~3/4", "3/4~1/2", "1/2~1/4", "1/4~0"]
+        )
+        plotdata.plot(kind = 'bar', stacked = True)
         plt.xlabel("Zone decided by the max distance to goal")
         plt.ylabel("Simulation Time")
-        plt.title("Simulation Time in Each Zone")
+        plt.title("Simulation Time in Each Zone based on comm_comp")
         plt.savefig(dirName + fileName + "/simTimeVScommCompZoneDist-" + fileName + ".png")
         plt.show()
 
@@ -261,4 +354,5 @@ if __name__ == "__main__":
     # plotMoveGenTimeVSblk(dirName, fileName)
     # plotDistToGoalVSitr(dirName, fileName)
     # plotRefDistToGoalVSitr(dirName, fileName)
+    plotSimTimeVSmoveNameZoneDist(dirName, fileName)
     plotSimTimeVScommCompZoneDist(dirName, fileName)
