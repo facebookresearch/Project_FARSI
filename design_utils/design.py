@@ -1252,6 +1252,8 @@ class SimDesignPoint(ExDesignPoint):
         # prime cacti
         mem_bytes = max(blk.get_area_in_bytes(), config.cacti_min_memory_size_in_bytes)
         subtype = blk.subtype
+        mem_bytes = (int(mem_bytes/config.min_mem_size[subtype])+1)*config.min_mem_size[subtype] # modulo calculation
+
         #subtype = "sram"  # TODO: change later to sram/dram
         mem_subtype = self.FARSI_to_cacti_mem_type_converter(subtype)
         cell_type = self.FARSI_to_cacti_cell_type_converter(subtype)
@@ -1290,7 +1292,7 @@ class SimDesignPoint(ExDesignPoint):
         elif blk.type == "mem":
             mem_bytes = max(blk.get_area_in_bytes(), config.cacti_min_memory_size_in_bytes) # to make sure we don't go smaller than cacti's minimum size
             mem_subtype = self.FARSI_to_cacti_mem_type_converter(blk.subtype)
-
+            mem_bytes = (int(mem_bytes / config.min_mem_size[mem_subtype]) + 1) * config.min_mem_size[mem_subtype]  # modulo calculation
             #mem_subtype = "ram" #choose from ["main memory", "ram"]
             found_results, read_energy_per_byte, write_energy_per_byte, area = \
                 self.cacti_hndlr.cacti_data_container.find(list(zip(config.cacti_input_col_order,[mem_subtype, mem_bytes])))
@@ -1478,6 +1480,13 @@ class DPStats:
             mem_count = len(self.dp.get_workload_to_hardware_map().get_blocks_by_type("mem"))
             pe_count = len(self.dp.get_workload_to_hardware_map().get_blocks_by_type("pe"))
         with open(file_addr, "w+") as output:
+            routing_complexity = self.dp.get_hardware_graph().get_routing_complexity()
+            simple_topology = self.dp.get_hardware_graph().get_simplified_topology_code()
+            blk_cnt = sum([int(el) for el in simple_topology.split("_")])
+            bus_cnt = [int(el) for el in simple_topology.split("_")][0]
+            mem_cnt = [int(el) for el in simple_topology.split("_")][1]
+            pe_cnt = [int(el) for el in simple_topology.split("_")][2]
+
             output.write("{\n")
             output.write("\"FARSI_predicted_latency\": "+ str(max(list(self.get_system_complex_metric("latency").values()))) +",\n")
             output.write("\"FARSI_predicted_energy\": "+ str(self.get_system_complex_metric("energy")) +",\n")
@@ -1486,6 +1495,11 @@ class DPStats:
             #output.write("\"config_code\": "+ str(ic_count) + str(mem_count) + str(pe_count)+",\n")
             #output.write("\"config_code\": "+ self.dp.get_hardware_graph().get_config_code() +",\n")
             output.write("\"simplified_topology_code\": "+ self.dp.get_hardware_graph().get_simplified_topology_code() +",\n")
+            output.write("\"blk_cnt\": "+ str(blk_cnt) +",\n")
+            output.write("\"pe_cnt\": "+ str(pe_cnt) +",\n")
+            output.write("\"mem_cnt\": "+ str(mem_cnt) +",\n")
+            output.write("\"bus_cnt\": "+ str(bus_cnt) +",\n")
+            output.write("\"FARSI simulation time\": " + str(self.dp.get_simulation_time()) + ",\n")
 
     # Function: profile the simulated design, collecting information about
     #           latency, power, area, and phasal behavior

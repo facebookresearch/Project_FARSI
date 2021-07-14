@@ -580,8 +580,8 @@ if __name__ == "__main__":
 
     #workloads = {"edge_detection"}
     #workloads = {"hpvm_cava"}
-    workloads = {"audio_decoder"}
-    #workloads = {"SLAM"}
+    #workloads = {"audio_decoder"}
+    workloads = {"SLAM"}
     #workloads ={"audio_decoder", "edge_detection", "hpvm_cava"}
     #workloads ={"audio_decoder", "edge_detection"}
 
@@ -593,7 +593,7 @@ if __name__ == "__main__":
     #ip_freq_range = {"incr":3, "upper_bound":8}
     #mem_freq_range = {"incr":3, "upper_bound":6}
     #ic_freq_range = {"incr":4, "upper_bound":6}
-    ip_freq_range = [1,4,6, 8]
+    ip_freq_range = [1,4,6,8]
     mem_freq_range = [1,4,6]
     ic_freq_range = [1,4,6]
     tech_node_SF = {"perf":1, "energy":.064, "area":.037}   # technology node scaling factor
@@ -605,11 +605,11 @@ if __name__ == "__main__":
 
     # set software hardware database population
     # for SLAM
-    #sw_hw_database_population = {"db_mode": "hardcoded", "hw_graph_mode": "generated_from_scratch",
-    #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
-    # for paper workloads
-    sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_scratch",
+    sw_hw_database_population = {"db_mode": "hardcoded", "hw_graph_mode": "generated_from_scratch",
                                  "workloads": workloads, "misc_knobs": db_population_misc_knobs}
+    # for paper workloads
+    #sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_scratch",
+    #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
     # for check pointed
     #sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_check_point",
     #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
