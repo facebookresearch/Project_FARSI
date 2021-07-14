@@ -1498,7 +1498,7 @@ class HillClimbing:
             sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics = sorted(sim_dp_stat_ann_delta_energy_dict_all_metrics.items(),
                                                               key=lambda x: x[1])
 
-            if sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics[0][1] < -.0000001: # a very small number
+            if sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics[0][1] < -.0001: # a very small number
                 # if a better design (than the best exist), return
                 return sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics[0], True
             else:

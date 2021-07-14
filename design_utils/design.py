@@ -1292,7 +1292,7 @@ class SimDesignPoint(ExDesignPoint):
         elif blk.type == "mem":
             mem_bytes = max(blk.get_area_in_bytes(), config.cacti_min_memory_size_in_bytes) # to make sure we don't go smaller than cacti's minimum size
             mem_subtype = self.FARSI_to_cacti_mem_type_converter(blk.subtype)
-            mem_bytes = (int(mem_bytes / config.min_mem_size[mem_subtype]) + 1) * config.min_mem_size[mem_subtype]  # modulo calculation
+            mem_bytes = (int(mem_bytes / config.min_mem_size[blk.subtype]) + 1) * config.min_mem_size[blk.subtype]  # modulo calculation
             #mem_subtype = "ram" #choose from ["main memory", "ram"]
             found_results, read_energy_per_byte, write_energy_per_byte, area = \
                 self.cacti_hndlr.cacti_data_container.find(list(zip(config.cacti_input_col_order,[mem_subtype, mem_bytes])))
