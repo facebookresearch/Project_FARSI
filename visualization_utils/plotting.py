@@ -227,45 +227,45 @@ def plotSimTimeVSmoveNameZoneDist(dirName, fileName):
                 maxDist = float(row[10])
 
             if i > 1:
-                if row[23] == "split_swap" and float(row[10]) > maxDist * 3 // 4:
+                if row[23] == "split_swap" and float(row[10]) > maxDist * 3 / 4:
                     splitSwapSimTimeZone0 += float(row[4])
-                elif row[23] == "split" and float(row[10]) > maxDist * 3 // 4:
+                elif row[23] == "split" and float(row[10]) > maxDist * 3 / 4:
                     splitSimTimeZone0 += float(row[4])
-                elif row[23] == "migrate" and float(row[10]) > maxDist * 3 // 4:
+                elif row[23] == "migrate" and float(row[10]) > maxDist * 3 / 4:
                     migrateSimTimeZone0 += float(row[4])
-                elif row[23] == "swap" and float(row[10]) > maxDist * 3 // 4:
+                elif row[23] == "swap" and float(row[10]) > maxDist * 3 / 4:
                     swapSimTimeZone0 += float(row[4])
-                elif row[23] == "identity" and float(row[10]) > maxDist * 3 // 4:
+                elif row[23] == "identity" and float(row[10]) > maxDist * 3 / 4:
                     idenSimTimeZone0 += float(row[4])
-                elif row[23] == "split_swap" and float(row[10]) <= maxDist * 3 // 4 and float(row[10]) > maxDist // 2:
+                elif row[23] == "split_swap" and float(row[10]) <= maxDist * 3 / 4 and float(row[10]) > maxDist / 2:
                     splitSwapSimTimeZone1 += float(row[4])
-                elif row[23] == "split" and float(row[10]) <= maxDist * 3 // 4 and float(row[10]) > maxDist // 2:
+                elif row[23] == "split" and float(row[10]) <= maxDist * 3 / 4 and float(row[10]) > maxDist / 2:
                     splitSimTimeZone1 += float(row[4])
-                elif row[23] == "migrate" and float(row[10]) <= maxDist * 3 // 4 and float(row[10]) > maxDist // 2:
+                elif row[23] == "migrate" and float(row[10]) <= maxDist * 3 / 4 and float(row[10]) > maxDist / 2:
                     migrateSimTimeZone1 += float(row[4])
-                elif row[23] == "swap" and float(row[10]) <= maxDist * 3 // 4 and float(row[10]) > maxDist // 2:
+                elif row[23] == "swap" and float(row[10]) <= maxDist * 3 / 4 and float(row[10]) > maxDist / 2:
                     swapSimTimeZone1 += float(row[4])
-                elif row[23] == "identity" and float(row[10]) <= maxDist * 3 // 4 and float(row[10]) > maxDist // 2:
+                elif row[23] == "identity" and float(row[10]) <= maxDist * 3 / 4 and float(row[10]) > maxDist / 2:
                     idenSimTimeZone1 += float(row[4])
-                elif row[23] == "split_swap" and float(row[10]) <= maxDist // 2 and float(row[10]) > maxDist // 4:
+                elif row[23] == "split_swap" and float(row[10]) <= maxDist / 2 and float(row[10]) > maxDist / 4:
                     splitSwapSimTimeZone2 += float(row[4])
-                elif row[23] == "split" and float(row[10]) <= maxDist // 2 and float(row[10]) > maxDist // 4:
+                elif row[23] == "split" and float(row[10]) <= maxDist / 2 and float(row[10]) > maxDist / 4:
                     splitSimTimeZone2 += float(row[4])
-                elif row[23] == "migrate" and float(row[10]) <= maxDist // 2 and float(row[10]) > maxDist // 4:
+                elif row[23] == "migrate" and float(row[10]) <= maxDist / 2 and float(row[10]) > maxDist / 4:
                     migrateSimTimeZone2 += float(row[4])
-                elif row[23] == "swap" and float(row[10]) <= maxDist // 2 and float(row[10]) > maxDist // 4:
+                elif row[23] == "swap" and float(row[10]) <= maxDist / 2 and float(row[10]) > maxDist / 4:
                     swapSimTimeZone2 += float(row[4])
-                elif row[23] == "identity" and float(row[10]) <= maxDist // 2 and float(row[10]) > maxDist // 4:
+                elif row[23] == "identity" and float(row[10]) <= maxDist / 2 and float(row[10]) > maxDist / 4:
                     idenSimTimeZone2 += float(row[4])
-                elif row[23] == "split_swap" and float(row[10]) <= maxDist // 4:
+                elif row[23] == "split_swap" and float(row[10]) <= maxDist / 4:
                     splitSwapSimTimeZone3 += float(row[4])
-                elif row[23] == "split" and float(row[10]) <= maxDist // 4:
+                elif row[23] == "split" and float(row[10]) <= maxDist / 4:
                     splitSimTimeZone3 += float(row[4])
-                elif row[23] == "migrate" and float(row[10]) <= maxDist // 4:
+                elif row[23] == "migrate" and float(row[10]) <= maxDist / 4:
                     migrateSimTimeZone3 += float(row[4])
-                elif row[23] == "swap" and float(row[10]) <= maxDist // 4:
+                elif row[23] == "swap" and float(row[10]) <= maxDist / 4:
                     swapSimTimeZone3 += float(row[4])
-                elif row[23] == "identity" and float(row[10]) <= maxDist // 4:
+                elif row[23] == "identity" and float(row[10]) <= maxDist / 4:
                     idenSimTimeZone3 += float(row[4])
                 else:
                     raise Exception("move name is not split_swap or split or migrate or swap or identity! The new type: " + row[23])
@@ -310,21 +310,21 @@ def plotSimTimeVScommCompZoneDist(dirName, fileName):
                 maxDist = float(row[10])
 
             if i > 1:
-                if row[28] == "comm" and float(row[10]) > maxDist * 3 // 4:
+                if row[28] == "comm" and float(row[10]) > maxDist * 3 / 4:
                     commSimTimeZone0 += float(row[4])
-                elif row[28] == "comp" and float(row[10]) > maxDist * 3 // 4:
+                elif row[28] == "comp" and float(row[10]) > maxDist * 3 / 4:
                     compSimTimeZone0 += float(row[4])
-                elif row[28] == "comm" and float(row[10]) <= maxDist * 3 // 4 and float(row[10]) > maxDist // 2:
+                elif row[28] == "comm" and float(row[10]) <= maxDist * 3 / 4 and float(row[10]) > maxDist / 2:
                     commSimTimeZone1 += float(row[4])
-                elif row[28] == "comp" and float(row[10]) <= maxDist * 3 // 4 and float(row[10]) > maxDist // 2:
+                elif row[28] == "comp" and float(row[10]) <= maxDist * 3 / 4 and float(row[10]) > maxDist / 2:
                     compSimTimeZone1 += float(row[4])
-                elif row[28] == "comm" and float(row[10]) <= maxDist // 2 and float(row[10]) > maxDist // 4:
+                elif row[28] == "comm" and float(row[10]) <= maxDist / 2 and float(row[10]) > maxDist / 4:
                     commSimTimeZone2 += float(row[4])
-                elif row[28] == "comp" and float(row[10]) <= maxDist // 2 and float(row[10]) > maxDist // 4:
+                elif row[28] == "comp" and float(row[10]) <= maxDist / 2 and float(row[10]) > maxDist / 4:
                     compSimTimeZone2 += float(row[4])
-                elif row[28] == "comm" and float(row[10]) <= maxDist // 4:
+                elif row[28] == "comm" and float(row[10]) <= maxDist / 4:
                     commSimTimeZone3 += float(row[4])
-                elif row[28] == "comp" and float(row[10]) <= maxDist // 4:
+                elif row[28] == "comp" and float(row[10]) <= maxDist / 4:
                     compSimTimeZone3 += float(row[4])
                 else:
                     raise Exception("comm_comp is not giving comm or comp! The new type: " + row[28])
