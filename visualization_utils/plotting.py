@@ -189,6 +189,64 @@ def plotRefDistToGoalVSitr(dirName, fileName):
         plt.savefig(dirName + fileName + "/refDistToGoalVSitr-" + fileName + ".png")
         plt.show()
 
+# the function to plot distance to goal vs. iteration x depth
+def plotSimTimeVScommCompZoneDist(dirName, fileName):
+    with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
+        resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+
+        commSimTimeZone0 = 0
+        commSimTimeZone1 = 0
+        commSimTimeZone2 = 0
+        commSimTimeZone3 = 0
+        compSimTimeZone0 = 0
+        compSimTimeZone1 = 0
+        compSimTimeZone2 = 0
+        compSimTimeZone3 = 0
+
+        maxDist = 0
+
+        for i, row in enumerate(resultReader):
+            print('"' + row[1] + '"\t"' + row[4] + '"\t"' + row[5] + '"\t"' + row[10] + '"\t"' + row[12] + '"\t"' + row[13] + '"\t"' + row[22] + '"\t"' + row[23] + '"\t"' + row[28] + '"\t' + row[29] + '"\t"' + row[30] + '"')
+            if row[22] != "True":
+                continue
+
+            if i == 2:
+                maxDist = float(row[10])
+
+            if i > 1:
+                if row[28] == "comm" and float(row[10]) > maxDist * 3 // 4:
+                    commSimTimeZone0 += float(row[4])
+                elif row[28] == "comp" and float(row[10]) > maxDist * 3 // 4:
+                    compSimTimeZone0 += float(row[4])
+                elif row[28] == "comm" and float(row[10]) <= maxDist * 3 // 4 and float(row[10]) > maxDist // 2:
+                    commSimTimeZone1 += float(row[4])
+                elif row[28] == "comp" and float(row[10]) <= maxDist * 3 // 4 and float(row[10]) > maxDist // 2:
+                    compSimTimeZone1 += float(row[4])
+                elif row[28] == "comm" and float(row[10]) <= maxDist // 2 and float(row[10]) > maxDist // 4:
+                    commSimTimeZone2 += float(row[4])
+                elif row[28] == "comp" and float(row[10]) <= maxDist // 2 and float(row[10]) > maxDist // 4:
+                    compSimTimeZone2 += float(row[4])
+                elif row[28] == "comm" and float(row[10]) <= maxDist // 4:
+                    commSimTimeZone3 += float(row[4])
+                elif row[28] == "comp" and float(row[10]) <= maxDist // 4:
+                    compSimTimeZone3 += float(row[4])
+                else:
+                    raise Exception("comm_comp is not giving comm or comp! The new type: " + row[28])
+        
+        dist = ["1~3/4 Max Dist", "3/4~1/2 Max Dist", "1/2~1/4 Max Dist", "1/4~0 Max Dist"]
+        commSim = [commSimTimeZone0, commSimTimeZone1, commSimTimeZone2, commSimTimeZone3]
+        compSim = [compSimTimeZone0, compSimTimeZone1, compSimTimeZone2, compSimTimeZone3]
+        # print(commSim)
+        # print(compSim)
+        fig, ax = plt.subplots()
+        ax.bar(dist, commSim, label = 'comm')
+        ax.bar(dist, compSim, label = 'comp')
+        ax.legend()
+        plt.xlabel("Zone decided by the max distance to goal")
+        plt.ylabel("Simulation Time")
+        plt.title("Simulation Time in Each Zone")
+        plt.savefig(dirName + fileName + "/simTimeVScommCompZoneDist-" + fileName + ".png")
+        plt.show()
 
 # the main function. comment out the plots if you do not need them
 if __name__ == "__main__":
@@ -196,10 +254,11 @@ if __name__ == "__main__":
     dirName = "/home/yingj4/Desktop/Project_FARSI/data_collection/data/simple_run/"
     fileName = "07-13_14-06_59"
 
-    plotCommCompAll(dirName, fileName)
-    plothighLevelOptAll(dirName, fileName)
-    plotArchVarImpAll(dirName, fileName)
-    plotSimTimeVSblk(dirName, fileName)
-    plotMoveGenTimeVSblk(dirName, fileName)
-    plotDistToGoalVSitr(dirName, fileName)
-    plotRefDistToGoalVSitr(dirName, fileName)
+    # plotCommCompAll(dirName, fileName)
+    # plothighLevelOptAll(dirName, fileName)
+    # plotArchVarImpAll(dirName, fileName)
+    # plotSimTimeVSblk(dirName, fileName)
+    # plotMoveGenTimeVSblk(dirName, fileName)
+    # plotDistToGoalVSitr(dirName, fileName)
+    # plotRefDistToGoalVSitr(dirName, fileName)
+    plotSimTimeVScommCompZoneDist(dirName, fileName)
