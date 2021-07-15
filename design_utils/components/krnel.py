@@ -451,6 +451,7 @@ class Kernel:
         self.block_num_shared_blocks_dict = {}  # how many other kernels shared this block
         #self.work_unit_dict = self.__task_to_blocks_map.task.__task_to_family_task_work_unit  # determines for each burst how much work needs
                                                                                          # to be done.
+        self.path_structural_latency = {}
 
     # This function is used for the power knobs simulator; After each run the stats
     #  gathered for each kernel is removed to avoid conflicting with past simulations
@@ -981,6 +982,56 @@ class Kernel:
 
                     work_unit = self.get_task().get_smallest_task_work_unit_by_dir(dir)
                     self.block_path_dir_phase_latency[block][pipe_cluster][dir][last_phase] =  work_unit/ work_rate
+
+    # not considering congestion in the system
+    # calculate the path latency for a kernel
+    def update_path_structural_latency(self, design):
+        if self.get_task().is_task_dummy():
+            return
+        blocks = self.get_blocks()
+        pes = [blk for blk in blocks if blk.type == "pe"]
+        mems = [blk for blk in blocks if blk.type == "mem"]
+        buses = [blk for blk in blocks if blk.type == "mem"]
+        read_mems = [block for block in mems if block.get_task_dir_by_task_name(self.get_task())[0][1] == "write"]
+        write_mems = [block for block in mems if block.get_task_dir_by_task_name(self.get_task())[0][1] == "write"]
+
+        # iterate through the paths (from pe to memory) and add up hop and fleet generation latency
+        for pe in pes:
+            for mem in read_mems:
+                dir = "read"
+                path = design.get_hardware_graph().get_path_between_two_vertecies(pe, mem)
+                hop_latency = 0
+                # hop latency
+                for blk in path:
+                    hop_latency += 1/blk.get_block_freq()
+
+                # fleet generation latency
+                # at the moment, we only do it for a represantative bus.
+                # we might need to add extra latency if there is a mismatch between the bus width of the adjacent buses
+                work_unit = self.get_task().get_smallest_task_work_unit_by_dir("read")
+                fleet_cnt = (work_unit/ mem.get_block_bus_width())
+                fleet_generation_latency = fleet_cnt/buses[0].get_block_freq() # any bus would work
+                latency = hop_latency + fleet_generation_latency
+                self.path_structural_latency[(pe, mem, dir)] =  latency
+
+        for pe in pes:
+            for mem in read_mems:
+                dir = "write"
+                path = design.get_hardware_graph().get_path_between_two_vertecies(pe, mem)
+                hop_latency = 0
+                # hop latency
+                for blk in path:
+                    hop_latency += 1/blk.get_block_freq()
+
+                # fleet generation latency
+                # at the moment, we only do it for a represantative bus.
+                # we might need to add extra latency if there is a mismatch between the bus width of the adjacent buses
+                work_unit = self.get_task().get_smallest_task_work_unit_by_dir("write")
+                fleet_cnt = (work_unit/ mem.get_block_bus_width())
+                fleet_generation_latency = fleet_cnt/buses[0].get_block_freq() # any bus would work
+                latency = hop_latency + fleet_generation_latency
+                self.path_structural_latency[(pe, mem, dir)] =  latency
+
 
     # update paths (inpipe-outpipe) work rate
     # We are not using the following as it was not usefull (and with verification didn't give us good results)

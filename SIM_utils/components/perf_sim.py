@@ -209,7 +209,7 @@ class PerformanceSimulator:
     #   determine the various KPIs for each kernel.
     #   work-rate is how quickly each kernel can be done, which depends on it's bottleneck
     # ------------------------------
-    def update_kernels_kpi_for_next_tick(self):
+    def update_kernels_kpi_for_next_tick(self, design):
         # update each kernels's work-rate (bandwidth)
         _ = [kernel.update_block_att_work_rate(self.scheduled_kernels) for kernel in self.scheduled_kernels]
         # update each pipe cluster's paths (inpipe-outpipe) work-rate
@@ -220,6 +220,8 @@ class PerformanceSimulator:
         # update as it depends on it
         #_ = [kernel.update_pipe_clusters_pathlet_latency(self.scheduled_kernels) for kernel in self.scheduled_kernels]
         _ = [kernel.update_path_latency() for kernel in self.scheduled_kernels]
+        _ = [kernel.update_path_structural_latency(design) for kernel in self.scheduled_kernels]
+
 
     # ------------------------------
     # Functionality:
@@ -303,7 +305,7 @@ class PerformanceSimulator:
 
         # check if execution is completed or not!
         self.update_program_status()
-        self.update_kernels_kpi_for_next_tick()  # update each kernels' work rate
+        self.update_kernels_kpi_for_next_tick(self.design)  # update each kernels' work rate
 
         self.update_parallel_tasks()
         self.phase_num += 1
