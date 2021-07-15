@@ -396,7 +396,7 @@ def gen_correction_values(workload, misc_knobs):
     tech_node_SF = {}
     tech_node_SF["perf"] =1
     tech_node_SF["energy"] =1
-    tech_node_SF["area"] =1
+    tech_node_SF["area"] = {"mem":1, "non_mem":1}
 
     # if any of hte above values found in misc_knobs, over write
     if "ip_freq_correction_ratio" in misc_knobs.keys():
@@ -431,17 +431,17 @@ def gen_correction_values(workload, misc_knobs):
     correction_dict["ic"]["work_over_energy"] = (1/tech_node_SF["energy"])*1
 
 
-    correction_dict["ip"]["work_over_area"] = (1/tech_node_SF["area"])*1
-    correction_dict["gpp"]["work_over_area"] = (1/tech_node_SF["area"])*1
-    correction_dict["sram"]["work_over_area"] = (1/tech_node_SF["area"])*1
-    correction_dict["dram"]["work_over_area"] = (1/tech_node_SF["area"])*1
-    correction_dict["ic"]["work_over_area"] = (1/tech_node_SF["area"])*1
+    correction_dict["ip"]["work_over_area"] = (1/tech_node_SF["area"]["non_mem"])*1
+    correction_dict["gpp"]["work_over_area"] = (1/tech_node_SF["area"]["non_mem"])*1
+    correction_dict["sram"]["work_over_area"] = (1/tech_node_SF["area"]["mem"])*1
+    correction_dict["dram"]["work_over_area"] = (1/tech_node_SF["area"]["mem"])*1
+    correction_dict["ic"]["work_over_area"] = (1/tech_node_SF["area"]["non_mem"])*1
 
-    correction_dict["ip"]["one_over_area"] = (1 / tech_node_SF["area"]) * 1
-    correction_dict["gpp"]["one_over_area"] = (1 / tech_node_SF["area"]) * 1
-    correction_dict["sram"]["one_over_area"] = (1 / tech_node_SF["area"]) * 1
-    correction_dict["dram"]["one_over_area"] = (1 / tech_node_SF["area"]) * 1
-    correction_dict["ic"]["one_over_area"] = (1 / tech_node_SF["area"]) * 1
+    correction_dict["ip"]["one_over_area"] = (1 / tech_node_SF["area"]["non_mem"]) * 1
+    correction_dict["gpp"]["one_over_area"] = (1 / tech_node_SF["area"]["non_mem"]) * 1
+    correction_dict["sram"]["one_over_area"] = (1 / tech_node_SF["area"]["mem"]) * 1
+    correction_dict["dram"]["one_over_area"] = (1 / tech_node_SF["area"]["mem"]) * 1
+    correction_dict["ic"]["one_over_area"] = (1 / tech_node_SF["area"]["non_mem"]) * 1
 
     return correction_dict
 

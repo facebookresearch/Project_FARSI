@@ -92,8 +92,8 @@ other_metrics = ["cost"]
 
 budget_dict = {}
 budget_dict["glass"] = {}
-budget_dict["glass"]["power"] = .2
-budget_dict["glass"]["area"] = .00004
+budget_dict["glass"]["power"] = .05
+budget_dict["glass"]["area"] = .00001
 
 home_dir = home_settings.home_dir
 #home_dir = os.getcwd()+"/../../"
@@ -278,6 +278,13 @@ cacti_min_memory_size_in_bytes =  2048 # bellow this value cacti errors out. We 
 #ACC_coeff = 128  # comparing to what we have parsed, how much to modify. This is just for some exploration purposes
 	       # It should almost always set to 1
 
+
+transformation_selection_mode = "arch-aware"  # choose from {random, arch-aware}
+if RUN_VERIFICATION_AT_ALL:
+    transformation_selection_mode = "random" # choose from {random, arch-aware}
+
+#
+min_mem_size = {"sram": 256000, "dram":256000}
 
 dram_stacked = True
 parallelism_analysis = "dynamic" # choose from ["dynamic", "static"]  # at the moment static is not working, something to do with the task and task sync

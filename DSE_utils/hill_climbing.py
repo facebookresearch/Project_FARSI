@@ -595,9 +595,14 @@ class HillClimbing:
         else:
             return False
 
-
-
     def get_feasible_transformations(self, ex_dp, sim_dp, hot_blck_synced, selected_metric, selected_krnl, sorted_metric_dir):
+        if config.transformation_selection_mode == "random":
+            all_transformations = ["migrate","swap", "split", "split_swap", "transfer", "routing"]
+            # for performance verification at the moment we support only the following
+            if config.RUN_VERIFICATION_AT_ALL:
+                all_transformations = ["migrate","swap", "split", "split_swap"]
+            return all_transformations
+
         imm_block = self.dh.get_immediate_block_multi_metric(hot_blck_synced, selected_metric, sorted_metric_dir,  hot_blck_synced.get_tasks_of_block())
         task = ex_dp.get_hardware_graph().get_task_graph().get_task_by_name(selected_krnl.get_task_name())
         feasible_transformations = set(config.metric_trans_dict[selected_metric])
@@ -1493,7 +1498,7 @@ class HillClimbing:
             sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics = sorted(sim_dp_stat_ann_delta_energy_dict_all_metrics.items(),
                                                               key=lambda x: x[1])
 
-            if sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics[0][1] < -.0000001: # a very small number
+            if sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics[0][1] < -.0001: # a very small number
                 # if a better design (than the best exist), return
                 return sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics[0], True
             else:
