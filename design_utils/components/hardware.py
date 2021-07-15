@@ -486,7 +486,7 @@ class Block:
         if self.type == "mem":
             if area < 0: dir = 'read'
             else: dir = 'write'
-            if (self.area_list[-1]+area) < -1*self.db_input.misc_data["area_error_margin"]:
+            if (self.area_list[-1]+area) < -1*self.db_input.misc_data["area_error_margin"] and not config.use_cacti:
                 raise Exception("memory size can not go bellow the error margin")
             #if dir == "write":
             #    self.task_mem_map_dict[task_requesting] = (hex(int(self.area_list[-1])), hex(int(self.area_list[-1]+area)))
