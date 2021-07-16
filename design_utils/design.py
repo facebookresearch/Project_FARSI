@@ -1130,6 +1130,7 @@ class SimDesignPoint(ExDesignPoint):
         self.phase_krnl_present = {}
         self.iteration_number = 0  # the iteration which the simulation is done
         self.population_observed_number = 0
+        self.population_generated_number = 0
         self.depth_number = 0  # the depth (within on iteration) which the simulation is done
         self.simulation_time = 0  # how long did it take to do the simulation
         if config.use_cacti:
@@ -1153,6 +1154,9 @@ class SimDesignPoint(ExDesignPoint):
     def set_population_observed_number(self, population_observed_number):
         self.population_observed_number = population_observed_number
 
+    def set_population_generated_number(self, population_generated_number):
+        self.population_generated_number = population_generated_number
+
     def set_depth_number(self, depth_number):
         self.depth_number = depth_number
 
@@ -1165,6 +1169,8 @@ class SimDesignPoint(ExDesignPoint):
     def get_population_observed_number(self):
         return self.population_observed_number
 
+    def get_population_generated_number(self):
+        return self.population_generated_number
 
     def get_tasks_parallel_task_dynamically(self, task):
         if task.is_task_dummy():

@@ -58,8 +58,9 @@ def run_with_params(workloads, SA_depth, freq_range, power_budget, area_budget):
     result_home_dir_default = os.path.join(os.getcwd(), "data_collection/data/" + study_type)
     result_home_dir = os.path.join(config.home_dir, "data_collection/data/" + study_type)
     date_time = datetime.now().strftime('%m-%d_%H-%M_%S')
+    budget_values = "pow_"+str(config.budget_dict["glass"]["power"]) + "__area_"+str(config.budget_dict["glass"]["area"])
     result_folder = os.path.join(result_home_dir,
-                                 date_time)
+                                 date_time + "____"+ budget_values)
 
     # set the study parameters
     # set the workload
