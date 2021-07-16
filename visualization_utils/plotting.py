@@ -46,6 +46,7 @@ def plotCommCompAll(dirName, fileName, colNum, trueNum):
         plt.title("comm_comp: Frequency")
         plt.savefig(dirName + fileName + "/comm-compFreq-" + fileName + ".png")
         # plt.show()
+        plt.close('all')
 
 # the function to plot the frequency of all high level optimizations in the pie chart
 def plothighLevelOptAll(dirName, fileName, colNum, trueNum):
@@ -78,6 +79,7 @@ def plothighLevelOptAll(dirName, fileName, colNum, trueNum):
         plt.title("High Level Optimization: Frequency")
         plt.savefig(dirName + fileName + "/highLevelOpt-" + fileName + ".png")
         # plt.show()
+        plt.close('all')
 
 # the function to plot the frequency of all architectural variables to improve in the pie chart
 def plotArchVarImpAll(dirName, fileName, colNum, trueNum):
@@ -110,6 +112,7 @@ def plotArchVarImpAll(dirName, fileName, colNum, trueNum):
         plt.title("Architectural Principle: Frequency")
         plt.savefig(dirName + fileName + "/archVarImp-" + fileName + ".png")
         # plt.show()
+        plt.close('all')
 
 # the function to plot simulation time vs. system block count
 def plotSimTimeVSblk(dirName, fileName, blkColNum, simColNum, trueNum):
@@ -134,6 +137,7 @@ def plotSimTimeVSblk(dirName, fileName, blkColNum, simColNum, trueNum):
         plt.title("Simulation Time vs. Sytem Block Count")
         plt.savefig(dirName + fileName + "/simTimeVSblk-" + fileName + ".png")
         # plt.show()
+        plt.close('all')
 
 # the function to plot move generation time vs. system block count
 def plotMoveGenTimeVSblk(dirName, fileName, blkColNum, movColNum, trueNum):
@@ -158,6 +162,7 @@ def plotMoveGenTimeVSblk(dirName, fileName, blkColNum, movColNum, trueNum):
         plt.title("Move Generation Time vs. System Block Count")
         plt.savefig(dirName + fileName + "/moveGenTimeVSblk-" + fileName + ".png")
         # plt.show()
+        plt.close('all')
 
 # the function to plot distance to goal vs. iteration x depth
 def plotDistToGoalVSitr(dirName, fileName, itrColNum, distColNum, trueNum):
@@ -182,6 +187,7 @@ def plotDistToGoalVSitr(dirName, fileName, itrColNum, distColNum, trueNum):
         plt.title("Distance to Goal vs. Iteration and Depth Count")
         plt.savefig(dirName + fileName + "/distToGoalVSitr-" + fileName + ".png")
         # plt.show()
+        plt.close('all')
 
 # the function to plot distance to goal vs. iteration x depth
 def plotRefDistToGoalVSitr(dirName, fileName, itrColNum, refDistColNum, trueNum):
@@ -206,6 +212,7 @@ def plotRefDistToGoalVSitr(dirName, fileName, itrColNum, refDistColNum, trueNum)
         plt.title("Reference Design Distance to Goal vs. Iteration and Depth Count")
         plt.savefig(dirName + fileName + "/refDistToGoalVSitr-" + fileName + ".png")
         # plt.show()
+        plt.close('all')
 
 # the function to do the zonal partitioning
 def zonalPartition(comparedValue, zoneNum, maxValue):
@@ -285,6 +292,7 @@ def plotSimTimeVSmoveNameZoneDist(dirName, fileName, zoneNum, moveColNum, distCo
         plt.title("Simulation Time in Each Zone based on Move Name")
         plt.savefig(dirName + fileName + "/simTimeVSmoveNameZoneDist-" + fileName + ".png")
         # plt.show()
+        plt.close('all')
 
 # the function to plot move generation time vs. move name in a zonal format
 def plotMovGenTimeVSmoveNameZoneDist(dirName, fileName, zoneNum, moveColNum, distColNum, movGenColNum, trueNum):
@@ -348,6 +356,7 @@ def plotMovGenTimeVSmoveNameZoneDist(dirName, fileName, zoneNum, moveColNum, dis
         plt.title("Move Generation Time in Each Zone based on Move Name")
         plt.savefig(dirName + fileName + "/movGenTimeVSmoveNameZoneDist-" + fileName + ".png")
         # plt.show()
+        plt.close('all')
 
 # the function to plot simulation time vs. comm_comp in a zonal format
 def plotSimTimeVScommCompZoneDist(dirName, fileName, zoneNum, commcompColNum, distColNum, simColNum, trueNum):
@@ -389,6 +398,7 @@ def plotSimTimeVScommCompZoneDist(dirName, fileName, zoneNum, commcompColNum, di
         plt.title("Simulation Time in Each Zone based on comm_comp")
         plt.savefig(dirName + fileName + "/simTimeVScommCompZoneDist-" + fileName + ".png")
         # plt.show()
+        plt.close('all')
 
 # the function to plot simulation time vs. comm_comp in a zonal format
 def plotMovGenTimeVScommCompZoneDist(dirName, fileName, zoneNum, commcompColNum, distColNum, movGenColNum, trueNum):
@@ -430,6 +440,7 @@ def plotMovGenTimeVScommCompZoneDist(dirName, fileName, zoneNum, commcompColNum,
         plt.title("Move Generation Time in Each Zone based on comm_comp")
         plt.savefig(dirName + fileName + "/movGenTimeVScommCompZoneDist-" + fileName + ".png")
         # plt.show()
+        plt.close('all')
 
 # the function to plot simulation time vs. optimization name in a zonal format
 def plotSimTimeVShighLevelOptZoneDist(dirName, fileName, zoneNum, optColNum, distColNum, simColNum, trueNum):
@@ -479,6 +490,7 @@ def plotSimTimeVShighLevelOptZoneDist(dirName, fileName, zoneNum, optColNum, dis
         plt.title("Simulation Time in Each Zone based on Optimation Name")
         plt.savefig(dirName + fileName + "/simTimeVShighLevelOptZoneDist-" + fileName + ".png")
         # plt.show()
+        plt.close('all')
 
 # the function to plot simulation time vs. optimization name in a zonal format
 def plotMovGenTimeVShighLevelOptZoneDist(dirName, fileName, zoneNum, optColNum, distColNum, movGenColNum, trueNum):
@@ -528,6 +540,7 @@ def plotMovGenTimeVShighLevelOptZoneDist(dirName, fileName, zoneNum, optColNum, 
         plt.title("Move Generation Time in Each Zone based on Optimization Name")
         plt.savefig(dirName + fileName + "/movGenTimeVShighLevelOptZoneDist-" + fileName + ".png")
         # plt.show()
+        plt.close('all')
 
 # the function to plot simulation time vs. architectural principle in a zonal format
 def plotSimTimeVSarchVarImpZoneDist(dirName, fileName, zoneNum, archColNum, distColNum, simColNum, trueNum):
@@ -577,6 +590,7 @@ def plotSimTimeVSarchVarImpZoneDist(dirName, fileName, zoneNum, archColNum, dist
         plt.title("Simulation Time in Each Zone based on Architectural Principle")
         plt.savefig(dirName + fileName + "/simTimeVSarchVarImpZoneDist-" + fileName + ".png")
         # plt.show()
+        plt.close('all')
 
 # the function to plot simulation time vs. architectural principle in a zonal format
 def plotMovGenTimeVSarchVarImpZoneDist(dirName, fileName, zoneNum, archColNum, distColNum, movGenColNum, trueNum):
@@ -626,6 +640,26 @@ def plotMovGenTimeVSarchVarImpZoneDist(dirName, fileName, zoneNum, archColNum, d
         plt.title("Move Generation Time in Each Zone based on Architectural Principle")
         plt.savefig(dirName + fileName + "/movGenTimeVSarchVarImpZoneZoneDist-" + fileName + ".png")
         # plt.show()
+        plt.close('all')
+
+# the function to plot convergence vs. iterationxdepth
+def plotConvergeVSitr3d(dirName, fileName, latNum, powNum, areaNum, trueNum):
+    with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
+        resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+
+        for i, row in enumerate(resultReader):
+            if row[trueNum] != "True":
+                continue
+
+            if i > 1:
+                latDict = eval(row[latNum])
+                keys = list(latDict.keys())
+                latList = list(latDict.values())
+                # print(keys)
+        
+        plt.figure()
+        ax = plt.axes(projection = '3d')
+        plt.show()
 
 # the main function. comment out the plots if you do not need them
 if __name__ == "__main__":
@@ -657,5 +691,7 @@ if __name__ == "__main__":
         # plotMovGenTimeVScommCompZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "comm_comp"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "move generation time"), columnNum(dirName, fileName, "move validity"))
         # plotSimTimeVShighLevelOptZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "optimization name"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "simulation time"), columnNum(dirName, fileName, "move validity"))
         # plotMovGenTimeVShighLevelOptZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "optimization name"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "move generation time"), columnNum(dirName, fileName, "move validity"))
-        plotSimTimeVSarchVarImpZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "architectural principle"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "simulation time"), columnNum(dirName, fileName, "move validity"))
-        plotMovGenTimeVSarchVarImpZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "architectural principle"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "move generation time"), columnNum(dirName, fileName, "move validity"))
+        # plotSimTimeVSarchVarImpZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "architectural principle"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "simulation time"), columnNum(dirName, fileName, "move validity"))
+        # plotMovGenTimeVSarchVarImpZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "architectural principle"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "move generation time"), columnNum(dirName, fileName, "move validity"))
+        plotConvergeVSitr3d(dirName, fileName, columnNum(dirName, fileName, "latency"), columnNum(dirName, fileName, "power"), columnNum(dirName, fileName, "area"), columnNum(dirName, fileName, "move validity"))
+        # break
