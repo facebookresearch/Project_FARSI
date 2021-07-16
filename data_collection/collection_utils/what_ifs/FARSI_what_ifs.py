@@ -149,6 +149,14 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
             result +=str(k) + "=" + str(v) + "___"
         return result
 
+    def convert_dictionary_to_parsable_csv_with_semi_column(dict_):
+        result = ""
+        for k, v in dict_.items():
+            result +=str(k) + "=" + str(v) + ";"
+        return result
+
+
+
     if not os.path.isdir(result_dir_specific):
         os.makedirs(result_dir_specific)
 
@@ -205,9 +213,22 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
 
     output_fh_minimal.write("\n")
     for metric in config.all_metrics:
-        output_fh_minimal.write(str(sim_dp.dp_stats.get_system_complex_metric(metric)) + ",")
+        data_ = sim_dp.dp_stats.get_system_complex_metric(metric)
+        if isinstance(data_, dict):
+            data__ = convert_dictionary_to_parsable_csv_with_semi_column(data_)
+        else:
+            data__ = data_
+
+        output_fh_minimal.write(str(data__) + ",")
+
         if metric in sim_dp.database.db_input.get_budget_dict("glass").keys():
-            output_fh_minimal.write(str(sim_dp.database.db_input.get_budget_dict("glass")[metric]) + ",")
+            data_ = sim_dp.database.db_input.get_budget_dict("glass")[metric]
+            if isinstance(data_, dict):
+                data__ = convert_dictionary_to_parsable_csv_with_semi_column(data_)
+            else:
+                data__ = data_
+            output_fh_minimal.write(str(data__) + ",")
+
     output_fh_minimal.write(sim_dp.database.hw_sampling["mode"] + ",")
     output_fh_minimal.write(sim_dp.database.hw_sampling["reduction"] + ",")
     for metric, accuracy_percentage in sim_dp.database.hw_sampling["accuracy_percentage"]["ip"].items():
@@ -579,9 +600,9 @@ if __name__ == "__main__":
     # set the study parameters
     # set the workload
 
-    workloads = {"edge_detection"}
+    #workloads = {"edge_detection"}
     #workloads = {"hpvm_cava"}
-    #workloads = {"audio_decoder"}
+    workloads = {"audio_decoder"}
     #workloads = {"SLAM"}
     #workloads ={"audio_decoder", "edge_detection", "hpvm_cava"}
     #workloads ={"audio_decoder", "edge_detection"}
