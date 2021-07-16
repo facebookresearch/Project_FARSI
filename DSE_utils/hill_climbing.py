@@ -2090,7 +2090,7 @@ class HillClimbing:
     def convert_dictionary_to_parsable_csv_with_semi_column(self, dict_):
         result = ""
         for k, v in dict_.items():
-            result +=str(k) + "=" + str(v) + " ; "
+            result +=str(k) + "=" + str(v) + ";"
         return result
 
 
