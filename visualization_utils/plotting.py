@@ -6,9 +6,23 @@ import csv
 import os
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
+
+# the function to get the column information of the given category
+def columnNum(dirName, fileName, cate):
+    with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
+        resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+
+        for i, row in enumerate(resultReader):
+            if i == 0:
+                for j in range(0, len(row)):
+                    if row[j] == cate:
+                        return j
+                raise Exception("No such category in the list! Check the name: " + cate)
+            break
 
 # the function to plot the frequency of all comm_comp in the pie chart
-def plotCommCompAll(dirName, fileName):
+def plotCommCompAll(dirName, fileName, colNum, trueNum):
     with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
         resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
 
@@ -16,25 +30,25 @@ def plotCommCompAll(dirName, fileName):
         compNum = 0
 
         for i, row in enumerate(resultReader):
-            # print('"' + row[1] + '"\t"' + row[4] + '"\t"' + row[5] + '"\t"' + row[10] + '"\t"' + row[12] + '"\t"' + row[13] + '"\t"' + row[22] + '"\t"' + row[23] + '"\t"' + row[28] + '"\t' + row[29] + '"\t"' + row[30] + '"')
-            if row[22] != "True":
+            if row[trueNum] != "True":
                 continue
 
             if i > 1:
-                if row[28] == "comm":
+                if row[colNum] == "comm":
                     commNum += 1
-                elif row[28] == "comp":
+                elif row[colNum] == "comp":
                     compNum += 1
                 else:
-                    raise Exception("comm_comp is not giving comm or comp! The new type: " + row[28])
-            
+                    raise Exception("comm_comp is not giving comm or comp! The new type: " + row[colNum])
+
+        plt.figure()
         plt.pie([commNum, compNum], labels = ["comm", "comp"])
         plt.title("comm_comp: Frequency")
         plt.savefig(dirName + fileName + "/comm-compFreq-" + fileName + ".png")
-        plt.show()
+        # plt.show()
 
 # the function to plot the frequency of all high level optimizations in the pie chart
-def plothighLevelOptAll(dirName, fileName):
+def plothighLevelOptAll(dirName, fileName, colNum, trueNum):
     with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
         resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
 
@@ -44,58 +58,61 @@ def plothighLevelOptAll(dirName, fileName):
         idenOptNum = 0
 
         for i, row in enumerate(resultReader):
-            # print('"' + row[1] + '"\t"' + row[4] + '"\t"' + row[5] + '"\t"' + row[10] + '"\t"' + row[12] + '"\t"' + row[13] + '"\t"' + row[22] + '"\t"' + row[23] + '"\t"' + row[28] + '"\t' + row[29] + '"\t"' + row[30] + '"')
-            if row[22] != "True":
+            if row[trueNum] != "True":
                 continue
 
             if i > 1:
-                if row[29] == "topology":
+                if row[colNum] == "topology":
                     topoNum += 1
-                elif row[29] == "tunning":
+                elif row[colNum] == "tunning":
                     tunNum += 1
-                elif row[29] == "mapping":
+                elif row[colNum] == "mapping":
                     mapNum += 1
-                elif row[29] == "identity":
+                elif row[colNum] == "identity":
                     idenOptNum += 1
                 else:
-                    raise Exception("high_level_optimization is not giving topology or tunning or mapping! The new type: " + row[29])
+                    raise Exception("high_level_optimization is not giving topology or tunning or mapping! The new type: " + row[colNum])
         
+        plt.figure()
         plt.pie([topoNum, tunNum, mapNum, idenOptNum], labels = ["topology", "tunning", "mapping", "identity"])
         plt.title("High Level Optimization: Frequency")
         plt.savefig(dirName + fileName + "/highLevelOpt-" + fileName + ".png")
-        plt.show()
+        # plt.show()
 
 # the function to plot the frequency of all architectural variables to improve in the pie chart
-def plotArchVarImpAll(dirName, fileName):
+def plotArchVarImpAll(dirName, fileName, colNum, trueNum):
     with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
         resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
 
         parazNum = 0
         custNum = 0
+        localNum = 0
         idenImpNum = 0
 
         for i, row in enumerate(resultReader):
-            # print('"' + row[1] + '"\t"' + row[4] + '"\t"' + row[5] + '"\t"' + row[10] + '"\t"' + row[12] + '"\t"' + row[13] + '"\t"' + row[22] + '"\t"' + row[23] + '"\t"' + row[28] + '"\t' + row[29] + '"\t"' + row[30] + '"')
-            if row[22] != "True":
+            if row[trueNum] != "True":
                 continue
 
             if i > 1:
-                if row[30] == "parallelization":
+                if row[colNum] == "parallelization":
                     parazNum += 1
-                elif row[30] == "customization":
+                elif row[colNum] == "customization":
                     custNum += 1
-                elif row[30] == "identity":
-                    idenImpNum += 1
+                elif row[colNum] == "locality":
+                    localNum += 1
+                elif row[colNum] == "identity":
+                    idenImpNum += 1                
                 else:
-                    raise Exception("architectural_variable_to_improve is not parallelization or parallelism or customization! The new type: " + row[30])
+                    raise Exception("architectural_variable_to_improve is not parallelization or customization! The new type: " + row[colNum])
 
-        plt.pie([parazNum, custNum, idenImpNum], labels = ["parallelization", "customization", "identity"])
+        plt.figure()
+        plt.pie([parazNum, custNum, localNum, idenImpNum], labels = ["parallelization", "customization", "locality", "identity"])
         plt.title("Architectural Variables to Improve: Frequency")
         plt.savefig(dirName + fileName + "/archVarImp-" + fileName + ".png")
-        plt.show()
+        # plt.show()
 
 # the function to plot simulation time vs. system block count
-def plotSimTimeVSblk(dirName, fileName):
+def plotSimTimeVSblk(dirName, fileName, blkColNum, simColNum, trueNum):
     with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
         resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
 
@@ -103,23 +120,23 @@ def plotSimTimeVSblk(dirName, fileName):
         simTime = []
 
         for i, row in enumerate(resultReader):
-            # print('"' + row[1] + '"\t"' + row[4] + '"\t"' + row[5] + '"\t"' + row[10] + '"\t"' + row[12] + '"\t"' + row[13] + '"\t"' + row[22] + '"\t"' + row[23] + '"\t"' + row[28] + '"\t' + row[29] + '"\t"' + row[30] + '"')
-            if row[22] != "True":
+            if row[trueNum] != "True":
                 continue
 
             if i > 1:
-                sysBlkCount.append(int(row[13]))
-                simTime.append(float(row[4]))
+                sysBlkCount.append(int(row[blkColNum]))
+                simTime.append(float(row[simColNum]))
 
+        plt.figure()
         plt.plot(sysBlkCount, simTime)
         plt.xlabel("System Block Count")
         plt.ylabel("Simulation Time")
         plt.title("Simulation Time vs. Sytem Block Count")
         plt.savefig(dirName + fileName + "/simTimeVSblk-" + fileName + ".png")
-        plt.show()
+        # plt.show()
 
 # the function to plot move generation time vs. system block count
-def plotMoveGenTimeVSblk(dirName, fileName):
+def plotMoveGenTimeVSblk(dirName, fileName, blkColNum, movColNum, trueNum):
     with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
         resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
 
@@ -127,23 +144,23 @@ def plotMoveGenTimeVSblk(dirName, fileName):
         moveGenTime = []
 
         for i, row in enumerate(resultReader):
-            # print('"' + row[1] + '"\t"' + row[4] + '"\t"' + row[5] + '"\t"' + row[10] + '"\t"' + row[12] + '"\t"' + row[13] + '"\t"' + row[22] + '"\t"' + row[23] + '"\t"' + row[28] + '"\t' + row[29] + '"\t"' + row[30] + '"')
-            if row[22] != "True":
+            if row[trueNum] != "True":
                 continue
 
             if i > 1:
-                sysBlkCount.append(int(row[13]))
-                moveGenTime.append(float(row[5]))
+                sysBlkCount.append(int(row[blkColNum]))
+                moveGenTime.append(float(row[movColNum]))
         
+        plt.figure()
         plt.plot(sysBlkCount, moveGenTime)
         plt.xlabel("System Block Count")
         plt.ylabel("Move Generation Time")
         plt.title("Move Generation Time vs. System Block Count")
         plt.savefig(dirName + fileName + "/moveGenTimeVSblk-" + fileName + ".png")
-        plt.show()
+        # plt.show()
 
 # the function to plot distance to goal vs. iteration x depth
-def plotDistToGoalVSitr(dirName, fileName):
+def plotDistToGoalVSitr(dirName, fileName, itrColNum, distColNum, trueNum):
     with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
         resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
 
@@ -151,23 +168,23 @@ def plotDistToGoalVSitr(dirName, fileName):
         distToGoal = []
 
         for i, row in enumerate(resultReader):
-            # print('"' + row[1] + '"\t"' + row[4] + '"\t"' + row[5] + '"\t"' + row[10] + '"\t"' + row[12] + '"\t"' + row[13] + '"\t"' + row[22] + '"\t"' + row[23] + '"\t"' + row[28] + '"\t' + row[29] + '"\t"' + row[30] + '"')
-            if row[22] != "True":
+            if row[trueNum] != "True":
                 continue
 
             if i > 1:
-                itr.append(int(row[1]))
-                distToGoal.append(float(row[10]))
+                itr.append(int(row[itrColNum]))
+                distToGoal.append(float(row[distColNum]))
         
+        plt.figure()
         plt.plot(itr, distToGoal)
         plt.xlabel("Iteration and Depth Count")
         plt.ylabel("Distance to Goal")
         plt.title("Distance to Goal vs. Iteration and Depth Count")
         plt.savefig(dirName + fileName + "/distToGoalVSitr-" + fileName + ".png")
-        plt.show()
+        # plt.show()
 
 # the function to plot distance to goal vs. iteration x depth
-def plotRefDistToGoalVSitr(dirName, fileName):
+def plotRefDistToGoalVSitr(dirName, fileName, itrColNum, refDistColNum, trueNum):
     with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
         resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
 
@@ -175,184 +192,262 @@ def plotRefDistToGoalVSitr(dirName, fileName):
         refDistToGoal = []
 
         for i, row in enumerate(resultReader):
-            # print('"' + row[1] + '"\t"' + row[4] + '"\t"' + row[5] + '"\t"' + row[10] + '"\t"' + row[12] + '"\t"' + row[13] + '"\t"' + row[22] + '"\t"' + row[23] + '"\t"' + row[28] + '"\t' + row[29] + '"\t"' + row[30] + '"')
-            if row[22] != "True":
+            if row[trueNum] != "True":
                 continue
 
             if i > 1:
-                itr.append(int(row[1]))
-                refDistToGoal.append(float(row[12]))
+                itr.append(int(row[itrColNum]))
+                refDistToGoal.append(float(row[refDistColNum]))
 
+        plt.figure()
         plt.plot(itr, refDistToGoal)
         plt.xlabel("Iteration and Depth Count")
         plt.ylabel("Reference Design Distance to Goal")
         plt.title("Reference Design Distance to Goal vs. Iteration and Depth Count")
         plt.savefig(dirName + fileName + "/refDistToGoalVSitr-" + fileName + ".png")
-        plt.show()
+        # plt.show()
 
-# the function to plot distance to goal vs. iteration x depth
-def plotSimTimeVSmoveNameZoneDist(dirName, fileName):
+# the function to do the zonal partitioning
+def zonalPartition(comparedValue, zoneNum, maxValue):
+    unit = maxValue / zoneNum
+
+    if comparedValue > maxValue:
+        return zoneNum - 1
+    
+    if comparedValue < 0:
+        return 0
+
+    for i in range(0, zoneNum):
+        if comparedValue <= unit * (i + 1):
+            return i
+
+    raise Exception("zonalPartition is fed by a strange value! maxValue: " + str(maxValue) + "; comparedValue: " + str(comparedValue))
+
+# the function to plot simulation time vs. move name in a zonal format
+def plotSimTimeVSmoveNameZoneDist(dirName, fileName, zoneNum, moveColNum, distColNum, simColNum, trueNum):
     with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
         resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
 
-        splitSwapSimTimeZone0 = 0
-        splitSimTimeZone0 = 0
-        migrateSimTimeZone0 = 0
-        swapSimTimeZone0 = 0
-        idenSimTimeZone0 = 0
-        splitSwapSimTimeZone1 = 0
-        splitSimTimeZone1 = 0
-        migrateSimTimeZone1 = 0
-        swapSimTimeZone1 = 0
-        idenSimTimeZone1 = 0
-        splitSwapSimTimeZone2 = 0
-        splitSimTimeZone2 = 0
-        migrateSimTimeZone2 = 0
-        swapSimTimeZone2 = 0
-        idenSimTimeZone2 = 0
-        splitSwapSimTimeZone3 = 0
-        splitSimTimeZone3 = 0
-        migrateSimTimeZone3 = 0
-        swapSimTimeZone3 = 0
-        idenSimTimeZone3 = 0
+        splitSwapSim = np.zeros(zoneNum, dtype = float)
+        splitSim = np.zeros(zoneNum, dtype = float)
+        migrateSim = np.zeros(zoneNum, dtype = float)
+        swapSim = np.zeros(zoneNum, dtype = float)
+        tranSim = np.zeros(zoneNum, dtype = float)
+        routeSim = np.zeros(zoneNum, dtype = float)
+        identitySim = np.zeros(zoneNum, dtype = float)
 
         maxDist = 0
 
+        index = []
+        for i in range(0, zoneNum):
+            index.append(i)
+
         for i, row in enumerate(resultReader):
-            # print('"' + row[1] + '"\t"' + row[4] + '"\t"' + row[5] + '"\t"' + row[10] + '"\t"' + row[12] + '"\t"' + row[13] + '"\t"' + row[22] + '"\t"' + row[23] + '"\t"' + row[28] + '"\t' + row[29] + '"\t"' + row[30] + '"')
-            if row[22] != "True":
+            # print('"' + row[trueNum] + '"\t"' + row[moveColNum] + '"\t"' + row[distColNum] + '"\t"' + row[simColNum] + '"')
+            if row[trueNum] != "True":
                 continue
 
             if i == 2:
-                maxDist = float(row[10])
+                maxDist = float(row[distColNum])
 
             if i > 1:
-                if row[23] == "split_swap" and float(row[10]) > maxDist * 3 / 4:
-                    splitSwapSimTimeZone0 += float(row[4])
-                elif row[23] == "split" and float(row[10]) > maxDist * 3 / 4:
-                    splitSimTimeZone0 += float(row[4])
-                elif row[23] == "migrate" and float(row[10]) > maxDist * 3 / 4:
-                    migrateSimTimeZone0 += float(row[4])
-                elif row[23] == "swap" and float(row[10]) > maxDist * 3 / 4:
-                    swapSimTimeZone0 += float(row[4])
-                elif row[23] == "identity" and float(row[10]) > maxDist * 3 / 4:
-                    idenSimTimeZone0 += float(row[4])
-                elif row[23] == "split_swap" and float(row[10]) <= maxDist * 3 / 4 and float(row[10]) > maxDist / 2:
-                    splitSwapSimTimeZone1 += float(row[4])
-                elif row[23] == "split" and float(row[10]) <= maxDist * 3 / 4 and float(row[10]) > maxDist / 2:
-                    splitSimTimeZone1 += float(row[4])
-                elif row[23] == "migrate" and float(row[10]) <= maxDist * 3 / 4 and float(row[10]) > maxDist / 2:
-                    migrateSimTimeZone1 += float(row[4])
-                elif row[23] == "swap" and float(row[10]) <= maxDist * 3 / 4 and float(row[10]) > maxDist / 2:
-                    swapSimTimeZone1 += float(row[4])
-                elif row[23] == "identity" and float(row[10]) <= maxDist * 3 / 4 and float(row[10]) > maxDist / 2:
-                    idenSimTimeZone1 += float(row[4])
-                elif row[23] == "split_swap" and float(row[10]) <= maxDist / 2 and float(row[10]) > maxDist / 4:
-                    splitSwapSimTimeZone2 += float(row[4])
-                elif row[23] == "split" and float(row[10]) <= maxDist / 2 and float(row[10]) > maxDist / 4:
-                    splitSimTimeZone2 += float(row[4])
-                elif row[23] == "migrate" and float(row[10]) <= maxDist / 2 and float(row[10]) > maxDist / 4:
-                    migrateSimTimeZone2 += float(row[4])
-                elif row[23] == "swap" and float(row[10]) <= maxDist / 2 and float(row[10]) > maxDist / 4:
-                    swapSimTimeZone2 += float(row[4])
-                elif row[23] == "identity" and float(row[10]) <= maxDist / 2 and float(row[10]) > maxDist / 4:
-                    idenSimTimeZone2 += float(row[4])
-                elif row[23] == "split_swap" and float(row[10]) <= maxDist / 4:
-                    splitSwapSimTimeZone3 += float(row[4])
-                elif row[23] == "split" and float(row[10]) <= maxDist / 4:
-                    splitSimTimeZone3 += float(row[4])
-                elif row[23] == "migrate" and float(row[10]) <= maxDist / 4:
-                    migrateSimTimeZone3 += float(row[4])
-                elif row[23] == "swap" and float(row[10]) <= maxDist / 4:
-                    swapSimTimeZone3 += float(row[4])
-                elif row[23] == "identity" and float(row[10]) <= maxDist / 4:
-                    idenSimTimeZone3 += float(row[4])
+                if row[moveColNum] == "split_swap":
+                    splitSwapSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
+                elif row[moveColNum] == "split":
+                    splitSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
+                elif row[moveColNum] == "migrate":
+                    migrateSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
+                elif row[moveColNum] == "swap":
+                    swapSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
+                elif row[moveColNum] == "transfer":
+                    tranSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
+                elif row[moveColNum] == "routing":
+                    routeSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
+                elif row[moveColNum] == "identity":
+                    identitySim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
                 else:
-                    raise Exception("move name is not split_swap or split or migrate or swap or identity! The new type: " + row[23])
+                    raise Exception("move name is not split_swap or split or migrate or swap or identity! The new type: " + row[moveColNum])
         
+        plt.figure()
         plotdata = pd.DataFrame({
-            "split_swap":[splitSwapSimTimeZone0, splitSwapSimTimeZone1, splitSwapSimTimeZone2, splitSwapSimTimeZone3],
-            "split":[splitSimTimeZone0, splitSimTimeZone1, splitSimTimeZone2, splitSimTimeZone3],
-            "migrate":[migrateSimTimeZone0, migrateSimTimeZone1, migrateSimTimeZone2, migrateSimTimeZone3],
-            "swap":[swapSimTimeZone0, swapSimTimeZone1, swapSimTimeZone2, swapSimTimeZone3],
-            "identity":[idenSimTimeZone0, idenSimTimeZone1, idenSimTimeZone2, idenSimTimeZone3]
-        }, index = ["1~3/4", "3/4~1/2", "1/2~1/4", "1/4~0"]
+            "split_swap":splitSwapSim,
+            "split":splitSim,
+            "migrate":migrateSim,
+            "swap":swapSim,
+            "transfer":tranSim,
+            "routing":routeSim,
+            "identity":identitySim
+        }, index = index
         )
         plotdata.plot(kind = 'bar', stacked = True)
         plt.xlabel("Zone decided by the max distance to goal")
         plt.ylabel("Simulation Time")
         plt.title("Simulation Time in Each Zone based on Move Name")
         plt.savefig(dirName + fileName + "/simTimeVSmoveNameZoneDist-" + fileName + ".png")
-        plt.show()
+        # plt.show()
 
-# the function to plot distance to goal vs. iteration x depth
-def plotSimTimeVScommCompZoneDist(dirName, fileName):
+# the function to plot move generation time vs. move name in a zonal format
+def plotMovGenTimeVSmoveNameZoneDist(dirName, fileName, zoneNum, moveColNum, distColNum, movGenColNum, trueNum):
     with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
         resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
 
-        commSimTimeZone0 = 0
-        commSimTimeZone1 = 0
-        commSimTimeZone2 = 0
-        commSimTimeZone3 = 0
-        compSimTimeZone0 = 0
-        compSimTimeZone1 = 0
-        compSimTimeZone2 = 0
-        compSimTimeZone3 = 0
+        splitSwapMov = np.zeros(zoneNum, dtype = float)
+        splitMov = np.zeros(zoneNum, dtype = float)
+        migrateMov = np.zeros(zoneNum, dtype = float)
+        swapMov = np.zeros(zoneNum, dtype = float)
+        tranMov = np.zeros(zoneNum, dtype = float)
+        routeMov = np.zeros(zoneNum, dtype = float)
+        identityMov = np.zeros(zoneNum, dtype = float)
 
         maxDist = 0
 
+        index = []
+        for i in range(0, zoneNum):
+            index.append(i)
+
         for i, row in enumerate(resultReader):
-            # print('"' + row[1] + '"\t"' + row[4] + '"\t"' + row[5] + '"\t"' + row[10] + '"\t"' + row[12] + '"\t"' + row[13] + '"\t"' + row[22] + '"\t"' + row[23] + '"\t"' + row[28] + '"\t' + row[29] + '"\t"' + row[30] + '"')
-            if row[22] != "True":
+            # print('"' + row[trueNum] + '"\t"' + row[moveColNum] + '"\t"' + row[distColNum] + '"\t"' + row[movGenColNum] + '"')
+            if row[trueNum] != "True":
                 continue
 
             if i == 2:
-                maxDist = float(row[10])
+                maxDist = float(row[distColNum])
 
             if i > 1:
-                if row[28] == "comm" and float(row[10]) > maxDist * 3 / 4:
-                    commSimTimeZone0 += float(row[4])
-                elif row[28] == "comp" and float(row[10]) > maxDist * 3 / 4:
-                    compSimTimeZone0 += float(row[4])
-                elif row[28] == "comm" and float(row[10]) <= maxDist * 3 / 4 and float(row[10]) > maxDist / 2:
-                    commSimTimeZone1 += float(row[4])
-                elif row[28] == "comp" and float(row[10]) <= maxDist * 3 / 4 and float(row[10]) > maxDist / 2:
-                    compSimTimeZone1 += float(row[4])
-                elif row[28] == "comm" and float(row[10]) <= maxDist / 2 and float(row[10]) > maxDist / 4:
-                    commSimTimeZone2 += float(row[4])
-                elif row[28] == "comp" and float(row[10]) <= maxDist / 2 and float(row[10]) > maxDist / 4:
-                    compSimTimeZone2 += float(row[4])
-                elif row[28] == "comm" and float(row[10]) <= maxDist / 4:
-                    commSimTimeZone3 += float(row[4])
-                elif row[28] == "comp" and float(row[10]) <= maxDist / 4:
-                    compSimTimeZone3 += float(row[4])
+                if row[moveColNum] == "split_swap":
+                    splitSwapMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
+                elif row[moveColNum] == "split":
+                    splitMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
+                elif row[moveColNum] == "migrate":
+                    migrateMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
+                elif row[moveColNum] == "swap":
+                    swapMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
+                elif row[moveColNum] == "transfer":
+                    tranMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
+                elif row[moveColNum] == "routing":
+                    routeMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
+                elif row[moveColNum] == "identity":
+                    identityMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
                 else:
-                    raise Exception("comm_comp is not giving comm or comp! The new type: " + row[28])
+                    raise Exception("move name is not split_swap or split or migrate or swap or identity! The new type: " + row[moveColNum])
         
+        plt.figure()
         plotdata = pd.DataFrame({
-            "comm":[commSimTimeZone0, commSimTimeZone1, commSimTimeZone2, commSimTimeZone3],
-            "comp":[compSimTimeZone0, compSimTimeZone1, compSimTimeZone2, compSimTimeZone3]
-        }, index = ["1~3/4", "3/4~1/2", "1/2~1/4", "1/4~0"]
+            "split_swap":splitSwapMov,
+            "split":splitMov,
+            "migrate":migrateMov,
+            "swap":swapMov,
+            "transfer":tranMov,
+            "routing":routeMov,
+            "identity":identityMov
+        }, index = index
+        )
+        plotdata.plot(kind = 'bar', stacked = True)
+        plt.xlabel("Zone decided by the max distance to goal")
+        plt.ylabel("Move Generation Time")
+        plt.title("Move Generation Time in Each Zone based on Move Name")
+        plt.savefig(dirName + fileName + "/movGenTimeVSmoveNameZoneDist-" + fileName + ".png")
+        # plt.show()
+
+# the function to plot simulation time vs. comm_comp in a zonal format
+def plotSimTimeVScommCompZoneDist(dirName, fileName, zoneNum, commcompColNum, distColNum, simColNum, trueNum):
+    with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
+        resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+
+        commSim = np.zeros(zoneNum, dtype = float)
+        compSim = np.zeros(zoneNum, dtype = float)
+
+        maxDist = 0
+        index = []
+        for i in range(0, zoneNum):
+            index.append(i)
+
+        for i, row in enumerate(resultReader):
+            if row[trueNum] != "True":
+                continue
+
+            if i == 2:
+                maxDist = float(row[distColNum])
+
+            if i > 1:
+                if row[commcompColNum] == "comm":
+                    commSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
+                elif row[commcompColNum] == "comp":
+                    compSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
+        
+        plt.figure()
+        plotdata = pd.DataFrame({
+            "comm":commSim,
+            "comp":compSim
+        }, index = index
         )
         plotdata.plot(kind = 'bar', stacked = True)
         plt.xlabel("Zone decided by the max distance to goal")
         plt.ylabel("Simulation Time")
         plt.title("Simulation Time in Each Zone based on comm_comp")
         plt.savefig(dirName + fileName + "/simTimeVScommCompZoneDist-" + fileName + ".png")
-        plt.show()
+        # plt.show()
+
+# the function to plot simulation time vs. comm_comp in a zonal format
+def plotMovGenTimeVScommCompZoneDist(dirName, fileName, zoneNum, commcompColNum, distColNum, movGenColNum, trueNum):
+    with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
+        resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+
+        commMov = np.zeros(zoneNum, dtype = float)
+        compMov = np.zeros(zoneNum, dtype = float)
+
+        maxDist = 0
+        index = []
+        for i in range(0, zoneNum):
+            index.append(i)
+
+        for i, row in enumerate(resultReader):
+            if row[trueNum] != "True":
+                continue
+
+            if i == 2:
+                maxDist = float(row[distColNum])
+
+            if i > 1:
+                if row[commcompColNum] == "comm":
+                    commMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
+                elif row[commcompColNum] == "comp":
+                    compMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
+        
+        plt.figure()
+        plotdata = pd.DataFrame({
+            "comm":commMov,
+            "comp":compMov
+        }, index = index
+        )
+        plotdata.plot(kind = 'bar', stacked = True)
+        plt.xlabel("Zone decided by the max distance to goal")
+        plt.ylabel("Move Generation Time")
+        plt.title("Move Generation Time in Each Zone based on comm_comp")
+        plt.savefig(dirName + fileName + "/simTimeVScommCompZoneDist-" + fileName + ".png")
+        # plt.show()
 
 # the main function. comment out the plots if you do not need them
 if __name__ == "__main__":
     # change the directory name and the result folder name accordingly. the directory name is the place for all your results
-    dirName = "/home/yingj4/Desktop/Project_FARSI/data_collection/data/simple_run/"
-    fileName = "07-13_14-06_59"
+    dirName = "/home/yingj4/Desktop/Project_FARSI/data_collection/data/simple_run/07-15-2021/"
+    fileName = "07-14_20-32_39"
 
-    # plotCommCompAll(dirName, fileName)
-    # plothighLevelOptAll(dirName, fileName)
-    # plotArchVarImpAll(dirName, fileName)
-    # plotSimTimeVSblk(dirName, fileName)
-    # plotMoveGenTimeVSblk(dirName, fileName)
-    # plotDistToGoalVSitr(dirName, fileName)
-    # plotRefDistToGoalVSitr(dirName, fileName)
-    plotSimTimeVSmoveNameZoneDist(dirName, fileName)
-    plotSimTimeVScommCompZoneDist(dirName, fileName)
+    # change the number of zones to suit for your analysis
+    zoneNum = 4
+
+    fileList = os.listdir(dirName)
+
+    for fileName in fileList:
+        print(fileName)
+        plotCommCompAll(dirName, fileName, columnNum(dirName, fileName, "comm_comp"), columnNum(dirName, fileName, "move validity"))
+        plothighLevelOptAll(dirName, fileName, columnNum(dirName, fileName, "optimization name"), columnNum(dirName, fileName, "move validity"))
+        plotArchVarImpAll(dirName, fileName, columnNum(dirName, fileName, "architectural principle"), columnNum(dirName, fileName, "move validity"))
+        plotSimTimeVSblk(dirName, fileName, columnNum(dirName, fileName, "system block count"), columnNum(dirName, fileName, "simulation time"), columnNum(dirName, fileName, "move validity"))
+        plotMoveGenTimeVSblk(dirName, fileName, columnNum(dirName, fileName, "system block count"), columnNum(dirName, fileName, "move generation time"), columnNum(dirName, fileName, "move validity"))
+        plotDistToGoalVSitr(dirName, fileName, columnNum(dirName, fileName, "iterationxdepth number"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "move validity"))
+        plotRefDistToGoalVSitr(dirName, fileName, columnNum(dirName, fileName, "iterationxdepth number"), columnNum(dirName, fileName, "ref_des_dist_to_goal_non_cost"), columnNum(dirName, fileName, "move validity"))
+        plotSimTimeVSmoveNameZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "move name"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "simulation time"), columnNum(dirName, fileName, "move validity"))
+        plotMovGenTimeVSmoveNameZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "move name"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "move generation time"), columnNum(dirName, fileName, "move validity"))
+        plotSimTimeVScommCompZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "comm_comp"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "simulation time"), columnNum(dirName, fileName, "move validity"))
+        plotMovGenTimeVScommCompZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "comm_comp"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "move generation time"), columnNum(dirName, fileName, "move validity"))
