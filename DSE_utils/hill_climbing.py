@@ -2078,13 +2078,22 @@ class HillClimbing:
             result +=str(k) + "=" + str(v) + "___"
         return result
 
-    def convert_dictionary_to_parsable_csv(self, dict_):
+    def convert_dictionary_to_parsable_csv_with_underline(self, dict_):
         result = ""
         for k, v in dict_.items():
             phase_value_dict = list(v.values())[0]
             value = list(phase_value_dict.values())[0]
             result +=str(k) + "=" + str(value) + "___"
         return result
+
+
+    def convert_dictionary_to_parsable_csv_with_semi_column(self, dict_):
+        result = ""
+        for k, v in dict_.items():
+            result +=str(k) + "=" + str(v) + " ; "
+        return result
+
+
 
 
 
@@ -2168,8 +2177,8 @@ class HillClimbing:
                 ref_des_dist_to_goal_all = ""
                 ref_des_dist_to_goal_non_cost = ""
 
-            sub_block_area_break_down = self.convert_dictionary_to_parsable_csv(sim_dp.dp_stats.SOC_area_subtype_dict)
-            block_area_break_down = self.convert_dictionary_to_parsable_csv(sim_dp.dp_stats.SOC_area_dict)
+            sub_block_area_break_down = self.convert_dictionary_to_parsable_csv_with_underline(sim_dp.dp_stats.SOC_area_subtype_dict)
+            block_area_break_down = self.convert_dictionary_to_parsable_csv_with_underline(sim_dp.dp_stats.SOC_area_dict)
             routing_complexity = sim_dp.dp_rep.get_hardware_graph().get_routing_complexity()
             simple_topology = sim_dp.dp_rep.get_hardware_graph().get_simplified_topology_code()
             channel_cnt = sim_dp.dp_rep.get_hardware_graph().get_number_of_channels()
@@ -2188,7 +2197,7 @@ class HillClimbing:
                     "SA_total_depth": str(config.SA_depth),
                     "iteration number": sim_dp.dp_rep.get_iteration_number(),
                     "simulation time" : sim_dp.dp_rep.get_simulation_time(),
-                    "move generation time" : generation_time,
+                    "transformation generation time" : generation_time,
                     "metric selection time" :metric_selection_time,
                     "dir selection time" :dir_selection_time,
                     "kernel selection time" :kernel_selection_time,
@@ -2227,9 +2236,22 @@ class HillClimbing:
             }
 
             for metric in config.all_metrics:
-                data[metric] = sim_dp.dp_stats.get_system_complex_metric(metric)
+                # convert dictionary to a parsable data
+                data_ =  sim_dp.dp_stats.get_system_complex_metric(metric)
+                if isinstance(data_, dict):
+                    data__ =self.convert_dictionary_to_parsable_csv_with_semi_column(data_)
+                else:
+                    data__ = data_
+                data[metric] = data__
+
                 if metric in sim_dp.database.db_input.get_budget_dict("glass").keys():
-                    data[metric +"_budget"] = sim_dp.database.db_input.get_budget_dict("glass")[metric]
+                    # convert dictionary to a parsable rsult
+                    data_ =  sim_dp.database.db_input.get_budget_dict("glass")[metric]
+                    if isinstance(data_, dict):
+                        data__ = self.convert_dictionary_to_parsable_csv_with_semi_column(data_)
+                    else:
+                        data__ = data_
+                    data[metric +"_budget"] = data__
             ctr +=1
             self.log_data_list.append(data)
 
