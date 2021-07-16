@@ -71,7 +71,7 @@ def plothighLevelOptAll(dirName, fileName, colNum, trueNum):
                 elif row[colNum] == "identity":
                     idenOptNum += 1
                 else:
-                    raise Exception("high_level_optimization is not giving topology or tunning or mapping! The new type: " + row[colNum])
+                    raise Exception("optimization name is not giving topology or tunning or mapping or identity! The new type: " + row[colNum])
         
         plt.figure()
         plt.pie([topoNum, tunNum, mapNum, idenOptNum], labels = ["topology", "tunning", "mapping", "identity"])
@@ -103,11 +103,11 @@ def plotArchVarImpAll(dirName, fileName, colNum, trueNum):
                 elif row[colNum] == "identity":
                     idenImpNum += 1                
                 else:
-                    raise Exception("architectural_variable_to_improve is not parallelization or customization! The new type: " + row[colNum])
+                    raise Exception("architectural principle is not parallelization or customization or locality or identity! The new type: " + row[colNum])
 
         plt.figure()
         plt.pie([parazNum, custNum, localNum, idenImpNum], labels = ["parallelization", "customization", "locality", "identity"])
-        plt.title("Architectural Variables to Improve: Frequency")
+        plt.title("Architectural Principle: Frequency")
         plt.savefig(dirName + fileName + "/archVarImp-" + fileName + ".png")
         # plt.show()
 
@@ -266,7 +266,7 @@ def plotSimTimeVSmoveNameZoneDist(dirName, fileName, zoneNum, moveColNum, distCo
                 elif row[moveColNum] == "identity":
                     identitySim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
                 else:
-                    raise Exception("move name is not split_swap or split or migrate or swap or identity! The new type: " + row[moveColNum])
+                    raise Exception("move name is not split_swap or split or migrate or swap or transfer or routing or identity! The new type: " + row[moveColNum])
         
         plt.figure()
         plotdata = pd.DataFrame({
@@ -329,7 +329,7 @@ def plotMovGenTimeVSmoveNameZoneDist(dirName, fileName, zoneNum, moveColNum, dis
                 elif row[moveColNum] == "identity":
                     identityMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
                 else:
-                    raise Exception("move name is not split_swap or split or migrate or swap or identity! The new type: " + row[moveColNum])
+                    raise Exception("move name is not split_swap or split or migrate or swap or transfer of routing or identity! The new type: " + row[moveColNum])
         
         plt.figure()
         plotdata = pd.DataFrame({
@@ -374,6 +374,8 @@ def plotSimTimeVScommCompZoneDist(dirName, fileName, zoneNum, commcompColNum, di
                     commSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
                 elif row[commcompColNum] == "comp":
                     compSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
+                else:
+                    raise Exception("comm_comp is not giving comm or comp! The new type: " + row[colNum])
         
         plt.figure()
         plotdata = pd.DataFrame({
@@ -413,6 +415,8 @@ def plotMovGenTimeVScommCompZoneDist(dirName, fileName, zoneNum, commcompColNum,
                     commMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
                 elif row[commcompColNum] == "comp":
                     compMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
+                else:
+                    raise Exception("comm_comp is not giving comm or comp! The new type: " + row[colNum])
         
         plt.figure()
         plotdata = pd.DataFrame({
@@ -424,13 +428,210 @@ def plotMovGenTimeVScommCompZoneDist(dirName, fileName, zoneNum, commcompColNum,
         plt.xlabel("Zone decided by the max distance to goal")
         plt.ylabel("Move Generation Time")
         plt.title("Move Generation Time in Each Zone based on comm_comp")
-        plt.savefig(dirName + fileName + "/simTimeVScommCompZoneDist-" + fileName + ".png")
+        plt.savefig(dirName + fileName + "/movGenTimeVScommCompZoneDist-" + fileName + ".png")
+        # plt.show()
+
+# the function to plot simulation time vs. optimization name in a zonal format
+def plotSimTimeVShighLevelOptZoneDist(dirName, fileName, zoneNum, optColNum, distColNum, simColNum, trueNum):
+    with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
+        resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+
+        topoSim = np.zeros(zoneNum, dtype = float)
+        tunSim = np.zeros(zoneNum, dtype = float)
+        mapSim = np.zeros(zoneNum, dtype = float)
+        idenOptSim = np.zeros(zoneNum, dtype = float)
+
+        maxDist = 0
+        index = []
+        for i in range(0, zoneNum):
+            index.append(i)
+
+        for i, row in enumerate(resultReader):
+            if row[trueNum] != "True":
+                continue
+
+            if i == 2:
+                maxDist = float(row[distColNum])
+
+            if i > 1:
+                if row[optColNum] == "topology":
+                    topoSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
+                elif row[optColNum] == "tunning":
+                    tunSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
+                elif row[optColNum] == "mapping":
+                    mapSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
+                elif row[optColNum] == "identity":
+                    idenOptSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
+                else:
+                    raise Exception("optimization name is not giving topology or tunning or mapping or identity! The new type: " + row[optColNum])
+        
+        plt.figure()
+        plotdata = pd.DataFrame({
+            "topology":topoSim,
+            "tunning":tunSim,
+            "mapping":mapSim,
+            "identity":idenOptSim
+        }, index = index
+        )
+        plotdata.plot(kind = 'bar', stacked = True)
+        plt.xlabel("Zone decided by the max distance to goal")
+        plt.ylabel("Simulation Time")
+        plt.title("Simulation Time in Each Zone based on Optimation Name")
+        plt.savefig(dirName + fileName + "/simTimeVShighLevelOptZoneDist-" + fileName + ".png")
+        # plt.show()
+
+# the function to plot simulation time vs. optimization name in a zonal format
+def plotMovGenTimeVShighLevelOptZoneDist(dirName, fileName, zoneNum, optColNum, distColNum, movGenColNum, trueNum):
+    with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
+        resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+
+        topoMov = np.zeros(zoneNum, dtype = float)
+        tunMov = np.zeros(zoneNum, dtype = float)
+        mapMov = np.zeros(zoneNum, dtype = float)
+        idenOptMov = np.zeros(zoneNum, dtype = float)
+
+        maxDist = 0
+        index = []
+        for i in range(0, zoneNum):
+            index.append(i)
+
+        for i, row in enumerate(resultReader):
+            if row[trueNum] != "True":
+                continue
+
+            if i == 2:
+                maxDist = float(row[distColNum])
+
+            if i > 1:
+                if row[optColNum] == "topology":
+                    topoMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
+                elif row[optColNum] == "tunning":
+                    tunMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
+                elif row[optColNum] == "mapping":
+                    mapMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
+                elif row[optColNum] == "identity":
+                    idenOptMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
+                else:
+                    raise Exception("optimization name is not giving topology or tunning or mapping or identity! The new type: " + row[optColNum])
+        
+        plt.figure()
+        plotdata = pd.DataFrame({
+            "topology":topoMov,
+            "tunning":tunMov,
+            "mapping":mapMov,
+            "identity":idenOptMov
+        }, index = index
+        )
+        plotdata.plot(kind = 'bar', stacked = True)
+        plt.xlabel("Zone decided by the max distance to goal")
+        plt.ylabel("Move Generation Time")
+        plt.title("Move Generation Time in Each Zone based on Optimization Name")
+        plt.savefig(dirName + fileName + "/movGenTimeVShighLevelOptZoneDist-" + fileName + ".png")
+        # plt.show()
+
+# the function to plot simulation time vs. architectural principle in a zonal format
+def plotSimTimeVSarchVarImpZoneDist(dirName, fileName, zoneNum, archColNum, distColNum, simColNum, trueNum):
+    with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
+        resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+
+        paraSim = np.zeros(zoneNum, dtype = float)
+        custSim = np.zeros(zoneNum, dtype = float)
+        localSim = np.zeros(zoneNum, dtype = float)
+        idenImpSim = np.zeros(zoneNum, dtype = float)
+
+        maxDist = 0
+        index = []
+        for i in range(0, zoneNum):
+            index.append(i)
+
+        for i, row in enumerate(resultReader):
+            if row[trueNum] != "True":
+                continue
+
+            if i == 2:
+                maxDist = float(row[distColNum])
+
+            if i > 1:
+                if row[archColNum] == "parallelization":
+                    paraSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
+                elif row[archColNum] == "customization":
+                    custSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
+                elif row[archColNum] == "locality":
+                    localSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
+                elif row[archColNum] == "identity":
+                    idenImpSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
+                else:
+                    raise Exception("architectural principle is not giving parallelization or customization or locality or identity! The new type: " + row[archColNum])
+        
+        plt.figure()
+        plotdata = pd.DataFrame({
+            "parallelization":paraSim,
+            "customization":custSim,
+            "locality":localSim,
+            "identity":idenImpSim
+        }, index = index
+        )
+        plotdata.plot(kind = 'bar', stacked = True)
+        plt.xlabel("Zone decided by the max distance to goal")
+        plt.ylabel("Simulation Time")
+        plt.title("Simulation Time in Each Zone based on Architectural Principle")
+        plt.savefig(dirName + fileName + "/simTimeVSarchVarImpZoneDist-" + fileName + ".png")
+        # plt.show()
+
+# the function to plot simulation time vs. architectural principle in a zonal format
+def plotMovGenTimeVSarchVarImpZoneDist(dirName, fileName, zoneNum, archColNum, distColNum, movGenColNum, trueNum):
+    with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
+        resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+
+        paraMov = np.zeros(zoneNum, dtype = float)
+        custMov = np.zeros(zoneNum, dtype = float)
+        localMov = np.zeros(zoneNum, dtype = float)
+        idenImpMov = np.zeros(zoneNum, dtype = float)
+
+        maxDist = 0
+        index = []
+        for i in range(0, zoneNum):
+            index.append(i)
+
+        for i, row in enumerate(resultReader):
+            if row[trueNum] != "True":
+                continue
+
+            if i == 2:
+                maxDist = float(row[distColNum])
+
+            if i > 1:
+                if row[archColNum] == "parallelization":
+                    paraMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
+                elif row[archColNum] == "customization":
+                    custMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
+                elif row[archColNum] == "locality":
+                    localMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
+                elif row[archColNum] == "identity":
+                    idenImpMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
+                else:
+                    raise Exception("architectural principle is not giving parallelization or customization or locality or identity! The new type: " + row[archColNum])
+        
+        plt.figure()
+        plotdata = pd.DataFrame({
+            "parallelization":paraMov,
+            "customization":custMov,
+            "locality":localMov,
+            "identity":idenImpMov
+        }, index = index
+        )
+        plotdata.plot(kind = 'bar', stacked = True)
+        plt.xlabel("Zone decided by the max distance to goal")
+        plt.ylabel("Move Generation Time")
+        plt.title("Move Generation Time in Each Zone based on Architectural Principle")
+        plt.savefig(dirName + fileName + "/movGenTimeVSarchVarImpZoneZoneDist-" + fileName + ".png")
         # plt.show()
 
 # the main function. comment out the plots if you do not need them
 if __name__ == "__main__":
     # change the directory name and the result folder name accordingly. the directory name is the place for all your results
     dirName = "/home/yingj4/Desktop/Project_FARSI/data_collection/data/simple_run/07-15-2021/"
+    # if you want to generate the figures for a single result folder, change the fileName variable on the next line (and of course, move the functions outside the loop below). otherwise, it will do an automatic sweep
     fileName = "07-14_20-32_39"
 
     # change the number of zones to suit for your analysis
@@ -440,14 +641,21 @@ if __name__ == "__main__":
 
     for fileName in fileList:
         print(fileName)
-        plotCommCompAll(dirName, fileName, columnNum(dirName, fileName, "comm_comp"), columnNum(dirName, fileName, "move validity"))
-        plothighLevelOptAll(dirName, fileName, columnNum(dirName, fileName, "optimization name"), columnNum(dirName, fileName, "move validity"))
-        plotArchVarImpAll(dirName, fileName, columnNum(dirName, fileName, "architectural principle"), columnNum(dirName, fileName, "move validity"))
-        plotSimTimeVSblk(dirName, fileName, columnNum(dirName, fileName, "system block count"), columnNum(dirName, fileName, "simulation time"), columnNum(dirName, fileName, "move validity"))
-        plotMoveGenTimeVSblk(dirName, fileName, columnNum(dirName, fileName, "system block count"), columnNum(dirName, fileName, "move generation time"), columnNum(dirName, fileName, "move validity"))
-        plotDistToGoalVSitr(dirName, fileName, columnNum(dirName, fileName, "iterationxdepth number"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "move validity"))
-        plotRefDistToGoalVSitr(dirName, fileName, columnNum(dirName, fileName, "iterationxdepth number"), columnNum(dirName, fileName, "ref_des_dist_to_goal_non_cost"), columnNum(dirName, fileName, "move validity"))
-        plotSimTimeVSmoveNameZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "move name"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "simulation time"), columnNum(dirName, fileName, "move validity"))
-        plotMovGenTimeVSmoveNameZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "move name"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "move generation time"), columnNum(dirName, fileName, "move validity"))
-        plotSimTimeVScommCompZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "comm_comp"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "simulation time"), columnNum(dirName, fileName, "move validity"))
-        plotMovGenTimeVScommCompZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "comm_comp"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "move generation time"), columnNum(dirName, fileName, "move validity"))
+
+        # comment and uncomment the following functions for your plottings
+        
+        # plotCommCompAll(dirName, fileName, columnNum(dirName, fileName, "comm_comp"), columnNum(dirName, fileName, "move validity"))
+        # plothighLevelOptAll(dirName, fileName, columnNum(dirName, fileName, "optimization name"), columnNum(dirName, fileName, "move validity"))
+        # plotArchVarImpAll(dirName, fileName, columnNum(dirName, fileName, "architectural principle"), columnNum(dirName, fileName, "move validity"))
+        # plotSimTimeVSblk(dirName, fileName, columnNum(dirName, fileName, "system block count"), columnNum(dirName, fileName, "simulation time"), columnNum(dirName, fileName, "move validity"))
+        # plotMoveGenTimeVSblk(dirName, fileName, columnNum(dirName, fileName, "system block count"), columnNum(dirName, fileName, "move generation time"), columnNum(dirName, fileName, "move validity"))
+        # plotDistToGoalVSitr(dirName, fileName, columnNum(dirName, fileName, "iterationxdepth number"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "move validity"))
+        # plotRefDistToGoalVSitr(dirName, fileName, columnNum(dirName, fileName, "iterationxdepth number"), columnNum(dirName, fileName, "ref_des_dist_to_goal_non_cost"), columnNum(dirName, fileName, "move validity"))
+        # plotSimTimeVSmoveNameZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "move name"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "simulation time"), columnNum(dirName, fileName, "move validity"))
+        # plotMovGenTimeVSmoveNameZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "move name"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "move generation time"), columnNum(dirName, fileName, "move validity"))
+        # plotSimTimeVScommCompZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "comm_comp"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "simulation time"), columnNum(dirName, fileName, "move validity"))
+        # plotMovGenTimeVScommCompZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "comm_comp"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "move generation time"), columnNum(dirName, fileName, "move validity"))
+        # plotSimTimeVShighLevelOptZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "optimization name"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "simulation time"), columnNum(dirName, fileName, "move validity"))
+        # plotMovGenTimeVShighLevelOptZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "optimization name"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "move generation time"), columnNum(dirName, fileName, "move validity"))
+        plotSimTimeVSarchVarImpZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "architectural principle"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "simulation time"), columnNum(dirName, fileName, "move validity"))
+        plotMovGenTimeVSarchVarImpZoneDist(dirName, fileName, zoneNum, columnNum(dirName, fileName, "architectural principle"), columnNum(dirName, fileName, "dist_to_goal_non_cost"), columnNum(dirName, fileName, "move generation time"), columnNum(dirName, fileName, "move validity"))
