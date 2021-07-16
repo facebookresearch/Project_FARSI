@@ -93,7 +93,7 @@ other_metrics = ["cost"]
 budget_dict = {}
 budget_dict["glass"] = {}
 budget_dict["glass"]["power"] = .05
-budget_dict["glass"]["area"] = .00001
+budget_dict["glass"]["area"] = .000005
 
 home_dir = home_settings.home_dir
 #home_dir = os.getcwd()+"/../../"
@@ -267,7 +267,8 @@ transaction_base_simulation = False   # do not set to true. It doesn't work
 
 
 # CACTI
-use_cacti = True and not RUN_VERIFICATION_AT_ALL # if True, use cacti. You have to have cacti installed.j
+#use_cacti = True and not RUN_VERIFICATION_AT_ALL # if True, use cacti. You have to have cacti installed.j
+use_cacti = True
 cact_bin_addr = CC.cact_bin_addr
 cacti_param_addr = CC.cacti_param_addr
 cacti_data_log_file = CC.cacti_data_log_file
@@ -280,10 +281,11 @@ cacti_min_memory_size_in_bytes =  2048 # bellow this value cacti errors out. We 
 
 
 transformation_selection_mode = "arch-aware"  # choose from {random, arch-aware}
-if RUN_VERIFICATION_AT_ALL:
-    transformation_selection_mode = "random" # choose from {random, arch-aware}
 
-#
+all_available_transformations = ["migrate", "swap", "split", "split_swap", "transfer", "routing"]
+if RUN_VERIFICATION_AT_ALL:
+    all_available_transformations = ["migrate", "swap", "split", "split_swap"]
+
 min_mem_size = {"sram": 256000, "dram":256000}
 
 dram_stacked = True

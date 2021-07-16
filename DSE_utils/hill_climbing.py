@@ -97,6 +97,7 @@ class HillClimbing:
         self.all_itr_ex_sim_dp_dict: Dict[ExDesignPoint: SimDesignPoint] = {}  # all the designs look at
         self.reason_to_terminate = ""
         self.log_data_list = []
+        self.total_gen_ctr = 0
 
     def set_check_point_folder(self, check_point_folder):
         self.check_point_folder = check_point_folder
@@ -130,6 +131,7 @@ class HillClimbing:
         elif mode == "parse":
             self.init_ex_dp = self.dh.gen_specific_parsed_ex_dp(self.dh.database)
         else: raise Exception("mode:" + mode + " is not supported")
+
 
     # ------------------------------
     # Functionality:
@@ -195,6 +197,7 @@ class HillClimbing:
             elif e.__class__.__name__ in exception_names:
                 print("Exception: " + e.__class__.__name__)
                 new_ex_dp_res = ex_dp
+                move_to_try.set_validity(False)
             else:
                 raise e
 
@@ -596,13 +599,14 @@ class HillClimbing:
             return False
 
     def get_feasible_transformations(self, ex_dp, sim_dp, hot_blck_synced, selected_metric, selected_krnl, sorted_metric_dir):
+
+        # if this knob is set, we randomly pick a transformation
+        # THis is to illustrate the architectural awareness of FARSI a
         if config.transformation_selection_mode == "random":
-            all_transformations = ["migrate","swap", "split", "split_swap", "transfer", "routing"]
-            # for performance verification at the moment we support only the following
-            if config.RUN_VERIFICATION_AT_ALL:
-                all_transformations = ["migrate","swap", "split", "split_swap"]
+            all_transformations = config.all_available_transformations
             return all_transformations
 
+        # pick a transformation smartly
         imm_block = self.dh.get_immediate_block_multi_metric(hot_blck_synced, selected_metric, sorted_metric_dir,  hot_blck_synced.get_tasks_of_block())
         task = ex_dp.get_hardware_graph().get_task_graph().get_task_by_name(selected_krnl.get_task_name())
         feasible_transformations = set(config.metric_trans_dict[selected_metric])
@@ -680,7 +684,7 @@ class HillClimbing:
         # ------------------------
         # based on locality, generate feasible transformations
         # ------------------------
-        if can_improve_locality:
+        if can_improve_locality and ('transfer' in config.all_available_transformations):
             # locality not gonna improve area with the current set up
             if not selected_metric == "area" and selected_dir == -1:
                 feasible_transformations.append("transfer")
@@ -688,7 +692,7 @@ class HillClimbing:
         #------------------------
         # there is a on opportunity for routing
         #------------------------
-        if can_improve_routing:
+        if can_improve_routing and ('routing' in config.all_available_transformations):
             transformation_list = list(feasible_transformations)
             transformation_list.append('routing')
             feasible_transformations = set(transformation_list)
@@ -907,9 +911,6 @@ class HillClimbing:
             feasible_trans = self.get_feasible_transformations(ex_dp, sim_dp, hot_blck_synced, selected_metric,
                                               krnl,move_sorted_metric_dir)
             for trans in feasible_trans:
-                #if trans == "identity":
-                #    krnl_improvement_cost[(krnl, trans)] = 0.000001
-                #    continue
                 cost = get_transformation_cost(sim_dp, selected_metric, move_sorted_metric_dir, krnl, trans)
                 krnl_improvement_cost[(krnl, trans)] = cost
         return krnl_improvement_cost
@@ -1804,6 +1805,7 @@ class HillClimbing:
 
         # profile info
         sim_dp.set_iteration_number(self.total_itr_ctr)
+        sim_dp.set_population_observed_number(self.total_gen_ctr)
         sim_dp.set_depth_number(self.SA_current_depth)
         sim_dp.set_simulation_time(sim_time)
 
@@ -1939,6 +1941,7 @@ class HillClimbing:
             # if nothing has changed, just copy the sim from before
             sim_dp = des_tup[1]
         elif design_unique_code not in self.cached_SOC_sim.keys():
+            self.total_gen_ctr +=1
             sim_dp = self.eval_design(ex_dp, self.database)  # evaluate the designs
             #if config.cache_seen_designs: # this seems to be slower than just simulation, because of deepcopy
             #    self.cached_SOC_sim[design_unique_code] = (ex_dp, sim_dp)
@@ -2008,6 +2011,11 @@ class HillClimbing:
                 des_tup_new_breadth, _ = self.gen_neigh_and_eval(des_tup)
                 des_tup_list.append(des_tup_new_breadth)
             """
+            # just a quick optimization, since there is not need
+            # to go deeper if we encounter identity.
+            # This is because we will keep repeating the identity at the point
+            if des_tup_new[1].move_applied.get_transformation_name() == "identity":
+                break
 
             self.gen_some_neighs_and_eval(des_tup_new, 1, depth_length-1, des_tup_list)
             #des_tup_list.extend(self.gen_some_neighs_and_eval(des_tup_new, 1, depth_length-1))
@@ -2058,6 +2066,15 @@ class HillClimbing:
         for k, v in list_:
             result +=str(k) + "=" + str(v) + "___"
         return result
+
+    def convert_dictionary_to_parsable_csv(self, dict_):
+        result = ""
+        for k, v in dict_.items():
+            phase_value_dict = list(v.values())[0]
+            value = list(phase_value_dict.values())[0]
+            result +=str(k) + "=" + str(value) + "___"
+        return result
+
 
 
     # ------------------------------
@@ -2134,18 +2151,22 @@ class HillClimbing:
                 ref_des_dist_to_goal_all = ""
                 ref_des_dist_to_goal_non_cost = ""
 
+            sub_block_area_break_down = self.convert_dictionary_to_parsable_csv(sim_dp.dp_stats.SOC_area_subtype_dict)
+            block_area_break_down = self.convert_dictionary_to_parsable_csv(sim_dp.dp_stats.SOC_area_dict)
             routing_complexity = sim_dp.dp_rep.get_hardware_graph().get_routing_complexity()
             simple_topology = sim_dp.dp_rep.get_hardware_graph().get_simplified_topology_code()
+            channel_cnt = sim_dp.dp_rep.get_hardware_graph().get_number_of_channels()
             blk_cnt = sum([int(el) for el in simple_topology.split("_")])
             bus_cnt = [int(el) for el in simple_topology.split("_")][0]
             mem_cnt = [int(el) for el in simple_topology.split("_")][1]
             pe_cnt = [int(el) for el in simple_topology.split("_")][2]
+            task_cnt = len(list(sim_dp.dp_rep.krnl_phase_present.keys()))
             itr_depth_multiplied = sim_dp.dp_rep.get_iteration_number() * config.SA_depth + sim_dp.dp_rep.get_depth_number()
 
 
             data = {
                     "data_number": ctr,
-                    "iterationxdepth number" : itr_depth_multiplied,
+                    "observed population number" : sim_dp.dp_rep.get_population_observed_number(),
                     "SA_total_depth": str(config.SA_depth),
                     "iteration number": sim_dp.dp_rep.get_iteration_number(),
                     "simulation time" : sim_dp.dp_rep.get_simulation_time(),
@@ -2176,7 +2197,12 @@ class HillClimbing:
                     "transformation_dir" : dir,
                     "comm_comp" : comm_comp,
                     "optimization name" : high_level_optimization,
-                    "architectural principle" : architectural_variable_to_improve}
+                    "architectural principle" : architectural_variable_to_improve,
+                    "block_area_break_down":block_area_break_down,
+                    "sub_block_area_break_down":sub_block_area_break_down,
+                "task_cnt": task_cnt,
+                "channel_cnt":channel_cnt
+            }
 
             for metric in config.all_metrics:
                 data[metric] = sim_dp.dp_stats.get_system_complex_metric(metric)
@@ -2209,7 +2235,7 @@ class HillClimbing:
             this_itr_ex_sim_dp_dict = self.simple_SA()   # run simple simulated annealing
 
             # collect profiling information about moves and designs generated
-            if config.VIS_MOVE_TRAIL and (self.total_itr_ctr% config.vis_reg_ctr_threshold) == 0:
+            if config.VIS_MOVE_TRAIL and (self.total_itr_ctr% config.vis_reg_ctr_threshold) == 0 and len(self.des_trail_list) > 0:
                 plot.des_trail_plot(self.des_trail_list, self.move_profile, des_per_iteration)
                 plot.move_profile_plot(self.move_profile)
 

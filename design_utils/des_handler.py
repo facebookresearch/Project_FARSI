@@ -1251,20 +1251,21 @@ class DesignHandler:
         elif move_to_apply.get_transformation_name() == "split":
             self.unload_buses(ex_dp)  # unload buss
             if blck_ref.type == "ic":
-                succeeded = self.fork_bus(ex_dp, blck_ref, move_to_apply.get_tasks())
+                succeeded,_ = self.fork_bus(ex_dp, blck_ref, move_to_apply.get_tasks())
             else:
-                succeeded = self.fork_block(ex_dp, blck_ref, move_to_apply.get_tasks())
+                succeeded,_ = self.fork_block(ex_dp, blck_ref, move_to_apply.get_tasks())
             if config.DEBUG_SANITY:ex_dp.sanity_check() # sanity check
         elif move_to_apply.get_transformation_name() == "split_swap":
             # first split
             previous_designs_blocks = ex_dp.get_blocks()
             self.unload_buses(ex_dp)  # unload buss
             if blck_ref.type == "ic":
-                succeeded = self.fork_bus(ex_dp, blck_ref, move_to_apply.get_tasks())
+                succeeded, new_block = self.fork_bus(ex_dp, blck_ref, move_to_apply.get_tasks())
             else:
-                succeeded = self.fork_block(ex_dp, blck_ref, move_to_apply.get_tasks())
+                succeeded, new_block = self.fork_block(ex_dp, blck_ref, move_to_apply.get_tasks())
             ex_dp.hardware_graph.update_graph(block_to_prime_with=blck_ref)  # update the hardware graph
             if succeeded:
+                """
                 current_blocks = ex_dp.get_blocks()
                 new_block = list(set(current_blocks) - set(previous_designs_blocks))[0]
 
@@ -1274,6 +1275,8 @@ class DesignHandler:
                     block_to_swap = new_block
                 else:
                     block_to_swap =blck_ref
+                """
+                block_to_swap = new_block
                 if config.DEBUG_SANITY:ex_dp.sanity_check() # sanity check
                 succeeded = self.swap_block(block_to_swap, move_to_apply.get_des_block())
                 succeeded = self.mig_tasks_of_src_to_dest(ex_dp, block_to_swap,
@@ -1809,7 +1812,7 @@ class DesignHandler:
         migrant_tasks = []  # filter the tasks that don' exist on the block. This usually happens because we might unload the bus/memory
         # transformation gaurds
         if len(block.get_tasks_of_block()) < config.num_clusters:
-            return False
+            return False,""
         else:
             for task__ in migrant_tasks_non_filtered:
                 # if tasks to migrate does not exist on the src block
@@ -1820,7 +1823,7 @@ class DesignHandler:
                     migrant_tasks.append(task__)
 
         if len(migrant_tasks) == 0:
-            return False
+            return False,""
 
         # find and attach a similar block
         alloc_block = self.allocate_similar_block(block, migrant_tasks)
@@ -1833,7 +1836,7 @@ class DesignHandler:
         if config.VIS_GR_PER_GEN: vis_hardware(ex_dp)
 
         ex_dp.check_mem_fronts_sanity()
-        return True
+        return True, alloc_block
 
     # ------------------------------
     # Functionality:
@@ -1921,23 +1924,23 @@ class DesignHandler:
                         mem_forkability = False
 
             if not (mem_forkability and pe_forkability):
-                return False
+                return False,""
 
         # now fork the neighbours if necessary
         if len(pe_neighs) == 1:
-            pe_forked = self.fork_block(ex_dp,  pe_neighs[0], migrant_tasks)
+            pe_forked,_ = self.fork_block(ex_dp,  pe_neighs[0], migrant_tasks)
             ex_dp.hardware_graph.update_graph(block_to_prime_with=block)
         else:
             pe_good_to_go = True
 
         if len(mem_neighs) == 1:
-            mem_forked= self.fork_block(ex_dp,  mem_neighs[0], migrant_tasks)
+            mem_forked,_= self.fork_block(ex_dp,  mem_neighs[0], migrant_tasks)
             ex_dp.hardware_graph.update_graph(block_to_prime_with=block)
         else:
             mem_good_to_go = True
 
         if not((pe_forked or pe_good_to_go) and (mem_forked or mem_good_to_go)):
-            return False
+            return False, ""
 
         # allocate and attach a similar bus
         alloc_block = self.allocate_similar_block(block, [])
@@ -1958,7 +1961,7 @@ class DesignHandler:
 
 
         ex_dp.hardware_graph.update_graph(block_to_prime_with=block)
-        return True
+        return True, alloc_block
 
     # ------------------------------
     # Functionality:

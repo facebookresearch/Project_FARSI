@@ -1129,6 +1129,7 @@ class SimDesignPoint(ExDesignPoint):
         self.krnl_phase_present = {}
         self.phase_krnl_present = {}
         self.iteration_number = 0  # the iteration which the simulation is done
+        self.population_observed_number = 0
         self.depth_number = 0  # the depth (within on iteration) which the simulation is done
         self.simulation_time = 0  # how long did it take to do the simulation
         if config.use_cacti:
@@ -1149,6 +1150,9 @@ class SimDesignPoint(ExDesignPoint):
     def set_iteration_number(self, iteration_number):
         self.iteration_number = iteration_number
 
+    def set_population_observed_number(self, population_observed_number):
+        self.population_observed_number = population_observed_number
+
     def set_depth_number(self, depth_number):
         self.depth_number = depth_number
 
@@ -1158,10 +1162,14 @@ class SimDesignPoint(ExDesignPoint):
     def get_iteration_number(self):
         return self.iteration_number
 
+    def get_population_observed_number(self):
+        return self.population_observed_number
+
+
     def get_tasks_parallel_task_dynamically(self, task):
+        if task.is_task_dummy():
+            return []
         krnl = self.get_kernel_by_task_name(task)
-        #if krnl not in self.krnl_phase_present.keys():
-        #    print("yeah something has def gone wrong")
 
         phases_present = self.krnl_phase_present[krnl]
         parallel_krnls = []
@@ -1273,8 +1281,8 @@ class SimDesignPoint(ExDesignPoint):
         write_energy_per_byte = float(cacti_area_energy_results['Dynamic write energy (nJ)']) * (10 ** -9) / 16
         area = float(cacti_area_energy_results['Area (mm2)']) * (10 ** -6)
 
-        read_energy_per_byte *= tech_node["energy"]
-        write_energy_per_byte *= tech_node["energy"]
+        read_energy_per_byte *= tech_node["energy"]["non_gpp"]
+        write_energy_per_byte *= tech_node["energy"]["non_gpp"]
         area *= tech_node["area"]["mem"]
 
         # log values
@@ -1486,6 +1494,8 @@ class DPStats:
             bus_cnt = [int(el) for el in simple_topology.split("_")][0]
             mem_cnt = [int(el) for el in simple_topology.split("_")][1]
             pe_cnt = [int(el) for el in simple_topology.split("_")][2]
+            task_cnt = len(list(self.dp.krnl_phase_present.keys()))
+            channel_cnt = self.dp.get_hardware_graph().get_number_of_channels()
 
             output.write("{\n")
             output.write("\"FARSI_predicted_latency\": "+ str(max(list(self.get_system_complex_metric("latency").values()))) +",\n")
@@ -1499,6 +1509,9 @@ class DPStats:
             output.write("\"pe_cnt\": "+ str(pe_cnt) +",\n")
             output.write("\"mem_cnt\": "+ str(mem_cnt) +",\n")
             output.write("\"bus_cnt\": "+ str(bus_cnt) +",\n")
+            output.write("\"task_cnt\": "+ str(task_cnt) +",\n")
+            output.write("\"routing_complexity\": "+ str(routing_complexity) +",\n")
+            output.write("\"channel_cnt\": "+ str(channel_cnt) +",\n")
             output.write("\"FARSI simulation time\": " + str(self.dp.get_simulation_time()) + ",\n")
 
     # Function: profile the simulated design, collecting information about

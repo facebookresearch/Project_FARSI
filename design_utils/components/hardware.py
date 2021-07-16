@@ -1370,6 +1370,15 @@ class HardwareGraph:
             self.set_simplified_topology_code()
         return self.simplified_topology_code
 
+    def get_number_of_channels(self):
+        ics = self.get_blocks_by_type("ic")
+        total_number_channels = 0
+        for blk in ics:
+            total_number_channels+= len(blk.get_pipe_clusters())
+
+        return total_number_channels
+
+
     def get_routing_complexity(self):
         pes = self.get_blocks_by_type("pe")
         mems = self.get_blocks_by_type("mem")

@@ -80,7 +80,7 @@ def run_with_params(workloads, SA_depth, freq_range, power_budget, area_budget):
     ip_freq_range = freq_range
     mem_freq_range = freq_range
     ic_freq_range = freq_range
-    tech_node_SF = {"perf":1, "energy":.064, "area":{"non_mem":.0374 , "mem":.079}}   # technology node scaling factor
+    tech_node_SF = {"perf":1, "energy":{"non_gpp":.064, "gpp":1}, "area":{"non_mem":.0374 , "mem":.079, "gpp":1}}   # technology node scaling factor
     db_population_misc_knobs = {"ip_freq_correction_ratio": 1, "gpp_freq_correction_ratio": 1,
                                 "ip_spawn": {"ip_loop_unrolling": ip_loop_unrolling, "ip_freq_range": ip_freq_range},
                                 "mem_spawn": {"mem_freq_range":mem_freq_range},
