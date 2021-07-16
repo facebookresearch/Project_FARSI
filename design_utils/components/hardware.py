@@ -568,11 +568,11 @@ class Block:
         tasks = self.get_tasks_of_block()
         for task in tasks:
             if (task.name == task_name):
-                return task
+                return True, task
         print("erroring out for block" + self.instance_name)
         self.get_tasks_dir_work_ratio_for_printing()
         print("task with the name of " + task_name + "is not loaded on block" + self.instance_name)
-        return 1
+        return False, "_"
 
     # ---------------------------
     # Functionality:
@@ -1369,6 +1369,15 @@ class HardwareGraph:
         if self.simplified_topology_code == "-1":
             self.set_simplified_topology_code()
         return self.simplified_topology_code
+
+    def get_number_of_channels(self):
+        ics = self.get_blocks_by_type("ic")
+        total_number_channels = 0
+        for blk in ics:
+            total_number_channels+= len(blk.get_pipe_clusters())
+
+        return total_number_channels
+
 
     def get_routing_complexity(self):
         pes = self.get_blocks_by_type("pe")

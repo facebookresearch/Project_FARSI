@@ -1067,12 +1067,12 @@ class Kernel:
 
     def get_masters_relevant_tasks_on_the_pipe_cluster(self, in_pipe, dir_):
         if dir_ == "write":
-            master_tasks = [el.get_child() for el in in_pipe.get_traffic() if
+            relevant_tasks = [el.get_child() for el in in_pipe.get_traffic() if
                             el.get_parent().name == self.get_task_name()]
         else:
-            master_tasks = [el.get_parent() for el in in_pipe.get_traffic() if
+            relevant_tasks = [el.get_parent() for el in in_pipe.get_traffic() if
                             el.get_child().name == self.get_task_name()]
-        return master_tasks
+        return relevant_tasks
 
     # update each path's (inpipe-outpipe) workrate
     def update_pipe_cluster_pathlet_work_rate(self, pipe_cluster, bottleneck_work_rate):
@@ -1104,10 +1104,10 @@ class Kernel:
             out_pipe = pathlet_.get_in_pipe()
             work_ratio =0
             #pipe_master = in_pipe.get_master()
-            master_tasks = self.get_masters_relevant_tasks_on_the_pipe_cluster(in_pipe, dir_)
+            relevant_tasks_on_pipe = self.get_masters_relevant_tasks_on_the_pipe_cluster(in_pipe, dir_)
             # calculate work ratio
             for family_task in family_tasks:
-                if family_task in master_tasks:
+                if family_task in relevant_tasks_on_pipe:
                     work_ratio += self.__task_to_blocks_map.get_workRatio_by_block_name_and_family_member_names_and_channel_eliminating_fake(
                         pipe_ref_block.instance_name, [(family_task.name, dir_)], dir_)
 

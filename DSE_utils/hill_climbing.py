@@ -97,6 +97,8 @@ class HillClimbing:
         self.all_itr_ex_sim_dp_dict: Dict[ExDesignPoint: SimDesignPoint] = {}  # all the designs look at
         self.reason_to_terminate = ""
         self.log_data_list = []
+        self.population_observed_ctr = 0  #
+        self.neighbour_selection_time = 0
 
     def set_check_point_folder(self, check_point_folder):
         self.check_point_folder = check_point_folder
@@ -131,6 +133,7 @@ class HillClimbing:
             self.init_ex_dp = self.dh.gen_specific_parsed_ex_dp(self.dh.database)
         else: raise Exception("mode:" + mode + " is not supported")
 
+
     # ------------------------------
     # Functionality:
     #       Generate one neighbouring design based on the moves available.
@@ -148,9 +151,11 @@ class HillClimbing:
         #new_ex_dp_pre_mod = copy.deepcopy(ex_dp)  # getting a copy before modifying
         #new_sim_dp_pre_mod = copy.deepcopy(sim_dp) # getting a copy before modifying
         #new_ex_dp = copy.deepcopy(ex_dp)
+        t1 = time.time()
         gc.disable()
         new_ex_dp = cPickle.loads(cPickle.dumps(ex_dp, -1))
         gc.enable()
+        t2 = time.time()
         #new_sim_dp = copy.deepcopy(sim_dp)
         new_des_tup = (new_ex_dp, sim_dp)
 
@@ -166,7 +171,7 @@ class HillClimbing:
             move_to_try, total_transformation_cnt = self.sel_moves(new_des_tup, "dist_rank")
             safety_chk_passed = move_to_try.safety_check(new_ex_dp)
 
-        #move_to_try.print_info()
+        move_to_try.set_logs(t2-t1, "pickling_time")
 
         # ------------------------
         # apply the move
@@ -195,8 +200,10 @@ class HillClimbing:
             elif e.__class__.__name__ in exception_names:
                 print("Exception: " + e.__class__.__name__)
                 new_ex_dp_res = ex_dp
+                move_to_try.set_validity(False)
             else:
                 raise e
+
 
         return new_ex_dp_res, move_to_try, total_transformation_cnt
 
@@ -596,13 +603,14 @@ class HillClimbing:
             return False
 
     def get_feasible_transformations(self, ex_dp, sim_dp, hot_blck_synced, selected_metric, selected_krnl, sorted_metric_dir):
+
+        # if this knob is set, we randomly pick a transformation
+        # THis is to illustrate the architectural awareness of FARSI a
         if config.transformation_selection_mode == "random":
-            all_transformations = ["migrate","swap", "split", "split_swap", "transfer", "routing"]
-            # for performance verification at the moment we support only the following
-            if config.RUN_VERIFICATION_AT_ALL:
-                all_transformations = ["migrate","swap", "split", "split_swap"]
+            all_transformations = config.all_available_transformations
             return all_transformations
 
+        # pick a transformation smartly
         imm_block = self.dh.get_immediate_block_multi_metric(hot_blck_synced, selected_metric, sorted_metric_dir,  hot_blck_synced.get_tasks_of_block())
         task = ex_dp.get_hardware_graph().get_task_graph().get_task_by_name(selected_krnl.get_task_name())
         feasible_transformations = set(config.metric_trans_dict[selected_metric])
@@ -680,7 +688,7 @@ class HillClimbing:
         # ------------------------
         # based on locality, generate feasible transformations
         # ------------------------
-        if can_improve_locality:
+        if can_improve_locality and ('transfer' in config.all_available_transformations):
             # locality not gonna improve area with the current set up
             if not selected_metric == "area" and selected_dir == -1:
                 feasible_transformations.append("transfer")
@@ -688,7 +696,7 @@ class HillClimbing:
         #------------------------
         # there is a on opportunity for routing
         #------------------------
-        if can_improve_routing:
+        if can_improve_routing and ('routing' in config.all_available_transformations):
             transformation_list = list(feasible_transformations)
             transformation_list.append('routing')
             feasible_transformations = set(transformation_list)
@@ -907,9 +915,6 @@ class HillClimbing:
             feasible_trans = self.get_feasible_transformations(ex_dp, sim_dp, hot_blck_synced, selected_metric,
                                               krnl,move_sorted_metric_dir)
             for trans in feasible_trans:
-                #if trans == "identity":
-                #    krnl_improvement_cost[(krnl, trans)] = 0.000001
-                #    continue
                 cost = get_transformation_cost(sim_dp, selected_metric, move_sorted_metric_dir, krnl, trans)
                 krnl_improvement_cost[(krnl, trans)] = cost
         return krnl_improvement_cost
@@ -1246,16 +1251,17 @@ class HillClimbing:
         else: time.sleep(.00001), random.seed(datetime.now().microsecond)
 
         # select move components
+        t_0 = time.time()
         selected_metric, metric_prob_dir_dict, sorted_metric_dir = self.select_metric(sim_dp)
-        move_dir = self.select_dir(sim_dp, selected_metric)
-
         t_1 = time.time()
-        selected_krnl, krnl_prob_dict, krnl_prob_dir_dict_sorted = self.select_kernel(ex_dp, sim_dp, selected_metric, sorted_metric_dir)
+        move_dir = self.select_dir(sim_dp, selected_metric)
         t_2 = time.time()
-        selected_block, block_prob_dict = self.select_block(sim_dp, ex_dp, selected_krnl, selected_metric)
+        selected_krnl, krnl_prob_dict, krnl_prob_dir_dict_sorted = self.select_kernel(ex_dp, sim_dp, selected_metric, sorted_metric_dir)
         t_3 = time.time()
-        transformation_name,transformation_sub_name, transformation_batch_mode, total_transformation_cnt = self.select_transformation(ex_dp, sim_dp, selected_block, selected_metric, selected_krnl, sorted_metric_dir)
+        selected_block, block_prob_dict = self.select_block(sim_dp, ex_dp, selected_krnl, selected_metric)
         t_4 = time.time()
+        transformation_name,transformation_sub_name, transformation_batch_mode, total_transformation_cnt = self.select_transformation(ex_dp, sim_dp, selected_block, selected_metric, selected_krnl, sorted_metric_dir)
+        t_5 = time.time()
 
         """
         if sim_dp.dp_stats.fits_budget(1) and self.dram_feasibility_check_pass(ex_dp) and self.can_improve_locality(selected_block, selected_krnl):
@@ -1295,10 +1301,12 @@ class HillClimbing:
         move_to_apply.set_logs(sim_dp.dp_stats.dist_to_goal(["power", "area", "latency"],
                                                                                 config.metric_sel_dis_mode),"ref_des_dist_to_goal_non_cost")
 
-        move_to_apply.set_logs(t_2 - t_1, "kernel_selection_time")
-        move_to_apply.set_logs(t_3 - t_2, "block_selection_time")
-        move_to_apply.set_logs(t_4 - t_3, "transformation_selection_time")
 
+        move_to_apply.set_logs(t_1 - t_0, "metric_selection_time")
+        move_to_apply.set_logs(t_2 - t_1, "dir_selection_time")
+        move_to_apply.set_logs(t_3 - t_2, "kernel_selection_time")
+        move_to_apply.set_logs(t_4 - t_3, "block_selection_time")
+        move_to_apply.set_logs(t_5 - t_4, "transformation_selection_time")
 
         blck_ref = move_to_apply.get_block_ref()
         gc.disable()
@@ -1326,17 +1334,21 @@ class HillClimbing:
         elif move_to_apply.get_transformation_name() in ["split_swap"]:
             self.dh.unload_buses(ex_dp)  # unload buses
             # get immediate superior/inferior block (based on the desired direction)
-            imm_block = self.dh.get_immediate_block_multi_metric(blck_ref,
-                                                 move_to_apply.get_metric(), move_to_apply.get_sorted_metric_dir(),
-                                                 [blck_ref.get_tasks_by_name(move_to_apply.get_kernel_ref().get_task_name())])  # immediate block either superior or
-            move_to_apply.set_dest_block(imm_block)
+            succeeded,migrant = blck_ref.get_tasks_by_name(move_to_apply.get_kernel_ref().get_task_name())
+            if not succeeded:
+                move_to_apply.set_validity(False, "NoMigrantException")
+            else:
+                imm_block = self.dh.get_immediate_block_multi_metric(blck_ref,
+                                                     move_to_apply.get_metric(), move_to_apply.get_sorted_metric_dir(),
+                                                     [migrant])  # immediate block either superior or
+                move_to_apply.set_dest_block(imm_block)
 
-            self.dh.unload_read_mem(ex_dp)  # unload memories
-            self.change_read_task_to_write_if_necessary(ex_dp, sim_dp, move_to_apply, selected_krnl)
-            migrant_tasks = self.dh.migrant_selection(ex_dp, sim_dp, blck_ref, blck_ref_cp, move_to_apply.get_kernel_ref(),
-                                                      move_to_apply.get_transformation_batch())
-            #migrant_tasks  = list(set(move_to_apply.get_block_ref().get_tasks()) - set(migrant_tasks_))  # reverse the order to allow for swap to happen on the ref_block
-            move_to_apply.set_tasks(migrant_tasks)
+                self.dh.unload_read_mem(ex_dp)  # unload memories
+                self.change_read_task_to_write_if_necessary(ex_dp, sim_dp, move_to_apply, selected_krnl)
+                migrant_tasks = self.dh.migrant_selection(ex_dp, sim_dp, blck_ref, blck_ref_cp, move_to_apply.get_kernel_ref(),
+                                                          move_to_apply.get_transformation_batch())
+                #migrant_tasks  = list(set(move_to_apply.get_block_ref().get_tasks()) - set(migrant_tasks_))  # reverse the order to allow for swap to happen on the ref_block
+                move_to_apply.set_tasks(migrant_tasks)
         elif move_to_apply.get_transformation_name() in ["split"]:
             # select tasks to migrate
             #self.change_read_task_to_write_if_necessary(ex_dp, sim_dp, move_to_apply, selected_krnl)
@@ -1804,6 +1816,7 @@ class HillClimbing:
 
         # profile info
         sim_dp.set_iteration_number(self.total_itr_ctr)
+        sim_dp.set_population_observed_number(self.population_observed_ctr)
         sim_dp.set_depth_number(self.SA_current_depth)
         sim_dp.set_simulation_time(sim_time)
 
@@ -1939,6 +1952,7 @@ class HillClimbing:
             # if nothing has changed, just copy the sim from before
             sim_dp = des_tup[1]
         elif design_unique_code not in self.cached_SOC_sim.keys():
+            self.population_observed_ctr += 1
             sim_dp = self.eval_design(ex_dp, self.database)  # evaluate the designs
             #if config.cache_seen_designs: # this seems to be slower than just simulation, because of deepcopy
             #    self.cached_SOC_sim[design_unique_code] = (ex_dp, sim_dp)
@@ -2008,6 +2022,11 @@ class HillClimbing:
                 des_tup_new_breadth, _ = self.gen_neigh_and_eval(des_tup)
                 des_tup_list.append(des_tup_new_breadth)
             """
+            # just a quick optimization, since there is not need
+            # to go deeper if we encounter identity.
+            # This is because we will keep repeating the identity at the point
+            if des_tup_new[1].move_applied.get_transformation_name() == "identity":
+                break
 
             self.gen_some_neighs_and_eval(des_tup_new, 1, depth_length-1, des_tup_list)
             #des_tup_list.extend(self.gen_some_neighs_and_eval(des_tup_new, 1, depth_length-1))
@@ -2059,6 +2078,15 @@ class HillClimbing:
             result +=str(k) + "=" + str(v) + "___"
         return result
 
+    def convert_dictionary_to_parsable_csv(self, dict_):
+        result = ""
+        for k, v in dict_.items():
+            phase_value_dict = list(v.values())[0]
+            value = list(phase_value_dict.values())[0]
+            result +=str(k) + "=" + str(value) + "___"
+        return result
+
+
 
     # ------------------------------
     # Functionality:
@@ -2109,10 +2137,14 @@ class HillClimbing:
                 block_selection_time = ma.get_logs("block_selection_time")
                 kernel_selection_time = ma.get_logs("kernel_selection_time")
                 transformation_selection_time = ma.get_logs("transformation_selection_time")
+                pickling_time = ma.get_logs("pickling_time")
+                metric_selection_time = ma.get_logs("metric_selection_time")
+                dir_selection_time = ma.get_logs("dir_selection_time")
                 move_validity = ma.is_valid()
                 ref_des_dist_to_goal_all = ma.get_logs("ref_des_dist_to_goal_all")
                 ref_des_dist_to_goal_non_cost = ma.get_logs("ref_des_dist_to_goal_non_cost")
             else:  # happens at the very fist iteration
+                pickling_time = 0
                 sorted_metrics = ""
                 metric = ""
                 transformation_name = ""
@@ -2129,32 +2161,43 @@ class HillClimbing:
                 architectural_variable_to_improve = ""
                 block_selection_time = ""
                 kernel_selection_time = ""
+                metric_selection_time = ""
+                dir_selection_time = ""
                 transformation_selection_time = ""
                 move_validity = ""
                 ref_des_dist_to_goal_all = ""
                 ref_des_dist_to_goal_non_cost = ""
 
+            sub_block_area_break_down = self.convert_dictionary_to_parsable_csv(sim_dp.dp_stats.SOC_area_subtype_dict)
+            block_area_break_down = self.convert_dictionary_to_parsable_csv(sim_dp.dp_stats.SOC_area_dict)
             routing_complexity = sim_dp.dp_rep.get_hardware_graph().get_routing_complexity()
             simple_topology = sim_dp.dp_rep.get_hardware_graph().get_simplified_topology_code()
+            channel_cnt = sim_dp.dp_rep.get_hardware_graph().get_number_of_channels()
             blk_cnt = sum([int(el) for el in simple_topology.split("_")])
             bus_cnt = [int(el) for el in simple_topology.split("_")][0]
             mem_cnt = [int(el) for el in simple_topology.split("_")][1]
             pe_cnt = [int(el) for el in simple_topology.split("_")][2]
+            task_cnt = len(list(sim_dp.dp_rep.krnl_phase_present.keys()))
             itr_depth_multiplied = sim_dp.dp_rep.get_iteration_number() * config.SA_depth + sim_dp.dp_rep.get_depth_number()
 
 
             data = {
                     "data_number": ctr,
-                    "iterationxdepth number" : itr_depth_multiplied,
+                    "population generated number" : ctr,
+                    "observed population number" : sim_dp.dp_rep.get_population_observed_number(),
                     "SA_total_depth": str(config.SA_depth),
                     "iteration number": sim_dp.dp_rep.get_iteration_number(),
                     "simulation time" : sim_dp.dp_rep.get_simulation_time(),
                     "move generation time" : generation_time,
+                    "metric selection time" :metric_selection_time,
+                    "dir selection time" :dir_selection_time,
                     "kernel selection time" :kernel_selection_time,
                     "block selection time" : block_selection_time,
                     "transformation selection time" : transformation_selection_time,
-                    "dist_to_goal_all" : sim_dp.dp_stats.dist_to_goal(metrics_to_look_into=["area", "latency", "power", "cost"],
-                                                                      mode="eliminate"),
+                "pickling time": pickling_time,
+                "neighbour selection time": self.neighbour_selection_time,
+                "dist_to_goal_all" : sim_dp.dp_stats.dist_to_goal(metrics_to_look_into=["area", "latency", "power", "cost"],
+                                                                  mode="eliminate"),
                     "dist_to_goal_non_cost" : sim_dp.dp_stats.dist_to_goal(metrics_to_look_into=["area", "latency", "power"],
                                                                            mode="eliminate"),
                     "ref_des_dist_to_goal_all" : ref_des_dist_to_goal_all,
@@ -2176,7 +2219,12 @@ class HillClimbing:
                     "transformation_dir" : dir,
                     "comm_comp" : comm_comp,
                     "optimization name" : high_level_optimization,
-                    "architectural principle" : architectural_variable_to_improve}
+                    "architectural principle" : architectural_variable_to_improve,
+                    "block_area_break_down":block_area_break_down,
+                    "sub_block_area_break_down":sub_block_area_break_down,
+                "task_cnt": task_cnt,
+                "channel_cnt":channel_cnt
+            }
 
             for metric in config.all_metrics:
                 data[metric] = sim_dp.dp_stats.get_system_complex_metric(metric)
@@ -2209,14 +2257,16 @@ class HillClimbing:
             this_itr_ex_sim_dp_dict = self.simple_SA()   # run simple simulated annealing
 
             # collect profiling information about moves and designs generated
-            if config.VIS_MOVE_TRAIL and (self.total_itr_ctr% config.vis_reg_ctr_threshold) == 0:
+            if config.VIS_MOVE_TRAIL and (self.total_itr_ctr% config.vis_reg_ctr_threshold) == 0 and len(self.des_trail_list) > 0:
                 plot.des_trail_plot(self.des_trail_list, self.move_profile, des_per_iteration)
                 plot.move_profile_plot(self.move_profile)
 
             # select the next best design
+            t1 = time.time()
             self.cur_best_ex_dp, self.cur_best_sim_dp = self.sel_next_dp(this_itr_ex_sim_dp_dict,
                                                                          self.so_far_best_sim_dp, self.so_far_best_ex_dp, cur_temp)
-
+            t2 = time.time()
+            self.neighbour_selection_time = t2-t1
             self.log_data(this_itr_ex_sim_dp_dict)
             print("-------:):):):):)----------")
             print("Best design's latency: " + str(self.cur_best_sim_dp.dp_stats.get_system_complex_metric("latency")))
@@ -2245,8 +2295,10 @@ class HillClimbing:
                         self.des_trail_list.append(self.last_des_trail)
                 if not (self.last_move == None):
                     self.move_profile.append(self.last_move)
-                plot.des_trail_plot(self.des_trail_list, self.move_profile, des_per_iteration)
-                plot.move_profile_plot(self.move_profile)
+
+                if config.VIS_MOVE_TRAIL:
+                    plot.des_trail_plot(self.des_trail_list, self.move_profile, des_per_iteration)
+                    plot.move_profile_plot(self.move_profile)
                 self.reason_to_terminate = reason_to_terminate
                 return
             cur_temp -= config.annealing_temp_dec
