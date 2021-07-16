@@ -568,11 +568,11 @@ class Block:
         tasks = self.get_tasks_of_block()
         for task in tasks:
             if (task.name == task_name):
-                return task
+                return True, task
         print("erroring out for block" + self.instance_name)
         self.get_tasks_dir_work_ratio_for_printing()
         print("task with the name of " + task_name + "is not loaded on block" + self.instance_name)
-        return 1
+        return False, "_"
 
     # ---------------------------
     # Functionality:

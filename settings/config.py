@@ -197,7 +197,7 @@ regulate_move_tracking = (FARSI_memory_consumption == "low") # if true, we don't
 cache_seen_designs = False and not(FARSI_memory_consumption == "low") # if True, we cache the designs that we have seen. This way we wont simulate them unnecessarily.
                           # This should be set to false if memory is an issue
 
-VIS_MOVE_TRAIL = DEBUG_MOVE and not NO_VIS
+VIS_MOVE_TRAIL = DEBUG_MOVE and not NO_VIS and False
 eval_mode ="statistical"  # not statistical evaluation ["singular, statistical]. Note that singular is deprecated now
 statistical_reduction_mode = "avg"
 hw_sampling = {"mode":"exact", "population_size":1, "reduction":"avg"}   # mode:["error_integration", "exact"]  # error integration means that our IP library has an error and needs to be taken into account

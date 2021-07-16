@@ -55,6 +55,8 @@ class move:
         self.transformation_selection_time = 0
         self.block_selection_time = 0
         self.kernel_selection_time = 0
+        self.pickling_time = 0
+
 
 
     def get_system_improvement_log(self):
@@ -123,6 +125,12 @@ class move:
     def set_logs(self, data, type_):
         if type_ == "cost":
             self.cost = data
+        if type_ == "pickling_time":
+            self.pickling_time = data
+        if type_ == "metric_selection_time":
+            self.metric_selection_time = data
+        if type_ == "dir_selection_time":
+            self.dir_selection_time = data
         if type_ == "kernel_selection_time":
             self.kernel_selection_time = data
         if type_ == "block_selection_time":
@@ -146,6 +154,7 @@ class move:
         return self.batch_mode
 
     def get_logs(self, type_):
+
         if type_ == "cost":
             return self.cost
         if type_ == "kernels":
@@ -160,6 +169,12 @@ class move:
             return self.ref_des_dist_to_goal_all
         if type_ == "ref_des_dist_to_goal_non_cost":
             return self.ref_des_dist_to_goal_non_cost
+        if type_ == "pickling_time":
+            return self.pickling_time
+        if type_ == "metric_selection_time":
+            return self.metric_selection_time
+        if type_ == "dir_selection_time":
+            return self.dir_selection_time
         if type_ == "kernel_selection_time":
             return self.kernel_selection_time
         if type_ == "block_selection_time":
@@ -271,6 +286,7 @@ class move:
     # this is different than sanity check which checks whether the applied move messed up the design
     def safety_check(self, ex):
         return True
+
 
     # Check the validity of the move.
     def validity_check(self):
