@@ -37,7 +37,7 @@ else:
 
 
 
-def run_with_params(workloads, SA_depth, freq_range, power_budget, area_budget):
+def run_with_params(workloads, SA_depth, freq_range, power_budget, area_budget, study_type, workload_folder):
     config.SA_depth = SA_depth
     config.budget_dict["glass"]["power"]= power_budget
     config.budget_dict["glass"]["area"]= area_budget
@@ -48,32 +48,14 @@ def run_with_params(workloads, SA_depth, freq_range, power_budget, area_budget):
 
     # set the study type
     #study_type = "cost_PPA"
-    study_type = "simple_run"
-    #study_subtype = "plot_3d_distance"
-    study_subtype = "run"
-    assert study_type in ["cost_PPA", "simple_run", "input_error_output_cost_sensitivity", "input_error_input_cost_sensitivity"]
-    assert study_subtype in ["run", "plot_3d_distance"]
 
 
     workloads_first_letter  = '_'.join(sorted([el[0] for el in workloads]))
-    # set result folder
-    result_home_dir_default = os.path.join(os.getcwd(), "data_collection/data/" + study_type)
-    result_home_dir = os.path.join(config.home_dir, "data_collection/data/" + study_type)
-    date_time = datetime.now().strftime('%m-%d_%H-%M_%S')
     budget_values = "pow_"+str(config.budget_dict["glass"]["power"]) + "__area_"+str(config.budget_dict["glass"]["area"])
-    result_folder = os.path.join(result_home_dir,
+
+    # set result folder
+    result_folder = os.path.join(workload_folder,
                                  date_time + "____"+ budget_values +"___workloads_"+workloads_first_letter)
-    # set the study parameters
-    # set the workload
-
-    #workloads = {"edge_detection"}
-    #workloads = {"hpvm_cava"}
-    #workloads = {"audio_decoder"}
-    #workloads = {"SLAM"}
-
-    #workloads = {"partial_SOC_example_hard"}
-    #workloads = {"simple_all_parallel"}
-
     # set the IP spawning params
     ip_loop_unrolling = {"incr": 2, "max_spawn_ip": 17, "spawn_mode": "geometric"}
     #ip_freq_range = {"incr":3, "upper_bound":8}
@@ -122,13 +104,30 @@ def run_with_params(workloads, SA_depth, freq_range, power_budget, area_budget):
         plot_3d_dist(result_dir_addr, full_file_addr, workloads)
 
 if __name__ == "__main__":
+
+    study_type = "simple_run"
+    #study_subtype = "plot_3d_distance"
+    study_subtype = "run"
+    assert study_type in ["cost_PPA", "simple_run", "input_error_output_cost_sensitivity", "input_error_input_cost_sensitivity"]
+    assert study_subtype in ["run", "plot_3d_distance"]
+
     workloads =[{"edge_detection"}, {"hpvm_cava"}, {"audio_decoder"}, {"edge_detection", "hpvm_cava"}, {"edge_detection", "audio_decoder"}, {"hpvm_cava", "audio_decoder"}, {"audio_decoder", "edge_detection", "hpvm_cava"}]
     SA_depth = [10]
     freq_range = [1,4,6,8]
+
     power_budget_range = [.2,.1,.05]  #mW
     area_budget_range = [.0001,.00005,.00003,.00001] # mm2
-    # run_with_params(workloads[0], SA_depth[0], freq_range)
-    for d in SA_depth:
-        for w in workloads:
+
+    result_home_dir_default = os.path.join(os.getcwd(), "data_collection/data/" + study_type)
+    result_folder = os.path.join(config.home_dir, "data_collection/data/" + study_type)
+    date_time = datetime.now().strftime('%m-%d_%H-%M_%S')
+    run_folder = os.path.join(result_folder, date_time)
+    os.mkdir(run_folder)
+
+    for w in workloads:
+        workloads_first_letter = '_'.join(sorted([el[0] for el in w]))
+        workload_folder = os.path.join(run_folder, workloads_first_letter)
+        os.mkdir(workload_folder)
+        for d in SA_depth:
             for power_budget, area_budget in itertools.product(power_budget_range, area_budget_range):
-                run_with_params(w, d, freq_range, power_budget, area_budget)
+                run_with_params(w, d, freq_range, power_budget, area_budget, study_type, workload_folder)

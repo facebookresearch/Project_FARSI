@@ -443,18 +443,19 @@ class HillClimbing:
         result = (self.cleanup_ctr % (config.cleaning_threshold)) >= (config.cleaning_threshold- config.cleaning_consecutive_iterations)
         return result
 
+    def get_block_attr(self, selected_metric):
+        if selected_metric == "latency":
+            selected_metric_to_sort = 'peak_work_rate'
+        elif selected_metric == "power":
+            #selected_metric_to_sort = 'work_over_energy'
+            selected_metric_to_sort = 'one_over_power'
+        elif selected_metric == "area":
+            selected_metric_to_sort = 'one_over_area'
+        else:
+            print("selected_selected_metric: " + selected_metric + " is not defined")
+        return selected_metric_to_sort
+
     def select_block_to_migrate_to(self, ex_dp, sim_dp, hot_blck_synced, selected_metric, sorted_metric_dir, selected_krnl):
-        def get_block_attr(selected_metric):
-            if selected_metric == "latency":
-                selected_metric_to_sort = 'peak_work_rate'
-            elif selected_metric == "power":
-                #selected_metric_to_sort = 'work_over_energy'
-                selected_metric_to_sort = 'one_over_power'
-            elif selected_metric == "area":
-                selected_metric_to_sort = 'one_over_area'
-            else:
-                print("selected_selected_metric: " + selected_metric + " is not defined")
-            return selected_metric_to_sort
 
         # get initial information
         task = ex_dp.get_hardware_graph().get_task_graph().get_task_by_name(selected_krnl.get_task_name())
@@ -510,7 +511,7 @@ class HillClimbing:
             if block_to_migrate_to == hot_blck_synced:
                 continue
 
-            block_metric_attr = get_block_attr(selected_metric) # metric to pay attention to
+            block_metric_attr = self.get_block_attr(selected_metric) # metric to pay attention to
             # iterate and found blocks that are at least as good as the current block
             if getattr(block_to_migrate_to, block_metric_attr) == getattr(hot_blck_synced, block_metric_attr):
                 # blocks have similar attr value
@@ -685,7 +686,7 @@ class HillClimbing:
                    feasible_transformations = ["migrate", "swap", "split_swap"]
            if selected_metric == "area":
                if selected_dir == -1:
-                    feasible_transformations = ["migrate", "swap",]
+                    feasible_transformations = ["migrate", "swap","split_swap"]
                else:
                    feasible_transformations = ["migrate", "swap", "split"]
 
@@ -724,7 +725,9 @@ class HillClimbing:
             feasible_transformations =  set(list(set(feasible_transformations) - set(['split', 'split_swap'] )))
 
         # filter swap
-        if imm_block.get_generic_instance_name() == hot_blck_synced.get_generic_instance_name():
+        block_metric_attr = self.get_block_attr(selected_metric)  # metric to pay attention to
+        if getattr(imm_block, block_metric_attr) == getattr(hot_blck_synced, block_metric_attr):
+            #if imm_block.get_generic_instance_name() == hot_blck_synced.get_generic_instance_name():
             # if can't swap improve, get rid of swap
             feasible_transformations = set(list(set(feasible_transformations) - set(['swap'])))
 
