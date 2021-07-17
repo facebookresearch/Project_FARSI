@@ -583,7 +583,8 @@ if __name__ == "__main__":
     total_process_cnt = 1
     system_workers = (current_process_id, total_process_cnt)
 
-    # set the study type 
+
+    # set the study type
     #study_type = "cost_PPA"
     study_type = "simple_run"
     #study_subtype = "plot_3d_distance"
@@ -591,26 +592,29 @@ if __name__ == "__main__":
     assert study_type in ["cost_PPA", "simple_run", "input_error_output_cost_sensitivity", "input_error_input_cost_sensitivity"]
     assert study_subtype in ["run", "plot_3d_distance"]
 
-    # set result folder
-    result_home_dir_default = os.path.join(os.getcwd(), "data_collection/data/" + study_type)
-    result_home_dir = os.path.join(config.home_dir, "data_collection/data/" + study_type)
-    date_time = datetime.now().strftime('%m-%d_%H-%M_%S')
-    budget_values = "pow_"+str(config.budget_dict["glass"]["power"]) + "__area_"+str(config.budget_dict["glass"]["area"])
-    result_folder = os.path.join(result_home_dir,
-                                 date_time + "____"+ budget_values)
 
     # set the study parameters
     # set the workload
 
     #workloads = {"edge_detection"}
     #workloads = {"hpvm_cava"}
-    workloads = {"audio_decoder"}
+    #workloads = {"audio_decoder"}
     #workloads = {"SLAM"}
-    #workloads ={"audio_decoder", "edge_detection", "hpvm_cava"}
-    #workloads ={"audio_decoder", "edge_detection"}
+    #workloads ={"edge_detection","hpvm_cava", "audio_decoder"}
+    workloads ={"edge_detection", "audio_decoder"}
 
     #workloads = {"partial_SOC_example_hard"}
     #workloads = {"simple_all_parallel"}
+
+    workloads_first_letter  = '_'.join(sorted([el[0] for el in workloads]))
+    # set result folder
+    result_home_dir_default = os.path.join(os.getcwd(), "data_collection/data/" + study_type)
+    result_home_dir = os.path.join(config.home_dir, "data_collection/data/" + study_type)
+    date_time = datetime.now().strftime('%m-%d_%H-%M_%S')
+    budget_values = "pow_"+str(config.budget_dict["glass"]["power"]) + "__area_"+str(config.budget_dict["glass"]["area"])
+    result_folder = os.path.join(result_home_dir,
+                                 date_time + "____"+ budget_values+"___workloads_"+workloads_first_letter)
+
 
     # set the IP spawning params
     ip_loop_unrolling = {"incr": 2, "max_spawn_ip": 17, "spawn_mode": "geometric"}

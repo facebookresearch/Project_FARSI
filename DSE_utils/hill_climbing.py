@@ -970,7 +970,7 @@ class HillClimbing:
 
         krnls_to_consider = []
         for krnl in krnls:
-            if task_workload[krnl.get_task_name()] in workloads_to_consider:
+            if task_workload[krnl.get_task_name()] in workloads_to_consider and not krnl.get_task().is_task_dummy():
                 krnls_to_consider.append(krnl)
 
         return krnls_to_consider
@@ -999,27 +999,29 @@ class HillClimbing:
     # get each_kernels_improvement_ease (ease = 1/cost)
     def get_kernels_s_improvement_ease(self, ex_dp, sim_dp, selected_metric, move_sorted_metric_dir):
         krnls = sim_dp.get_dp_stats().get_kernels()
-        krnl_trans_improvement_cost = self.get_krnl_improvement_cost(ex_dp, sim_dp, krnls, selected_metric, move_sorted_metric_dir)
-        # normalize
-        # normalized and reverse (we need to reverse, so higher cost is worse, i.e., smaller)
-        krnl_trans_improvement_ease = {}
-        for krnl_trans, cost in krnl_trans_improvement_cost.items():
-            krnl_trans_improvement_ease[krnl_trans] = 1 / (cost)
-        max_ease = max(krnl_trans_improvement_ease.values())
-        for krnl_trans, ease in krnl_trans_improvement_ease.items():
-            krnl_trans_improvement_ease[krnl_trans] = ease / max_ease
-
         krnl_improvement_ease = {}
-        for krnl in krnls:
-            krnl_improvement_ease[krnl] = 0
-
-        for krnl_trans, ease in krnl_trans_improvement_ease.items():
-            krnl, trans = krnl_trans
-            krnl_improvement_ease[krnl] = max(ease, krnl_improvement_ease[krnl])
-
         if not "improvement_ease" in self.move_s_krnel_selection:
             for krnl in krnls:
                 krnl_improvement_ease[krnl] = 1
+        else:
+            krnl_trans_improvement_cost = self.get_krnl_improvement_cost(ex_dp, sim_dp, krnls, selected_metric, move_sorted_metric_dir)
+            # normalize
+            # normalized and reverse (we need to reverse, so higher cost is worse, i.e., smaller)
+            krnl_trans_improvement_ease = {}
+            for krnl_trans, cost in krnl_trans_improvement_cost.items():
+                krnl_trans_improvement_ease[krnl_trans] = 1 / (cost)
+            max_ease = max(krnl_trans_improvement_ease.values())
+            for krnl_trans, ease in krnl_trans_improvement_ease.items():
+                krnl_trans_improvement_ease[krnl_trans] = ease / max_ease
+
+            for krnl in krnls:
+                krnl_improvement_ease[krnl] = 0
+
+            for krnl_trans, ease in krnl_trans_improvement_ease.items():
+                krnl, trans = krnl_trans
+                krnl_improvement_ease[krnl] = max(ease, krnl_improvement_ease[krnl])
+
+
         return krnl_improvement_ease
 
     # select the kernel for the move
@@ -2202,7 +2204,7 @@ class HillClimbing:
                     "kernel selection time" :kernel_selection_time,
                     "block selection time" : block_selection_time,
                     "transformation selection time" : transformation_selection_time,
-                "pickling time": pickling_time,
+                "design duplication time": pickling_time,
                 "neighbour selection time": self.neighbour_selection_time,
                 "dist_to_goal_all" : sim_dp.dp_stats.dist_to_goal(metrics_to_look_into=["area", "latency", "power", "cost"],
                                                                   mode="eliminate"),
