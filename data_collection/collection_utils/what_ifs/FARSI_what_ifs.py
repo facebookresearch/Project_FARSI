@@ -135,7 +135,7 @@ def write_data_log(log_data, reason_to_terminate, case_study, result_dir_specifi
 #      unique_number: a number to differentiate between designs
 #      file_name: output file name
 # ------------------------------
-def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specific, unique_number, file_name):
+def write_one_results(sim_dp, dse, reason_to_terminate, case_study, result_dir_specific, unique_number, file_name):
     """
     def convert_dict_to_parsable_csv(dict_):
         list = []
@@ -184,8 +184,9 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
 
         output_fh_minimal.write("SA_total_depth,")
         output_fh_minimal.write("reason_to_terminate" + ",")  # for now only write the latency accuracy as the other
-        output_fh_minimal.write("iteration number" + ",")  # for now only write the latency accuracy as the other
-        output_fh_minimal.write("iterationxdepth number" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("population generation cnt" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("iteration cnt" + ",")  # for now only write the latency accuracy as the other
+        #output_fh_minimal.write("iterationxdepth number" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("simulation time" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("move generation time" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("kernel selection time" + ",")  # for now only write the latency accuracy as the other
@@ -291,10 +292,11 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
     bus_cnt = [int(el) for el in simple_topology.split("_")][0]
     mem_cnt = [int(el) for el in simple_topology.split("_")][1]
     pe_cnt = [int(el) for el in simple_topology.split("_")][2]
-    itr_depth_multiplied = sim_dp.dp_rep.get_iteration_number()*config.SA_depth + sim_dp.dp_rep.get_depth_number()
+    #itr_depth_multiplied = sim_dp.dp_rep.get_iteration_number()*config.SA_depth + sim_dp.dp_rep.get_depth_number()
 
-    output_fh_minimal.write(str(sim_dp.dp_rep.get_iteration_number())+ ",")  # for now only write the latency accuracy as the other
-    output_fh_minimal.write(str(itr_depth_multiplied)+ ",")  # for now only write the latency accuracy as the other
+    output_fh_minimal.write(str(sim_dp.dp_rep.get_population_generation_cnt())+ ",")  # for now only write the latency accuracy as the other
+    output_fh_minimal.write(str(dse.get_total_iteration_cnt())+ ",")  # for now only write the latency accuracy as the other
+    #output_fh_minimal.write(str(itr_depth_multiplied)+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(sim_dp.dp_rep.get_simulation_time())+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(generation_time)+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(kernel_selection_time)+ ",")  # for now only write the latency accuracy as the other
@@ -378,7 +380,7 @@ def simple_run(result_folder, sw_hw_database_population, system_workers=(1, 1)):
         run_ctr += 1
         # write the results in the general folder
         result_dir_specific = os.path.join(result_folder, "result_summary")
-        write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse.reason_to_terminate, case_study,
+        write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse, dse_hndlr.dse.reason_to_terminate, case_study,
                           result_dir_specific, unique_suffix,
                           config.FARSI_simple_run_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
         write_data_log(list(dse_hndlr.dse.get_log_data()), dse_hndlr.dse.reason_to_terminate, case_study, result_dir_specific, unique_suffix,
@@ -388,7 +390,7 @@ def simple_run(result_folder, sw_hw_database_population, system_workers=(1, 1)):
         result_folder_modified = result_folder+ "/runs/" + str(ctr) + "/"
         os.system("mkdir -p " + result_folder_modified)
         copy_DSE_data(result_folder_modified)
-        write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse.reason_to_terminate, case_study, result_folder_modified, unique_suffix,
+        write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse, dse_hndlr.dse.reason_to_terminate, case_study, result_folder_modified, unique_suffix,
                       config.FARSI_simple_run_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
 
         os.system("cp " + config.home_dir+"/settings/config.py"+ " "+ result_folder)
@@ -564,14 +566,14 @@ def input_error_output_cost_sensitivity_study(result_folder, sw_hw_database_popu
             run_ctr += 1
             # write the results in the general folder
             result_dir_specific = os.path.join(result_folder, "result_summary")
-            write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse.reason_to_terminate, case_study, result_dir_specific, unique_suffix,
+            write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse, dse_hndlr.dse.reason_to_terminate, case_study, result_dir_specific, unique_suffix,
                           file_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
 
             # write the results in the specific folder
             result_folder_modified = result_folder + "/runs/" + str(run_ctr) + "/"
             os.system("mkdir -p " + result_folder_modified)
             copy_DSE_data(result_folder_modified)
-            write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse.reason_to_terminate, case_study, result_folder_modified, unique_suffix,
+            write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse, dse_hndlr.dse.reason_to_terminate, case_study, result_folder_modified, unique_suffix,
                           file_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
 
 

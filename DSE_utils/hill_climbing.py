@@ -64,7 +64,7 @@ class HillClimbing:
         # Counters: to determine which control path the exploration should take (e.g., terminate, pick another block instead
         # of hotblock, ...).
         self.des_stag_ctr = 0  # Iteration count since seen last design improvement.
-        self.total_itr_ctr = 0  # Total iteration count (for termination purposes).
+        self.population_generation_cnt = 0  # Total iteration count (for termination purposes).
 
         self.vis_move_trail_ctr = 0
         # Sanity checks (preventing bad configuration setup)
@@ -99,6 +99,10 @@ class HillClimbing:
         self.log_data_list = []
         self.population_observed_ctr = 0  #
         self.neighbour_selection_time = 0
+        self.total_iteration_cnt = 0
+
+    def get_total_iteration_cnt(self):
+        return self.total_iteration_cnt
 
     def set_check_point_folder(self, check_point_folder):
         self.check_point_folder = check_point_folder
@@ -1752,7 +1756,7 @@ class HillClimbing:
         if len(self.recently_cached_designs[best_sim_selected_krnl.get_task_name()]) < config.recently_cached_designs_queue_size:
             self.recently_cached_designs[best_sim_selected_krnl.get_task_name()].append(selected_sim_dp.dp_rep.get_hardware_graph().get_SOC_design_code())
         else:
-            self.recently_cached_designs[best_sim_selected_krnl.get_task_name()][self.total_itr_ctr%config.recently_cached_designs_queue_size] = selected_sim_dp.dp_rep.get_hardware_graph().get_SOC_design_code()
+            self.recently_cached_designs[best_sim_selected_krnl.get_task_name()][self.population_generation_cnt%config.recently_cached_designs_queue_size] = selected_sim_dp.dp_rep.get_hardware_graph().get_SOC_design_code()
 
         return selected_sim_dp, found_an_improved_solution
 
@@ -1815,7 +1819,7 @@ class HillClimbing:
         sim_time = time.time() - t
 
         # profile info
-        sim_dp.set_iteration_number(self.total_itr_ctr)
+        sim_dp.set_population_generation_cnt(self.population_generation_cnt)
         sim_dp.set_population_observed_number(self.population_observed_ctr)
         sim_dp.set_depth_number(self.SA_current_depth)
         sim_dp.set_simulation_time(sim_time)
@@ -1962,7 +1966,7 @@ class HillClimbing:
 
         # collect the moves for debugging/visualization
         if config.DEBUG_MOVE:
-            if (self.total_itr_ctr % config.vis_reg_ctr_threshold) == 0 and self.SA_current_mini_breadth == 0:
+            if (self.population_generation_cnt % config.vis_reg_ctr_threshold) == 0 and self.SA_current_mini_breadth == 0:
                 self.move_profile.append(move_to_try)  # for debugging
             self.last_move = move_to_try
             sim_dp.set_move_applied(move_to_try)
@@ -2033,7 +2037,7 @@ class HillClimbing:
 
             # visualization and sanity checks
             if config.VIS_MOVE_TRAIL:
-                if (self.total_itr_ctr % config.vis_reg_ctr_threshold) == 0:
+                if (self.population_generation_cnt % config.vis_reg_ctr_threshold) == 0:
                     best_design_sim_cpy = copy.deepcopy(self.so_far_best_sim_dp)
                     self.des_trail_list.append((best_design_sim_cpy, des_tup_list[-1][1]))
                     self.last_des_trail = (best_design_sim_cpy, des_tup_list[-1][1])
@@ -2053,7 +2057,7 @@ class HillClimbing:
 
         # navigate the space using depth and breath parameters
         strt = time.time()
-        print("------------------------ itr:" + str(self.total_itr_ctr) + " ---------------------")
+        print("------------------------ itr:" + str(self.population_generation_cnt) + " ---------------------")
         self.SA_current_breadth = -1
         self.SA_current_depth = -1
 
@@ -2086,16 +2090,11 @@ class HillClimbing:
             result +=str(k) + "=" + str(value) + "___"
         return result
 
-
     def convert_dictionary_to_parsable_csv_with_semi_column(self, dict_):
         result = ""
         for k, v in dict_.items():
             result +=str(k) + "=" + str(v) + ";"
         return result
-
-
-
-
 
     # ------------------------------
     # Functionality:
@@ -2187,15 +2186,15 @@ class HillClimbing:
             mem_cnt = [int(el) for el in simple_topology.split("_")][1]
             pe_cnt = [int(el) for el in simple_topology.split("_")][2]
             task_cnt = len(list(sim_dp.dp_rep.krnl_phase_present.keys()))
-            itr_depth_multiplied = sim_dp.dp_rep.get_iteration_number() * config.SA_depth + sim_dp.dp_rep.get_depth_number()
+            #itr_depth_multiplied = sim_dp.dp_rep.get_iteration_number() * config.SA_depth + sim_dp.dp_rep.get_depth_number()
 
-
+            self.total_iteration_cnt = ctr
             data = {
                     "data_number": ctr,
-                    "population generated number" : ctr,
+                    "iteration cnt" : self.total_iteration_cnt,
                     "observed population number" : sim_dp.dp_rep.get_population_observed_number(),
                     "SA_total_depth": str(config.SA_depth),
-                    "iteration number": sim_dp.dp_rep.get_iteration_number(),
+                    "population generation cnt": sim_dp.dp_rep.get_population_generation_cnt(),
                     "simulation time" : sim_dp.dp_rep.get_simulation_time(),
                     "transformation generation time" : generation_time,
                     "metric selection time" :metric_selection_time,
@@ -2279,7 +2278,7 @@ class HillClimbing:
             this_itr_ex_sim_dp_dict = self.simple_SA()   # run simple simulated annealing
 
             # collect profiling information about moves and designs generated
-            if config.VIS_MOVE_TRAIL and (self.total_itr_ctr% config.vis_reg_ctr_threshold) == 0 and len(self.des_trail_list) > 0:
+            if config.VIS_MOVE_TRAIL and (self.population_generation_cnt% config.vis_reg_ctr_threshold) == 0 and len(self.des_trail_list) > 0:
                 plot.des_trail_plot(self.des_trail_list, self.move_profile, des_per_iteration)
                 plot.move_profile_plot(self.move_profile)
 
@@ -2298,7 +2297,7 @@ class HillClimbing:
             if  not self.cur_best_sim_dp.move_applied == None:
                 self.cur_best_sim_dp.move_applied.print_info()
 
-            if config.VIS_GR_PER_ITR and (self.total_itr_ctr% config.vis_reg_ctr_threshold) == 0:
+            if config.VIS_GR_PER_ITR and (self.population_generation_cnt% config.vis_reg_ctr_threshold) == 0:
                 vis_hardware.vis_hardware(self.cur_best_sim_dp.get_dp_rep())
 
             # collect statistics about the design
@@ -2366,8 +2365,8 @@ class HillClimbing:
         print("*********************************")
         print("Initial design's latency: " + str(self.init_sim_dp.dp_stats.get_system_complex_metric("latency")))
         print("Speed up: " + str(self.init_sim_dp.dp_stats.get_system_complex_metric("latency")/self.so_far_best_sim_dp.dp_stats.get_system_complex_metric("latency")))
-        print("Number of design points examined:" + str(self.total_itr_ctr*config.num_neighs_to_try))
-        print("Time spent per design point:" + str(total_sim_time/(self.total_itr_ctr*config.num_neighs_to_try)))
+        print("Number of design points examined:" + str(self.population_generation_cnt*config.num_neighs_to_try))
+        print("Time spent per design point:" + str(total_sim_time/(self.population_generation_cnt*config.num_neighs_to_try)))
         print("The design meet the latency requirement: " + str(self.so_far_best_sim_dp.dp_stats.get_system_complex_metric("latency") < config.objective_budget))
         vis_hardware.vis_hardware(self.so_far_best_ex_dp)
         if config.VIS_FINAL_RES:
@@ -2420,7 +2419,7 @@ class HillClimbing:
             self.area_explored.append(sim_dp.dp_stats.get_system_complex_metric("area"))
             self.power_explored.append(sim_dp.dp_stats.get_system_complex_metric("power"))
             self.latency_explored.append(sim_dp.dp_stats.get_system_complex_metric("latency"))
-            self.design_itr.append(self.total_itr_ctr)
+            self.design_itr.append(self.population_generation_cnt)
 
     # ------------------------------
     # Functionality:
@@ -2429,7 +2428,7 @@ class HillClimbing:
     #       incrementally tighten the budget to direct the explorer more toward the goal.
     # ------------------------------
     def calc_budget_coeff(self):
-        self.budget_coeff = int(((self.TOTAL_RUN_THRESHOLD - self.total_itr_ctr)/self.coeff_slice_size) + 1)
+        self.budget_coeff = int(((self.TOTAL_RUN_THRESHOLD - self.population_generation_cnt)/self.coeff_slice_size) + 1)
 
     def reset_ctrs(self):
         should_terminate = False
@@ -2454,7 +2453,7 @@ class HillClimbing:
         self.so_far_best_ex_dp = self.cur_best_ex_dp
         self.so_far_best_sim_dp = self.cur_best_sim_dp
 
-        self.total_itr_ctr += 1
+        self.population_generation_cnt += 1
         stat_result = self.so_far_best_sim_dp.dp_stats
 
         tasks_not_meeting_budget = [el.get_task_name() for el in self.filter_in_kernels_meeting_budget("", self.so_far_best_sim_dp)]
@@ -2482,7 +2481,7 @@ class HillClimbing:
             else:
                 reason_to_terminate = "all kernels already targeted without improvement"
             should_terminate = True
-        elif self.total_itr_ctr > self.TOTAL_RUN_THRESHOLD:
+        elif self.population_generation_cnt > self.TOTAL_RUN_THRESHOLD:
             if stat_result.fits_budget(1):
                 reason_to_terminate = "met the budget"
             else:

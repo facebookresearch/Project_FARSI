@@ -1148,8 +1148,8 @@ class SimDesignPoint(ExDesignPoint):
     def get_simulation_time(self):
         return self.simulation_time
 
-    def set_iteration_number(self, iteration_number):
-        self.iteration_number = iteration_number
+    def set_population_generation_cnt(self, generation_cnt):
+        self.population_generation_cnt = generation_cnt
 
     def set_population_observed_number(self, population_observed_number):
         self.population_observed_number = population_observed_number
@@ -1163,8 +1163,8 @@ class SimDesignPoint(ExDesignPoint):
     def get_depth_number(self):
         return self.depth_number
 
-    def get_iteration_number(self):
-        return self.iteration_number
+    def get_population_generation_cnt(self):
+        return self.population_generation_cnt
 
     def get_population_observed_number(self):
         return self.population_observed_number

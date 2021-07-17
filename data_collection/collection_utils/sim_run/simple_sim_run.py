@@ -97,7 +97,7 @@ if __name__ == "__main__":
     # write the results in the general folder
     result_dir_specific = os.path.join(result_folder, "result_summary")
     reason_to_terminate = "simple_sim_run"
-    wf.write_one_results(dse_hndlr.dse.so_far_best_sim_dp, reason_to_terminate, case_study, result_dir_specific,
+    wf.write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse, reason_to_terminate, case_study, result_dir_specific,
                   unique_suffix,
                   file_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
 
@@ -105,6 +105,6 @@ if __name__ == "__main__":
     result_folder_modified = result_folder + "/runs/" + str(run_ctr) + "/"
     os.system("mkdir -p " + result_folder_modified)
     wf.copy_DSE_data(result_folder_modified)
-    wf.write_one_results(dse_hndlr.dse.so_far_best_sim_dp, reason_to_terminate, case_study,
+    wf.write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse, reason_to_terminate, case_study,
                   result_folder_modified, unique_suffix,
                   file_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
