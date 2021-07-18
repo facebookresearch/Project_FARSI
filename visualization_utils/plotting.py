@@ -658,7 +658,7 @@ def plotMovGenTimeVSarchVarImpZoneDist(dirName, fileName, zoneNum, archColNum, d
         plt.close('all')
 
 # the function to plot convergence vs. iteration cnt
-def plotConvergeVSitr3d(dirName, subDirName):
+def plotBudgetsVSitr3d(dirName, subDirName):
     newDirName = dirName + subDirName + "/"
     if os.path.exists(newDirName + "/figures"):
         shutil.rmtree(newDirName + "/figures")
@@ -667,6 +667,7 @@ def plotConvergeVSitr3d(dirName, subDirName):
     powBudgets = []
     areaBudgets = []
     itrValues = []
+    workloads = []
     for j, fileName in enumerate(resultList):
         with open(newDirName + fileName + "/result_summary/FARSI_simple_run_0_1.csv", newline='') as csvfile:
             resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
@@ -680,59 +681,26 @@ def plotConvergeVSitr3d(dirName, subDirName):
                     if j == 0:
                         for k in range(0, len(latDict)):
                             latBudgets.append([])
+                            workloads.append(list(latDict.keys())[k])
                     latList = list(latDict.values())
                     for k in range(0, len(latList)):
                         latBudgets[k].append(float(latList[k]))
-    print(latBudgets)
-    #
-    #     work = []
-    #     latValues = []
-    #     powValues = []
-    #     areaValues = []
-    #
-    #     record = True
-    #
-    #     for i, row in enumerate(resultReader):
-    #         if row[trueNum] != "True":
-    #             continue
-    #         if i > 1:
-    #             print(work)
-    #             lat = row[latNum][:-1]
-    #             pow = float(row[powNum])
-    #             area = float(row[areaNum])
-    #             latDict = dict(item.split("=") for item in lat.split(";"))
-    #             work = list(latDict.keys())
-    #
-    #             if record == True:
-    #                 for j in range(0, len(work)):
-    #                     latValues.append([])
-    #                 record = False
-    #
-    #             latVal = list(latDict.values())
-    #             powValues.append(pow)
-    #             areaValues.append(area)
-    #             # print(latDict)
-    #             # latDict = eval(row[latNum])
-    #             # keys = list(latDict.keys())
-    #             # latList = list(latDict.values())
-    #             # print(keys)
 
+    m = ['o', 'x', '^', 's', 'd', '+', 'v', '<', '>']
     os.mkdir(newDirName + "figures")
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(projection = '3d')
     for i in range(0, len(latBudgets)):
-        img = ax.scatter3D(powBudgets, areaBudgets, latBudgets[i], c=itrValues, cmap="bwr", symbol="species")
+        img = ax.scatter3D(powBudgets, areaBudgets, latBudgets[i], c=itrValues, cmap="bwr", marker=m[i], s=80, label='{0}'.format(workloads[i]))
     ax.set_xlabel("Power Budget")
     ax.set_ylabel("Area Budget")
     ax.set_zlabel("Latency Budget")
-    # plt.xlabel("Power Budget")
-    # plt.ylabel("Area Budget")
-    # plt.zlabel("Latency Budget")
+    ax.legend()
     cbar = fig.colorbar(img, aspect = 40)
     cbar.set_label("Number of Iterations", rotation = 270)
     plt.title("{Power Budget, Area Budget, Latency Budget} VS Iteration Cnt: " + subDirName)
     plt.savefig(newDirName + "figures/budgetVSitr-" + subDirName + ".png")
-    plt.show()
+    # plt.show()
     plt.close('all')
 
 # the main function. comment out the plots if you do not need them
@@ -760,44 +728,47 @@ if __name__ == "__main__":
     # change the number of zones to suit for your analysis
     zoneNum = 4
 
-    fileList = os.listdir(dirName)
-    for subDirName in fileList:
-        plotConvergeVSitr3d(dirName, subDirName)
+    subDirList = os.listdir(dirName)
+    for subDirName in subDirList:
+        if subDirName != "README.md":
+            print(subDirName)
+            plotBudgetsVSitr3d(dirName, subDirName)
 
-    # for fileName in fileList:
-    #     print(fileName)
-    #     commcompColNum = columnNum(dirName, fileName, "comm_comp", "all")
-    #     trueNum = columnNum(dirName, fileName, "move validity", "all")
-    #     optColNum = columnNum(dirName, fileName, "optimization name", "all")
-    #     archColNum = columnNum(dirName, fileName, "architectural principle", "all")
-    #     sysBlkNum = columnNum(dirName, fileName, "system block count", "all")
-    #     simColNum = columnNum(dirName, fileName, "simulation time", "all")
-    #     movGenColNum = columnNum(dirName, fileName, "transformation generation time", "all")
-    #     movColNum = columnNum(dirName, fileName, "move name", "all")
-    #     itrNum = columnNum(dirName, fileName, "iteration cnt", "all")
-    #     distColNum = columnNum(dirName, fileName, "dist_to_goal_non_cost", "all")
-    #     refDistColNum = columnNum(dirName, fileName, "ref_des_dist_to_goal_non_cost", "all")
-    #     latNum = columnNum(dirName, fileName, "latency", "all")
-    #     powNum = columnNum(dirName, fileName, "power", "all")
-    #     areaNum = columnNum(dirName, fileName, "area", "all")
+            subDirFullName = dirName + subDirName + "/"
+            fileList = os.listdir(subDirFullName)
+            for fileName in fileList:
+                if fileName != "figures":
+                    print(fileName)
+                    commcompColNum = columnNum(subDirFullName, fileName, "comm_comp", "all")
+                    trueNum = columnNum(subDirFullName, fileName, "move validity", "all")
+                    optColNum = columnNum(subDirFullName, fileName, "optimization name", "all")
+                    archColNum = columnNum(subDirFullName, fileName, "architectural principle", "all")
+                    sysBlkNum = columnNum(subDirFullName, fileName, "system block count", "all")
+                    simColNum = columnNum(subDirFullName, fileName, "simulation time", "all")
+                    movGenColNum = columnNum(subDirFullName, fileName, "transformation generation time", "all")
+                    movColNum = columnNum(subDirFullName, fileName, "move name", "all")
+                    itrNum = columnNum(subDirFullName, fileName, "iteration cnt", "all")
+                    distColNum = columnNum(subDirFullName, fileName, "dist_to_goal_non_cost", "all")
+                    refDistColNum = columnNum(subDirFullName, fileName, "ref_des_dist_to_goal_non_cost", "all")
+                    latNum = columnNum(subDirFullName, fileName, "latency", "all")
+                    powNum = columnNum(subDirFullName, fileName, "power", "all")
+                    areaNum = columnNum(subDirFullName, fileName, "area", "all")
 
-        # comment or uncomment the following functions for your plottings
-        
-        # plotCommCompAll(dirName, fileName, commcompColNum, trueNum)
-        # plothighLevelOptAll(dirName, fileName, optColNum, trueNum)
-        # plotArchVarImpAll(dirName, fileName, archColNum, trueNum)
-        # plotSimTimeVSblk(dirName, fileName, sysBlkNum, simColNum, trueNum)
-        # plotMoveGenTimeVSblk(dirName, fileName, sysBlkNum, movGenColNum, trueNum)
-        # plotDistToGoalVSitr(dirName, fileName, itrNum, distColNum, trueNum)
-        # plotRefDistToGoalVSitr(dirName, fileName, itrNum, refDistColNum, trueNum)
-        # plotSimTimeVSmoveNameZoneDist(dirName, fileName, zoneNum, movColNum, distColNum, simColNum, trueNum)
-        # plotMovGenTimeVSmoveNameZoneDist(dirName, fileName, zoneNum, movColNum, distColNum, movGenColNum, trueNum)
-        # plotSimTimeVScommCompZoneDist(dirName, fileName, zoneNum, commcompColNum, distColNum, simColNum, trueNum)
-        # plotMovGenTimeVScommCompZoneDist(dirName, fileName, zoneNum, commcompColNum, distColNum, movGenColNum, trueNum)
-        # plotSimTimeVShighLevelOptZoneDist(dirName, fileName, zoneNum, optColNum, distColNum, simColNum, trueNum)
-        # plotMovGenTimeVShighLevelOptZoneDist(dirName, fileName, zoneNum, optColNum, distColNum, movGenColNum, trueNum)
-        # plotSimTimeVSarchVarImpZoneDist(dirName, fileName, zoneNum, archColNum, distColNum, simColNum, trueNum)
-        # plotMovGenTimeVSarchVarImpZoneDist(dirName, fileName, zoneNum, archColNum, distColNum, movGenColNum, trueNum)
+                    # comment or uncomment the following functions for your plottings
 
-        # plotConvergeVSitr3d(dirName)
-        # break
+                    plotCommCompAll(subDirFullName, fileName, commcompColNum, trueNum)
+                    plothighLevelOptAll(subDirFullName, fileName, optColNum, trueNum)
+                    plotArchVarImpAll(subDirFullName, fileName, archColNum, trueNum)
+                    plotSimTimeVSblk(subDirFullName, fileName, sysBlkNum, simColNum, trueNum)
+                    plotMoveGenTimeVSblk(subDirFullName, fileName, sysBlkNum, movGenColNum, trueNum)
+                    plotDistToGoalVSitr(subDirFullName, fileName, itrNum, distColNum, trueNum)
+                    plotRefDistToGoalVSitr(subDirFullName, fileName, itrNum, refDistColNum, trueNum)
+                    plotSimTimeVSmoveNameZoneDist(subDirFullName, fileName, zoneNum, movColNum, distColNum, simColNum, trueNum)
+                    plotMovGenTimeVSmoveNameZoneDist(subDirFullName, fileName, zoneNum, movColNum, distColNum, movGenColNum, trueNum)
+                    plotSimTimeVScommCompZoneDist(subDirFullName, fileName, zoneNum, commcompColNum, distColNum, simColNum, trueNum)
+                    plotMovGenTimeVScommCompZoneDist(subDirFullName, fileName, zoneNum, commcompColNum, distColNum, movGenColNum, trueNum)
+                    plotSimTimeVShighLevelOptZoneDist(subDirFullName, fileName, zoneNum, optColNum, distColNum, simColNum, trueNum)
+                    plotMovGenTimeVShighLevelOptZoneDist(subDirFullName, fileName, zoneNum, optColNum, distColNum, movGenColNum, trueNum)
+                    plotSimTimeVSarchVarImpZoneDist(subDirFullName, fileName, zoneNum, archColNum, distColNum, simColNum, trueNum)
+                    plotMovGenTimeVSarchVarImpZoneDist(subDirFullName, fileName, zoneNum, archColNum, distColNum, movGenColNum, trueNum)
+
