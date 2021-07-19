@@ -66,6 +66,8 @@ class ExDesignPoint:
         self.FARSI_ex_id = str(-1)
         self.PA_knob_ctr_id = str(-1)
 
+
+
     def eliminate_system_bus(self):
         all_drams = [el for el in self.get_hardware_graph().get_blocks() if el.subtype == "dram"]
         ics_with_dram = []

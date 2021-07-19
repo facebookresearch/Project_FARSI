@@ -744,8 +744,67 @@ class HillClimbing:
 
         return feasible_transformations
 
-    # ------------------------------
-    # Functionality:
+    def get_transformation_design_space_size(self, move_to_apply, ex_dp, sim_dp, block_of_interest, selected_metric, sorted_metric_dir):
+
+        # if this knob is set, we randomly pick a transformation
+        # THis is to illustrate the architectural awareness of FARSI a
+        imm_block = self.dh.get_immediate_block_multi_metric(block_of_interest, selected_metric, sorted_metric_dir,  block_of_interest.get_tasks_of_block())
+
+        task = (block_of_interest.get_tasks_of_block())[0] # any task for do
+        feasible_transformations = set(config.metric_trans_dict[selected_metric])
+
+        # find the block that is at least as good as the block (for migration)
+        # if can't find any, we return the same block
+        selected_metric = list(sorted_metric_dir.keys())[-1]
+        selected_dir = sorted_metric_dir[selected_metric]
+
+        equal_imm_blocks_present_for_migration = self.dh.get_equal_immediate_blocks_present(ex_dp, block_of_interest,
+                                                                selected_metric, selected_dir, [task])
+        if len(equal_imm_blocks_present_for_migration)  == 1 and equal_imm_blocks_present_for_migration[0] == block_of_interest:
+            equal_imm_blocks_present_for_migration = []
+
+        buses = [el for el in ex_dp.get_blocks() if el.type == "ic"]
+        mems = [el for el in ex_dp.get_blocks() if el.type == "mem"]
+        srams = [el for el in ex_dp.get_blocks() if el.type == "sram"]
+        drams = [el for el in ex_dp.get_blocks() if el.type == "dram"]
+        pes = [el for el in ex_dp.get_blocks() if el.type == "pe"]
+        ips = [el for el in ex_dp.get_blocks() if el.subtype == "ip"]
+        gpps = [el for el in ex_dp.get_blocks() if el.subtype == "gpp"]
+
+        # per block
+        # for PEs
+        if block_of_interest.subtype == "gpp":
+            number_of_task_on_block = len(block_of_interest.get_tasks_of_block())
+            move_to_apply.design_space_size["hardening"] += number_of_task_on_block + 1# +1 for swap, the rest is for split_swap
+            move_to_apply.design_space_size["pe_allocation"] += (number_of_task_on_block + 1) # +1 is for split, the rest os for split_swap
+        elif block_of_interest.subtype == "ip":
+            move_to_apply.design_space_size["softening"] += 1
+
+        # for all
+        for mode in ["frequency_modulation", "bus_width_modulation", "loop_iteration_modulation", "allocation"]:
+            if not block_of_interest.type =="pe":
+                if mode == "loop_iteration_modulation":
+                    continue
+            value = self.dh.get_all_compatible_blocks_of_certain_char(ex_dp, block_of_interest,
+                                                                selected_metric, selected_dir, [task], mode)
+            if mode in ["bus_width_modulation","loop_iteration_modulation"]:
+                move_to_apply.design_space_size[mode] += len(value)
+            else:
+                move_to_apply.design_space_size[block_of_interest.type + "_"+ mode] += len(value)
+
+
+        for block_type in ["pe", "mem", "ic"]:
+            if block_type == block_of_interest.type:
+                move_to_apply.design_space_size[block_type +"_"+"mapping"] += (len(equal_imm_blocks_present_for_migration) - 1)
+            else:
+                move_to_apply.design_space_size[block_type +"_"+"mapping"] += 0
+
+        can_improve_routing = self.can_improve_routing(ex_dp, sim_dp, block_of_interest, task)
+        if can_improve_routing:
+            move_to_apply.design_space_size["routing"] += (len(buses) - 1)
+        move_to_apply.design_space_size["transfer"] += (len(buses)-1)
+        move_to_apply.design_space_size["identity"] +=  1
+
     #    pick which transformation to apply
     # Variables:
     #      hot_blck_synced: the block bottleneck
@@ -1273,6 +1332,7 @@ class HillClimbing:
         transformation_name,transformation_sub_name, transformation_batch_mode, total_transformation_cnt = self.select_transformation(ex_dp, sim_dp, selected_block, selected_metric, selected_krnl, sorted_metric_dir)
         t_5 = time.time()
 
+
         """
         if sim_dp.dp_stats.fits_budget(1) and self.dram_feasibility_check_pass(ex_dp) and self.can_improve_locality(selected_block, selected_krnl):
             transformation_sub_name = "transfer_no_prune"
@@ -1310,6 +1370,9 @@ class HillClimbing:
                                                                                 config.metric_sel_dis_mode),"ref_des_dist_to_goal_all")
         move_to_apply.set_logs(sim_dp.dp_stats.dist_to_goal(["power", "area", "latency"],
                                                                                 config.metric_sel_dis_mode),"ref_des_dist_to_goal_non_cost")
+
+        for blck_of_interest in ex_dp.get_blocks():
+            self.get_transformation_design_space_size(move_to_apply, ex_dp, sim_dp, blck_of_interest, selected_metric, sorted_metric_dir)
 
 
         move_to_apply.set_logs(t_1 - t_0, "metric_selection_time")
@@ -2159,6 +2222,7 @@ class HillClimbing:
                 move_validity = ma.is_valid()
                 ref_des_dist_to_goal_all = ma.get_logs("ref_des_dist_to_goal_all")
                 ref_des_dist_to_goal_non_cost = ma.get_logs("ref_des_dist_to_goal_non_cost")
+                neighbouring_design_space_size = self.convert_dictionary_to_parsable_csv_with_semi_column(ma.get_design_space_size())
             else:  # happens at the very fist iteration
                 pickling_time = 0
                 sorted_metrics = ""
@@ -2184,6 +2248,8 @@ class HillClimbing:
                 move_validity = ""
                 ref_des_dist_to_goal_all = ""
                 ref_des_dist_to_goal_non_cost = ""
+                neighbouring_design_space_size = ""
+
 
             sub_block_area_break_down = self.convert_dictionary_to_parsable_csv_with_underline(sim_dp.dp_stats.SOC_area_subtype_dict)
             block_area_break_down = self.convert_dictionary_to_parsable_csv_with_underline(sim_dp.dp_stats.SOC_area_dict)
@@ -2238,6 +2304,7 @@ class HillClimbing:
                     "high level optimization name" : high_level_optimization,
                     "exact optimization name": exact_optimization,
                     "architectural principle" : architectural_principle,
+                    "neighbouring design space size" : neighbouring_design_space_size,
                     "block_area_break_down":block_area_break_down,
                     "sub_block_area_break_down":sub_block_area_break_down,
                 "task_cnt": task_cnt,

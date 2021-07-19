@@ -58,7 +58,16 @@ class move:
         self.kernel_selection_time = 0
         self.pickling_time = 0
 
+        self.design_space_size = {"pe_mapping": 0 , "ic_mapping":0, "mem_mapping":0,
+                                  "pe_allocation": 0, "ic_allocation": 0, "mem_allocation": 0,
+                                  "transfer":0, "routing":0, "hardening":0, "softening":0,
+                                    "bus_width_modulation":0, "mem_frequency_modulation":0, "ic_frequency_modulation":0, "pe_frequency_modulation":0, "identity":0,
+                                  "loop_iteration_modulation":0
+                                  }
 
+
+    def get_design_space_size(self):
+        return self.design_space_size
 
     def get_system_improvement_log(self):
         return self.system_improvement_dict
@@ -74,7 +83,10 @@ class move:
         if self.get_transformation_name() in ["swap"]:
             exact_optimization = self.get_customization_type(self.get_block_ref(), self.get_des_block())
         elif self.get_transformation_name() in ["split_swap"]:
-            exact_optimization = self.get_customization_type(self.get_block_ref(), self.get_des_block()) +";" +self.get_block_ref().type +"_"+"allocation"
+            if self.get_block_ref() == "pe":
+                exact_optimization = self.get_customization_type(self.get_block_ref(), self.get_des_block()) +";" +self.get_block_ref().type +"_"+"allocation"
+            else:
+                exact_optimization = self.get_customization_type(self.get_block_ref(), self.get_des_block())
         elif self.get_transformation_name() in ["migrate"]:
             exact_optimization = self.get_block_ref().type +"_"+"mapping"
         elif self.get_transformation_name() in ["split_swap", "split", "transfer", "routing"]:
@@ -95,6 +107,8 @@ class move:
         # which high level optimization targgeted: topology/mapping/tunning
         if self.get_transformation_name() in ["swap", "split_swap"]:
             high_level_optimization = "customization"
+        elif self.get_transformation_name() in ["split_swap"]:
+            high_level_optimization = "customization;topology"
         elif self.get_transformation_name() in ["migrate"]:
             high_level_optimization = "mapping"
         elif self.get_transformation_name() in ["split_swap", "split", "transfer","routing"]:
@@ -132,9 +146,6 @@ class move:
         self.system_improvement_dict["high_level_optimization"] = high_level_optimization
         self.system_improvement_dict["exact_optimization"] = exact_optimization
         self.system_improvement_dict["architectural_principle"] = architectural_principle
-        if self.system_improvement_dict["exact_optimization"] == '':
-            exact_optimization = self.get_customization_type(self.get_block_ref(), self.get_des_block())
-            print("what?")
 
 
     def get_transformation_sub_name(self):
@@ -273,10 +284,11 @@ class move:
                 elif ref_block.subtype == "ip" and imm_block.subtype =="gpp":
                     self.customization_type = "softening"
                 else:
-                    print("we should have coverreed all the customizations. what is missing then")
+                    print("we should have coverred all the customizations. what is missing then")
                     exit(0)
             elif ref_block.type == "mem":
-                self.customization_type = ref_block.subtype +"_to_"  + imm_block.subtype
+                #self.customization_type = "memory_cell_ref_block.subtype +"_to_"  + imm_block.subtype
+                self.customization_type = "mem_allocation"
             else:
                 print("we should have coverreed all the customizations. what is missing then")
                 exit(0)
@@ -284,7 +296,7 @@ class move:
             if not ref_block.get_loop_itr_cnt() == imm_block.get_loop_itr_cnt():
                 self.customization_type = "loop_iteration_modulation"
             elif not ref_block.get_block_freq() == imm_block.get_block_freq():
-                self.customization_type = "frequency_modulation"
+                self.customization_type = ref_block.type+"_"+"frequency_modulation"
             elif not ref_block.get_block_bus_width() == imm_block.get_block_bus_width():
                 self.customization_type = "bus_width_modulation"
             else:
@@ -1193,6 +1205,40 @@ class DesignHandler:
                     return des_block
 
         return block
+
+    def get_all_compatible_blocks_of_certain_char(self, ex_dp, block, metric, metric_dir, tasks, mode):
+        metric_dir = -1
+        imm_blcks_non_unique_1 = [el for el in self.database.equal_sample_up_sample_down_sample_block_fast(block, metric, metric_dir,
+                                                                                           tasks) if not isinstance(el,str)]  # get the first value
+
+
+        metric_dir = 1
+        imm_blcks_non_unique_2 = [el for el in self.database.equal_sample_up_sample_down_sample_block_fast(block, metric, metric_dir,
+                                                                                           tasks) if not isinstance(el,str)]  # get the first value
+
+        results = []
+        if mode =="frequency_modulation":
+            for blk in imm_blcks_non_unique_1 + imm_blcks_non_unique_2:
+                if not blk.get_block_freq() == block.get_block_freq() and (blk.subtype == block.subtype) and (blk.get_block_bus_width() == block.get_block_bus_width()) and blk.get_loop_itr_cnt() == block.get_loop_itr_cnt():
+                    results.append(blk)
+        elif mode =="allocation":
+            for blk in imm_blcks_non_unique_1 + imm_blcks_non_unique_2:
+                if not blk.subtype == block.subtype and blk.get_block_freq() == block.get_block_freq() and (blk.get_block_bus_width() == block.get_block_bus_width()) and blk.get_loop_itr_cnt() == block.get_loop_itr_cnt():
+                    results.append(blk)
+        elif mode == "bus_width_modulation":
+            for blk in imm_blcks_non_unique_1 + imm_blcks_non_unique_2:
+                if not (blk.get_block_bus_width() == block.get_block_bus_width() and blk.subtype == block.subtype and blk.get_block_freq() == block.get_block_freq()  and blk.get_loop_itr_cnt() == block.get_loop_itr_cnt()):
+                    results.append(blk)
+        elif mode == "loop_iteration_modulation":
+            for blk in imm_blcks_non_unique_1 + imm_blcks_non_unique_2:
+                if not blk.get_loop_itr_cnt() == block.get_loop_itr_cnt() and blk.subtype == block.subtype and blk.get_block_freq() == block.get_block_freq() and (blk.get_block_bus_width() == block.get_block_bus_width()):
+                    results.append(blk)
+        else:
+            print("this mode:" + mode + "not supported")
+            exit(0)
+
+        return results
+
 
     def get_equal_immediate_blocks_present_fast(self, ex_dp, block, metric, metric_dir, tasks):
         imm_blcks_non_unique = self.database.equal_sample_up_sample_down_sample_block_fast(block, metric, metric_dir,

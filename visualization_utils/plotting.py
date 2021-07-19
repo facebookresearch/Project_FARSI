@@ -250,7 +250,11 @@ def get_all_col_values_of_a_file(file_full_addr, all_res_column_name_number, col
                     value =row[column_number]
                     values = value.split(";") # if mutiple values
                     for val in values:
-                        all_values.append(val)
+                        if "=" in val:
+                            val_splitted = val.split("=")
+                            all_values.append(val_splitted[0])
+                        else:
+                            all_values.append(val)
 
     return all_values
 
@@ -454,6 +458,51 @@ def plot_system_implication_analysis(input_dir_names, res_column_name_number):
     plt.savefig(os.path.join(output_dir,"system_implication.png"))
     plt.close('all')
 
+
+
+def plot_space_navigation_analysis_post_processing(input_dir_names, column_column_value_experiment_frequency_dict):
+    column_name_list = [("exact optimization name", "neighbouring design space size", "div")]
+    #column_name = "move name"
+    for column_name_tuple in column_name_list:
+        first_column =  column_name_tuple[0]
+        second_column =  column_name_tuple[1]
+        operation =   column_name_tuple[2]
+        new_column_name = first_column+"_"+operation+"_"+second_column
+
+        first_column_value_experiment_frequency_dict = column_column_value_experiment_frequency_dict[first_column]
+        second_column_value_experiment_frequency_dict = column_column_value_experiment_frequency_dict[second_column]
+        modified_column_value_experiment_frequency_dict = {}
+
+        experiment_names = []
+        for column_val, experiment_freq  in first_column_value_experiment_frequency_dict.items():
+            modified_column_value_experiment_frequency_dict[column_val] = {}
+            for experiment, freq in  experiment_freq.items():
+                modified_column_value_experiment_frequency_dict[column_val][experiment] = first_column_value_experiment_frequency_dict[column_val][experiment]/max(second_column_value_experiment_frequency_dict[column_val][experiment],.0000000000001)
+                experiment_names.append(experiment)
+
+        axis_font = {'fontname': 'Arial', 'size': '9'}
+        experiment_names =  list(set(experiment_names))
+        # prepare for plotting and plot
+        plt.figure()
+        index = experiment_names
+        plotdata = pd.DataFrame(modified_column_value_experiment_frequency_dict, index=index)
+        plotdata.plot(kind='bar', stacked=True)
+        plt.xlabel("experiments", **axis_font)
+        plt.ylabel(new_column_name)
+        plt.title("experiment vs " + new_column_name)
+        # dump in the top folder
+        output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+        output_dir = os.path.join(output_base_dir, "cross_workloads/space_navigation")
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir,'_'.join(new_column_name.split(" "))+".png"))
+        plt.close('all')
+
+
+
+
+
 def plot_space_navigation_analysis(input_dir_names, input_all_res_column_name_number):
     trueNum  =  all_res_column_name_number["move validity"]
 
@@ -467,18 +516,17 @@ def plot_space_navigation_analysis(input_dir_names, input_all_res_column_name_nu
         experiment_names.append(experiment_name)
 
     axis_font = {'fontname': 'Arial', 'size': '9'}
-    column_name_list = ["transformation_metric", "transformation_block_type", "move name", "comm_comp", "architectural principle", "high level optimization name", "exact optimization name"]
+    column_name_list = ["transformation_metric", "transformation_block_type", "move name", "comm_comp", "architectural principle", "high level optimization name", "exact optimization name", "neighbouring design space size"]
     #column_name = "move name"
+    # initialize the dictionary
+    column_column_value_experiment_frequency_dict = {}
     for column_name in column_name_list:
-
+        column_value_experiment_frequency_dict = {}
         # get all possible the values of interest
         all_values = get_all_col_values_of_a_folders(input_dir_names, input_all_res_column_name_number, column_name)
         columne_number = all_res_column_name_number[column_name]
-
-        # initialize the dictionary
-        column_experiment_frequency_dict = {}
         for column in all_values:
-            column_experiment_frequency_dict[column] = {}
+            column_value_experiment_frequency_dict[column] = {}
 
         # get all the data
         for file_full_addr in file_full_addr_list:
@@ -486,7 +534,7 @@ def plot_space_navigation_analysis(input_dir_names, input_all_res_column_name_nu
                 resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
                 experiment_name = get_experiments_name( file_full_addr, input_all_res_column_name_number)
                 for column_value in all_values:
-                    column_experiment_frequency_dict[column_value][experiment_name] = 0
+                    column_value_experiment_frequency_dict[column_value][experiment_name] = 0
 
                 for i, row in enumerate(resultReader):
                     if row[trueNum] != "True":
@@ -496,14 +544,18 @@ def plot_space_navigation_analysis(input_dir_names, input_all_res_column_name_nu
                             col_value = row[columne_number]
                             col_values = col_value.split(";")
                             for col_val in col_values:
-                                column_experiment_frequency_dict[col_val][experiment_name] += 1
+                                if "=" in col_val:
+                                    val_splitted = col_val.split("=")
+                                    column_value_experiment_frequency_dict[val_splitted[0]][experiment_name] += float(val_splitted[1])
+                                else:
+                                    column_value_experiment_frequency_dict[col_val][experiment_name] += 1
                         except:
                             print("what")
 
         # prepare for plotting and plot
         plt.figure()
         index = experiment_names
-        plotdata = pd.DataFrame(column_experiment_frequency_dict, index=index)
+        plotdata = pd.DataFrame(column_value_experiment_frequency_dict, index=index)
         plotdata.plot(kind='bar', stacked=True)
         plt.xlabel("experiments", **axis_font)
         plt.ylabel(column_name)
@@ -516,6 +568,12 @@ def plot_space_navigation_analysis(input_dir_names, input_all_res_column_name_nu
         plt.tight_layout()
         plt.savefig(os.path.join(output_dir,'_'.join(column_name.split(" "))+".png"))
         plt.close('all')
+        column_column_value_experiment_frequency_dict[column_name] = copy.deepcopy(column_value_experiment_frequency_dict)
+
+    return column_column_value_experiment_frequency_dict
+
+
+
 
 # the function to plot distance to goal vs. iteration cnt
 def plotDistToGoalVSitr(input_dir_names, all_res_column_name_number):
@@ -1086,10 +1144,20 @@ def get_experiment_dir_list(run_folder_name):
 
     return experiment_full_addr_list
 
+
+def find_the_most_recent_directory(top_dir):
+    dirs = [os.path.join(top_dir, el) for el in os.listdir(top_dir)]
+    dirs = list(filter(os.path.isdir, dirs))
+    dirs.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+    return dirs
+
 # the main function. comment out the plots if you do not need them
 if __name__ == "__main__":
     # populate parameters
     run_folder_name =  config_plotting.run_folder_name
+    if  config_plotting.run_folder_name == "":
+        run_folder_name = find_the_most_recent_directory(config_plotting.top_result_folder)[0]
+
     zoneNum = config_plotting.zoneNum
 
     # get all the experiments under the run folder
@@ -1102,8 +1170,12 @@ if __name__ == "__main__":
         summary_res_column_name_number = get_column_name_number(experiment_full_addr_list[0], "simple")
         plot_convergence_analysis_cross_workloads(experiment_full_addr_list, all_res_column_name_number)
         plot_convergence_analysis_within_workloads(experiment_full_addr_list, all_res_column_name_number)
-        plot_space_navigation_analysis(experiment_full_addr_list, all_res_column_name_number)
+        column_column_value_experiment_frequency_dict = plot_space_navigation_analysis(experiment_full_addr_list, all_res_column_name_number)
         plot_system_implication_analysis(experiment_full_addr_list, summary_res_column_name_number)
+
+        # post processing
+        plot_space_navigation_analysis_post_processing(experiment_full_addr_list, column_column_value_experiment_frequency_dict)
+
 
     # get the the workload_set folder
     # each workload_set has a bunch of experiments underneath it
