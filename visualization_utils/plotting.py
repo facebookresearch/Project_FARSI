@@ -477,7 +477,10 @@ def plot_space_navigation_analysis_post_processing(input_dir_names, column_colum
         for column_val, experiment_freq  in first_column_value_experiment_frequency_dict.items():
             modified_column_value_experiment_frequency_dict[column_val] = {}
             for experiment, freq in  experiment_freq.items():
-                modified_column_value_experiment_frequency_dict[column_val][experiment] = first_column_value_experiment_frequency_dict[column_val][experiment]/max(second_column_value_experiment_frequency_dict[column_val][experiment],.0000000000001)
+                if(second_column_value_experiment_frequency_dict[column_val][experiment]) < .000001:
+                    modified_column_value_experiment_frequency_dict[column_val][experiment] = 0
+                else:
+                    modified_column_value_experiment_frequency_dict[column_val][experiment] = first_column_value_experiment_frequency_dict[column_val][experiment]/max(second_column_value_experiment_frequency_dict[column_val][experiment],.0000000000001)
                 experiment_names.append(experiment)
 
         axis_font = {'fontname': 'Arial', 'size': '9'}
