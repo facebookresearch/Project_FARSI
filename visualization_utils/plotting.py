@@ -247,7 +247,10 @@ def get_all_col_values_of_a_file(file_full_addr, all_res_column_name_number, col
         for i, row in enumerate(resultReader):
             if i > 1:
                 if not row[column_number] == '':
-                    all_values.append(row[column_number])
+                    value =row[column_number]
+                    values = value.split(";") # if mutiple values
+                    for val in values:
+                        all_values.append(val)
 
     return all_values
 
@@ -429,7 +432,10 @@ def plot_system_implication_analysis(input_dir_names, res_column_name_number):
                     #if row[trueNum] != "True":
                     #    continue
                     if i >= 1:
-                        column_experiment_value[column_name][experiment_name] = float(row[column_number])
+                        col_value = row[column_number]
+                        col_values = col_value.split(";")
+                        for col_val in col_values:
+                            column_experiment_value[column_name][experiment_name] = float(col_val)
 
     # prepare for plotting and plot
     plt.figure()
@@ -487,7 +493,10 @@ def plot_space_navigation_analysis(input_dir_names, input_all_res_column_name_nu
                         continue
                     if i > 1:
                         try:
-                            column_experiment_frequency_dict[row[columne_number]][experiment_name] += 1
+                            col_value = row[columne_number]
+                            col_values = col_value.split(";")
+                            for col_val in col_values:
+                                column_experiment_frequency_dict[col_val][experiment_name] += 1
                         except:
                             print("what")
 

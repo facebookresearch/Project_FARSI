@@ -71,8 +71,10 @@ class move:
             comm_comp = "comp"
 
         # which exact optimization targgeted: topology/mapping/tunning
-        if self.get_transformation_name() in ["swap", "split_swap"]:
+        if self.get_transformation_name() in ["swap"]:
             exact_optimization = self.get_customization_type(self.get_block_ref(), self.get_des_block())
+        elif self.get_transformation_name() in ["split_swap"]:
+            exact_optimization = self.get_customization_type(self.get_block_ref(), self.get_des_block()) +";" +self.get_block_ref().type +"_"+"allocation"
         elif self.get_transformation_name() in ["migrate"]:
             exact_optimization = self.get_block_ref().type +"_"+"mapping"
         elif self.get_transformation_name() in ["split_swap", "split", "transfer", "routing"]:
