@@ -97,6 +97,7 @@ class DataBase:
                          self.get_block_work_over_area_distribution(obj), self.get_block_one_over_area_distribution(obj),
                          obj.clock_freq,
                          obj.bus_width,
+                         obj.loop_itr_cnt,
                          self.get_block_leakage_power(obj),
                          self.get_block_power_knobs(obj))
         elif len(argv) == 0 and isinstance(obj, TaskL):

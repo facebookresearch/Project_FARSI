@@ -93,7 +93,7 @@ def plotCommCompAll(dirName, fileName, all_res_column_name_number):
 
 # the function to plot the frequency of all high level optimizations in the pie chart
 def plothighLevelOptAll(dirName, fileName, all_res_column_name_number):
-    colNum = all_res_column_name_number["optimization name"]
+    colNum = all_res_column_name_number["high level optimization name"]
     truNum = all_res_column_name_number["move validity"]
 
     with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
@@ -118,7 +118,7 @@ def plothighLevelOptAll(dirName, fileName, all_res_column_name_number):
                 elif row[colNum] == "identity":
                     idenOptNum += 1
                 else:
-                    raise Exception("optimization name is not giving topology or tunning or mapping or identity! The new type: " + row[colNum])
+                    raise Exception("high level optimization name is not giving topology or tunning or mapping or identity! The new type: " + row[colNum])
         
         plt.figure()
         plt.pie([topoNum, tunNum, mapNum, idenOptNum], labels = ["topology", "tunning", "mapping", "identity"])
@@ -391,7 +391,7 @@ def plot_convergence_analysis_cross_workloads(input_dir_names, res_column_name_n
         output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
         output_dir = os.path.join(output_base_dir, "cross_workloads/convergence_analysis")
         if not os.path.exists(output_dir):
-            os.mkdir(output_dir)
+            os.makedirs(output_dir)
         fig.savefig(os.path.join(output_dir,x_column_name+"_"+y_column_name+".png"))
         plt.close('all')
 
@@ -443,7 +443,7 @@ def plot_system_implication_analysis(input_dir_names, res_column_name_number):
     output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
     output_dir = os.path.join(output_base_dir, "cross_workloads/system_implications")
     if not os.path.exists(output_dir):
-        os.mkdir(output_dir)
+        os.makedirs(output_dir)
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir,"system_implication.png"))
     plt.close('all')
@@ -461,7 +461,7 @@ def plot_space_navigation_analysis(input_dir_names, input_all_res_column_name_nu
         experiment_names.append(experiment_name)
 
     axis_font = {'fontname': 'Arial', 'size': '9'}
-    column_name_list = ["transformation_metric", "transformation_block_type", "move name", "comm_comp", "architectural principle", "optimization name"]
+    column_name_list = ["transformation_metric", "transformation_block_type", "move name", "comm_comp", "architectural principle", "high level optimization name", "exact optimization name"]
     #column_name = "move name"
     for column_name in column_name_list:
 
@@ -486,7 +486,10 @@ def plot_space_navigation_analysis(input_dir_names, input_all_res_column_name_nu
                     if row[trueNum] != "True":
                         continue
                     if i > 1:
-                        column_experiment_frequency_dict[row[columne_number]][experiment_name] += 1
+                        try:
+                            column_experiment_frequency_dict[row[columne_number]][experiment_name] += 1
+                        except:
+                            print("what")
 
         # prepare for plotting and plot
         plt.figure()
@@ -500,7 +503,7 @@ def plot_space_navigation_analysis(input_dir_names, input_all_res_column_name_nu
         output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
         output_dir = os.path.join(output_base_dir, "cross_workloads/space_navigation")
         if not os.path.exists(output_dir):
-            os.mkdir(output_dir)
+            os.makedirs(output_dir)
         plt.tight_layout()
         plt.savefig(os.path.join(output_dir,'_'.join(column_name.split(" "))+".png"))
         plt.close('all')
@@ -548,7 +551,7 @@ def plotDistToGoalVSitr(input_dir_names, all_res_column_name_number):
         output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
         output_dir  = os.path.join(output_base_dir, "cross_workloads")
         if not os.path.exists(output_dir):
-            os.mkdir(output_dir)
+            os.makedirs(output_dir)
 
     plt.savefig(os.path.join(output_dir, "distToGoalVSitr.png"))
     # plt.show()
@@ -808,7 +811,7 @@ def plotMovGenTimeVScommCompZoneDist(dirName, fileName, zoneNum, commcompColNum,
         # plt.show()
         plt.close('all')
 
-# the function to plot simulation time vs. optimization name in a zonal format
+# the function to plot simulation time vs. high level optimization name in a zonal format
 def plotSimTimeVShighLevelOptZoneDist(dirName, fileName, zoneNum, optColNum, distColNum, simColNum, trueNum):
     with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
         resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
@@ -840,7 +843,7 @@ def plotSimTimeVShighLevelOptZoneDist(dirName, fileName, zoneNum, optColNum, dis
                 elif row[optColNum] == "identity":
                     idenOptSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
                 else:
-                    raise Exception("optimization name is not giving topology or tunning or mapping or identity! The new type: " + row[optColNum])
+                    raise Exception("high level optimization name is not giving topology or tunning or mapping or identity! The new type: " + row[optColNum])
         
         plt.figure()
         plotdata = pd.DataFrame({
@@ -858,7 +861,7 @@ def plotSimTimeVShighLevelOptZoneDist(dirName, fileName, zoneNum, optColNum, dis
         # plt.show()
         plt.close('all')
 
-# the function to plot simulation time vs. optimization name in a zonal format
+# the function to plot simulation time vs. high level optimization name in a zonal format
 def plotMovGenTimeVShighLevelOptZoneDist(dirName, fileName, zoneNum, optColNum, distColNum, movGenColNum, trueNum):
     with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
         resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
@@ -890,7 +893,7 @@ def plotMovGenTimeVShighLevelOptZoneDist(dirName, fileName, zoneNum, optColNum, 
                 elif row[optColNum] == "identity":
                     idenOptMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
                 else:
-                    raise Exception("optimization name is not giving topology or tunning or mapping or identity! The new type: " + row[optColNum])
+                    raise Exception("high level optimization name is not giving topology or tunning or mapping or identity! The new type: " + row[optColNum])
         
         plt.figure()
         plotdata = pd.DataFrame({
@@ -1010,7 +1013,7 @@ def plotMovGenTimeVSarchVarImpZoneDist(dirName, fileName, zoneNum, archColNum, d
 
 # the function to plot convergence vs. iteration cnt
 def plotBudgetsVSitr3d(dirName, subDirName):
-    newDirName = dirName + subDirName + "/"
+    newDirName = dirName + "/"+ subDirName + "/"
     if os.path.exists(newDirName + "/figures"):
         shutil.rmtree(newDirName + "/figures")
     resultList = os.listdir(newDirName)
@@ -1120,7 +1123,7 @@ if __name__ == "__main__":
             workload_set_full_addr +="/" # this is because you didn't use join
             commcompColNum = columnNum(workload_set_full_addr, experiment_name_relative_addr, "comm_comp", "all")
             trueNum = columnNum(workload_set_full_addr, experiment_name_relative_addr, "move validity", "all")
-            optColNum = columnNum(workload_set_full_addr, experiment_name_relative_addr, "optimization name", "all")
+            optColNum = columnNum(workload_set_full_addr, experiment_name_relative_addr, "high level optimization name", "all")
             archColNum = columnNum(workload_set_full_addr, experiment_name_relative_addr, "architectural principle", "all")
             sysBlkNum = columnNum(workload_set_full_addr, experiment_name_relative_addr, "system block count", "all")
             simColNum = columnNum(workload_set_full_addr, experiment_name_relative_addr, "simulation time", "all")

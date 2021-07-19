@@ -210,7 +210,7 @@ def write_one_results(sim_dp, dse, reason_to_terminate, case_study, result_dir_s
         output_fh_minimal.write("move_dir" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("comm_comp" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("high_level_optimization" + ",")  # for now only write the latency accuracy as the other
-        output_fh_minimal.write("architectural_variable_to_improve" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("architectural_principle" + ",")  # for now only write the latency accuracy as the other
 
     output_fh_minimal.write("\n")
     for metric in config.all_metrics:
@@ -263,7 +263,8 @@ def write_one_results(sim_dp, dse, reason_to_terminate, case_study, result_dir_s
 
         comm_comp = (ma.get_system_improvement_log())["comm_comp"]
         high_level_optimization = (ma.get_system_improvement_log())["high_level_optimization"]
-        architectural_variable_to_improve = (ma.get_system_improvement_log())["architectural_variable_to_improve"]
+        exact_optimization = (ma.get_system_improvement_log())["exact_optimization"]
+        architectural_variable_to_improve = (ma.get_system_improvement_log())["architectural_principle"]
         block_selection_time = ma.get_logs("block_selection_time")
         kernel_selection_time = ma.get_logs("kernel_selection_time")
         transformation_selection_time = ma.get_logs("transformation_selection_time")

@@ -174,6 +174,7 @@ class HillClimbing:
         while not safety_chk_passed:
             move_to_try, total_transformation_cnt = self.sel_moves(new_des_tup, "dist_rank")
             safety_chk_passed = move_to_try.safety_check(new_ex_dp)
+            move_to_try.populate_system_improvement_log()
 
         move_to_try.set_logs(t2-t1, "pickling_time")
 
@@ -1338,6 +1339,7 @@ class HillClimbing:
                                                  move_to_apply.get_metric(), move_to_apply.get_sorted_metric_dir(),
                                                  blck_ref.get_tasks_of_block())  # immediate block either superior or
             move_to_apply.set_dest_block(imm_block)
+            move_to_apply.set_customization_type(blck_ref, imm_block)
 
             move_to_apply.set_tasks(blck_ref.get_tasks_of_block())
         elif move_to_apply.get_transformation_name() in ["split_swap"]:
@@ -1358,6 +1360,7 @@ class HillClimbing:
                                                           move_to_apply.get_transformation_batch())
                 #migrant_tasks  = list(set(move_to_apply.get_block_ref().get_tasks()) - set(migrant_tasks_))  # reverse the order to allow for swap to happen on the ref_block
                 move_to_apply.set_tasks(migrant_tasks)
+            move_to_apply.set_customization_type(blck_ref, imm_block)
         elif move_to_apply.get_transformation_name() in ["split"]:
             # select tasks to migrate
             #self.change_read_task_to_write_if_necessary(ex_dp, sim_dp, move_to_apply, selected_krnl)
@@ -2145,8 +2148,8 @@ class HillClimbing:
                 blk_type = ma.get_block_ref().type
                 comm_comp = (ma.get_system_improvement_log())["comm_comp"]
                 high_level_optimization = (ma.get_system_improvement_log())["high_level_optimization"]
-                architectural_variable_to_improve = (ma.get_system_improvement_log())[
-                    "architectural_variable_to_improve"]
+                exact_optimization = (ma.get_system_improvement_log())["exact_optimization"]
+                architectural_principle = (ma.get_system_improvement_log())["architectural_principle"]
                 block_selection_time = ma.get_logs("block_selection_time")
                 kernel_selection_time = ma.get_logs("kernel_selection_time")
                 transformation_selection_time = ma.get_logs("transformation_selection_time")
@@ -2171,7 +2174,8 @@ class HillClimbing:
                 blk_type = ''
                 comm_comp = ""
                 high_level_optimization = ""
-                architectural_variable_to_improve = ""
+                exact_optimization = ""
+                architectural_principle = ""
                 block_selection_time = ""
                 kernel_selection_time = ""
                 metric_selection_time = ""
@@ -2231,8 +2235,9 @@ class HillClimbing:
                     "transformation_block_type" : blk_type,
                     "transformation_dir" : dir,
                     "comm_comp" : comm_comp,
-                    "optimization name" : high_level_optimization,
-                    "architectural principle" : architectural_variable_to_improve,
+                    "high level optimization name" : high_level_optimization,
+                    "exact optimization name": exact_optimization,
+                    "architectural principle" : architectural_principle,
                     "block_area_break_down":block_area_break_down,
                     "sub_block_area_break_down":sub_block_area_break_down,
                 "task_cnt": task_cnt,

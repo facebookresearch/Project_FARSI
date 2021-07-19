@@ -25,6 +25,7 @@ class move:
     def __init__(self, transformation_name, transformation_sub_name, batch_mode, dir, metric, blck, krnel, krnl_prob_dict_sorted):
         self.transformation_name = transformation_name
         self.transformation_sub_name = transformation_sub_name
+        self.customization_type = ""
         self.metric = metric
         self.batch_mode = batch_mode
         self.dir = dir
@@ -50,7 +51,7 @@ class move:
         self.krnel_prob_dict_sorted = krnl_prob_dict_sorted
         self.generation_time = 0
         self.system_improvement_dict = {}
-        self.populate_system_improvement_log()
+        #self.populate_system_improvement_log()
 
         self.transformation_selection_time = 0
         self.block_selection_time = 0
@@ -69,9 +70,29 @@ class move:
         else:
             comm_comp = "comp"
 
+        # which exact optimization targgeted: topology/mapping/tunning
+        if self.get_transformation_name() in ["swap", "split_swap"]:
+            exact_optimization = self.get_customization_type(self.get_block_ref(), self.get_des_block())
+        elif self.get_transformation_name() in ["migrate"]:
+            exact_optimization = self.get_block_ref().type +"_"+"mapping"
+        elif self.get_transformation_name() in ["split_swap", "split", "transfer", "routing"]:
+            exact_optimization = self.get_block_ref().type +"_"+"allocation"
+        elif self.get_transformation_name() in ["transfer", "routing"]:
+            exact_optimization = self.get_block_ref().type +"_"+self.get_transformation_name()
+        elif self.get_transformation_name() in ["cost"]:
+            exact_optimization = "cost"
+        elif self.get_transformation_name() in ["dram_fix"]:
+            exact_optimization = "dram_fix"
+        elif self.get_transformation_name() in ["identity"]:
+            exact_optimization = "identity"
+        else:
+            print(self.get_transformation_name() + " high level optimization is not specified")
+            exit(0)
+
+
         # which high level optimization targgeted: topology/mapping/tunning
-        if self.get_transformation_name() in ["swap"]:
-            high_level_optimization = "tunning"
+        if self.get_transformation_name() in ["swap", "split_swap"]:
+            high_level_optimization = "customization"
         elif self.get_transformation_name() in ["migrate"]:
             high_level_optimization = "mapping"
         elif self.get_transformation_name() in ["split_swap", "split", "transfer","routing"]:
@@ -88,26 +109,31 @@ class move:
 
         # which architectural variable targgeted: topology/mapping/tunning
         if self.get_transformation_name() in ["split"]:
-            architectural_variable_to_improve = "parallelization"
+            architectural_principle = "parallelization"
         elif self.get_transformation_name() in ["migrate"]:
-            architectural_variable_to_improve = "parallelization"
+            architectural_principle = "parallelization"
         elif self.get_transformation_name() in ["split_swap", "swap"]:
-            architectural_variable_to_improve = "customization"
+            architectural_principle = "customization"
         elif self.get_transformation_name() in ["transfer","routing"]:
-            architectural_variable_to_improve = "locality"
+            architectural_principle = "locality"
         elif self.get_transformation_name() in ["cost"]:
-            architectural_variable_to_improve = "cost"
+            architectural_principle = "cost"
         elif self.get_transformation_name() in ["dram_fix"]:
-            architectural_variable_to_improve = "dram_fix"
+            architectural_principle = "dram_fix"
         elif self.get_transformation_name() in ["identity"]:
-            architectural_variable_to_improve = "identity"
+            architectural_principle = "identity"
         else:
             print(self.get_transformation_name() + " high level optimization is not specified")
             exit(0)
 
         self.system_improvement_dict["comm_comp"] = comm_comp
         self.system_improvement_dict["high_level_optimization"] = high_level_optimization
-        self.system_improvement_dict["architectural_variable_to_improve"] = architectural_variable_to_improve
+        self.system_improvement_dict["exact_optimization"] = exact_optimization
+        self.system_improvement_dict["architectural_principle"] = architectural_principle
+        if self.system_improvement_dict["exact_optimization"] == '':
+            exact_optimization = self.get_customization_type(self.get_block_ref(), self.get_des_block())
+            print("what?")
+
 
     def get_transformation_sub_name(self):
         return self.transformation_sub_name
@@ -230,6 +256,50 @@ class move:
     # set the block that we will change the ref_block to.
     def set_dest_block(self, block_):
         self.dest_block = block_
+
+
+    def get_customization_type(self, ref_block, imm_block):
+        return self.customization_type
+
+    # set the block that we will change the ref_block to.
+    def set_customization_type(self, ref_block, imm_block):
+        if not ref_block.subtype  == imm_block.subtype:
+            # type difference
+            if ref_block.type == "pe":
+                if ref_block.subtype == "gpp" and imm_block.subtype =="ip":
+                    self.customization_type = "hardening"
+                elif ref_block.subtype == "ip" and imm_block.subtype =="gpp":
+                    self.customization_type = "softening"
+                else:
+                    print("we should have coverreed all the customizations. what is missing then")
+                    exit(0)
+            elif ref_block.type == "mem":
+                self.customization_type = ref_block.subtype +"_to_"  + imm_block.subtype
+            else:
+                print("we should have coverreed all the customizations. what is missing then")
+                exit(0)
+        else:
+            if not ref_block.get_loop_itr_cnt() == imm_block.get_loop_itr_cnt():
+                self.customization_type = "loop_iteration_modulation"
+            elif not ref_block.get_block_freq() == imm_block.get_block_freq():
+                self.customization_type = "frequency_modulation"
+            elif not ref_block.get_block_bus_width() == imm_block.get_block_bus_width():
+                self.customization_type = "bus_width_modulation"
+            else:
+                print("we should have coverreed all the customizations. what is missing then")
+                exit(0)
+
+    def get_block_attr(self, selected_metric):
+        if selected_metric == "latency":
+            selected_metric_to_sort = 'peak_work_rate'
+        elif selected_metric == "power":
+            #selected_metric_to_sort = 'work_over_energy'
+            selected_metric_to_sort = 'one_over_power'
+        elif selected_metric == "area":
+            selected_metric_to_sort = 'one_over_area'
+        else:
+            print("selected_selected_metric: " + selected_metric + " is not defined")
+        return selected_metric_to_sort
 
 
     # --------------------------------------
