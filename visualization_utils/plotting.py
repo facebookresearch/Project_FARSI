@@ -1,13 +1,38 @@
 #Copyright (c) Facebook, Inc. and its affiliates.
 #This source code is licensed under the MIT license found in the
 #LICENSE file in the root directory of this source tree.
-
+import copy
 import csv
 import os
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import shutil
+from settings import config_plotting
+
+def get_column_name_number(dir_addr, mode):
+    column_name_number_dic = {}
+    try:
+        if mode == "all":
+            file_name = "result_summary/FARSI_simple_run_0_1_all_reults.csv"
+        else:
+            file_name = "result_summary/FARSI_simple_run_0_1.csv"
+
+        file_full_addr = os.path.join(dir_addr, file_name)
+        with open(file_full_addr) as f:
+            resultReader = csv.reader(f, delimiter=',', quotechar='|')
+            for row in resultReader:
+                for idx, el_name in enumerate(row):
+                    column_name_number_dic[el_name] = idx
+                break
+        return column_name_number_dic
+    except Exception as e:
+        raise e
+
+
+
+#
+
 
 # the function to get the column information of the given category
 def columnNum(dirName, fileName, cate, result):
@@ -37,7 +62,10 @@ def columnNum(dirName, fileName, cate, result):
         raise Exception("No such result file! Check the result type! It should be either \"all\" or \"simple\"")
 
 # the function to plot the frequency of all comm_comp in the pie chart
-def plotCommCompAll(dirName, fileName, colNum, trueNum):
+def plotCommCompAll(dirName, fileName, all_res_column_name_number):
+    colNum = all_res_column_name_number["comm_comp"]
+    truNum = all_res_column_name_number["move validity"]
+
     with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
         resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
 
@@ -64,7 +92,10 @@ def plotCommCompAll(dirName, fileName, colNum, trueNum):
         plt.close('all')
 
 # the function to plot the frequency of all high level optimizations in the pie chart
-def plothighLevelOptAll(dirName, fileName, colNum, trueNum):
+def plothighLevelOptAll(dirName, fileName, all_res_column_name_number):
+    colNum = all_res_column_name_number["optimization name"]
+    truNum = all_res_column_name_number["move validity"]
+
     with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
         resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
 
@@ -179,30 +210,350 @@ def plotMoveGenTimeVSblk(dirName, fileName, blkColNum, movColNum, trueNum):
         # plt.show()
         plt.close('all')
 
-# the function to plot distance to goal vs. iteration cnt
-def plotDistToGoalVSitr(dirName, fileName, itrColNum, distColNum, trueNum):
-    with open(dirName + fileName + "/result_summary/FARSI_simple_run_0_1_all_reults.csv", newline='') as csvfile:
-        resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+def get_experiments_workload(all_res_column_name):
+    latency_budget =  all_res_column_name_number["latency budget"][:-1]
+    workload_latency = latency_budget.split(";")
+    workloads = []
+    for workload_latency in workload_latency:
+        workloads.append(workload_latency.split("=")[0])
+    return workloads
 
+def get_experiments_name(file_full_addr, all_res_column_name_number):
+    with open(file_full_addr, newline='') as csvfile:
+        resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+        row1 = next(resultReader)
+        row2 = next(resultReader)
+        latency_budget =  row2[all_res_column_name_number["latency_budget"]]
+        power_budget =  row2[all_res_column_name_number["power_budget"]]
+        area_budget =  row2[all_res_column_name_number["area_budget"]]
+
+
+        workload_latency = latency_budget[:-1].split(';')
+        latency_budget_refined =""
+        for workload_latency in workload_latency:
+            latency_budget_refined +="_" + (workload_latency.split("=")[0][0]+workload_latency.split("=")[1])
+
+        return latency_budget_refined+"_" + power_budget + "_" + area_budget
+
+
+
+
+def get_all_col_values_of_a_file(file_full_addr, all_res_column_name_number, column_name):
+    column_number = all_res_column_name_number[column_name]
+    all_values = []
+    with open(file_full_addr, newline='') as csvfile:
+        resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+        experiment_name = get_experiments_name(file_full_addr, all_res_column_name_number)
+        for i, row in enumerate(resultReader):
+            if i > 1:
+                if not row[column_number] == '':
+                    all_values.append(row[column_number])
+
+    return all_values
+
+def get_all_col_values_of_a_folders(input_dir_names, input_all_res_column_name_number, column_name):
+    all_values = []
+    for dir_name in input_dir_names:
+        file_full_addr = os.path.join(dir_name, "result_summary/FARSI_simple_run_0_1_all_reults.csv")
+        all_values.extend(get_all_col_values_of_a_file(file_full_addr, input_all_res_column_name_number, column_name))
+
+    # get rid of duplicates
+    all_values_rid_of_duplicates = list(set(all_values))
+    return all_values_rid_of_duplicates
+
+def extract_latency_values(values_):
+    print("")
+
+def plot_convergence_analysis_within_workloads(input_dir_names, res_column_name_number):
+    #itrColNum = all_res_column_name_number["iteration cnt"]
+    #distColNum = all_res_column_name_number["dist_to_goal_non_cost"]
+    trueNum  =  all_res_column_name_number["move validity"]
+
+    # experiment_names
+    experiment_names = []
+    file_full_addr_list = []
+    for dir_name in input_dir_names:
+        file_full_addr = os.path.join(dir_name, "result_summary/FARSI_simple_run_0_1_all_reults.csv")
+        file_full_addr_list.append(file_full_addr)
+        experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
+        experiment_names.append(experiment_name)
+
+    axis_font = {'fontname': 'Arial', 'size': '9'}
+    x_column_name = "iteration cnt"
+    y_column_name_list = ["power", "area"]
+
+    experiment_column_value = {}
+    for file_full_addr in file_full_addr_list:
+        experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
+        experiment_column_value[experiment_name] = {}
+        for y_column_name in y_column_name_list:
+            y_column_number = res_column_name_number[y_column_name]
+            x_column_number = res_column_name_number[x_column_name]
+            experiment_column_value[experiment_name][y_column_name] = []
+            with open(file_full_addr, newline='') as csvfile:
+                resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+                for i, row in enumerate(resultReader):
+                    #if row[trueNum] != "True":
+                    #    continue
+                    if i >= 1:
+                        if y_column_name == "latency":
+                            value_to_add = (float(row[x_column_number]), row[y_column_number])
+                        else:
+                            value_to_add = (float(row[x_column_number]), float(row[y_column_number]))
+                        experiment_column_value[experiment_name][y_column_name].append(value_to_add)
+
+        # prepare for plotting and plot
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        #plt.tight_layout()
+        for column, values in experiment_column_value[experiment_name].items():
+            if column == "latency":
+                latency_values = extract_latency_values(values)
+                for workload, values_ in latency_values:
+                    x_values = [el[0] for el in values_]
+                    y_values = [el[1] for el in values_]
+                    ax.scatter(x_values, y_values, label=column)
+            else:
+                x_values = [el[0] for el in values]
+                y_values = [el[1] for el in values]
+                ax.scatter(x_values, y_values, label=column)
+
+        #ax.set_title("experiment vs system implicaction")
+        ax.set_xlabel(x_column_name)
+        ax.set_ylabel(y_column_name)
+        ax.legend()
+
+        # dump in the top folder
+        output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+        output_dir = os.path.join(output_base_dir, "cross_workloads/convergence_analysis")
+        if not os.path.exists(output_dir):
+            os.mkdir(output_dir)
+        fig.savefig(os.path.join(output_dir,experiment_name+"_convergence.png"))
+        plt.close('all')
+
+
+def plot_convergence_analysis_cross_workloads(input_dir_names, res_column_name_number):
+    #itrColNum = all_res_column_name_number["iteration cnt"]
+    #distColNum = all_res_column_name_number["dist_to_goal_non_cost"]
+    trueNum  =  all_res_column_name_number["move validity"]
+
+    # experiment_names
+    experiment_names = []
+    file_full_addr_list = []
+    for dir_name in input_dir_names:
+        file_full_addr = os.path.join(dir_name, "result_summary/FARSI_simple_run_0_1_all_reults.csv")
+        file_full_addr_list.append(file_full_addr)
+        experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
+        experiment_names.append(experiment_name)
+
+    axis_font = {'fontname': 'Arial', 'size': '9'}
+    x_column_name = "iteration cnt"
+    y_column_name_list = ["dist_to_goal_non_cost"]
+
+    column_experiment_value = {}
+    #column_name = "move name"
+    for y_column_name in y_column_name_list:
+        # get all possible the values of interest
+        y_column_number = res_column_name_number[y_column_name]
+        x_column_number = res_column_name_number[x_column_name]
+
+        column_experiment_value[y_column_name] = {}
+        # initialize the dictionary
+        # get all the data
+        for file_full_addr in file_full_addr_list:
+            with open(file_full_addr, newline='') as csvfile:
+                resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+                experiment_name = get_experiments_name( file_full_addr, res_column_name_number)
+                column_experiment_value[y_column_name][experiment_name] = []
+
+                for i, row in enumerate(resultReader):
+                    #if row[trueNum] != "True":
+                    #    continue
+                    if i >= 1:
+                        value_to_add = (float(row[x_column_number]), float(row[y_column_number]))
+                        column_experiment_value[y_column_name][experiment_name].append(value_to_add)
+
+        # prepare for plotting and plot
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        #plt.tight_layout()
+        for experiment_name, values in column_experiment_value[y_column_name].items():
+            x_values = [el[0] for el in values]
+            y_values = [el[1] for el in values]
+            ax.scatter(x_values, y_values, label=experiment_name)
+
+        #ax.set_title("experiment vs system implicaction")
+        ax.set_xlabel(x_column_name)
+        ax.set_ylabel(y_column_name)
+        ax.legend()
+
+        # dump in the top folder
+        output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+        output_dir = os.path.join(output_base_dir, "cross_workloads/convergence_analysis")
+        if not os.path.exists(output_dir):
+            os.mkdir(output_dir)
+        fig.savefig(os.path.join(output_dir,x_column_name+"_"+y_column_name+".png"))
+        plt.close('all')
+
+def plot_system_implication_analysis(input_dir_names, res_column_name_number):
+    # experiment_names
+    experiment_names = []
+    file_full_addr_list = []
+    for dir_name in input_dir_names:
+        file_full_addr = os.path.join(dir_name, "result_summary/FARSI_simple_run_0_1.csv")
+        file_full_addr_list.append(file_full_addr)
+        experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
+        experiment_names.append(experiment_name)
+
+    axis_font = {'fontname': 'Arial', 'size': '9'}
+    column_name_list = ["system block count", "routing complexity", "system PE count", "system memory count", "system bus count"]#, "channel_cnt"]
+
+    column_experiment_value = {}
+    #column_name = "move name"
+    for column_name in column_name_list:
+        # get all possible the values of interest
+        column_number = res_column_name_number[column_name]
+
+        column_experiment_value[column_name] = {}
+        # initialize the dictionary
+        column_experiment_number_dict = {}
+        experiment_number_dict = {}
+
+        # get all the data
+        for file_full_addr in file_full_addr_list:
+            with open(file_full_addr, newline='') as csvfile:
+                resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+                experiment_name = get_experiments_name( file_full_addr, res_column_name_number)
+
+                for i, row in enumerate(resultReader):
+                    #if row[trueNum] != "True":
+                    #    continue
+                    if i >= 1:
+                        column_experiment_value[column_name][experiment_name] = float(row[column_number])
+
+    # prepare for plotting and plot
+    plt.figure()
+    index = experiment_names
+    plotdata = pd.DataFrame(column_experiment_value, index=index)
+    plotdata.plot(kind='bar')
+    plt.xlabel("experiments", **axis_font)
+    plt.ylabel("system implication")
+    plt.title("experiment vs system implicaction")
+    # dump in the top folder
+    output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+    output_dir = os.path.join(output_base_dir, "cross_workloads/system_implications")
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir,"system_implication.png"))
+    plt.close('all')
+
+def plot_space_navigation_analysis(input_dir_names, input_all_res_column_name_number):
+    trueNum  =  all_res_column_name_number["move validity"]
+
+    # experiment_names
+    experiment_names = []
+    file_full_addr_list = []
+    for dir_name in input_dir_names:
+        file_full_addr = os.path.join(dir_name, "result_summary/FARSI_simple_run_0_1_all_reults.csv")
+        file_full_addr_list.append(file_full_addr)
+        experiment_name = get_experiments_name(file_full_addr, input_all_res_column_name_number)
+        experiment_names.append(experiment_name)
+
+    axis_font = {'fontname': 'Arial', 'size': '9'}
+    column_name_list = ["transformation_metric", "transformation_block_type", "move name", "comm_comp", "architectural principle", "optimization name"]
+    #column_name = "move name"
+    for column_name in column_name_list:
+
+        # get all possible the values of interest
+        all_values = get_all_col_values_of_a_folders(input_dir_names, input_all_res_column_name_number, column_name)
+        columne_number = all_res_column_name_number[column_name]
+
+        # initialize the dictionary
+        column_experiment_frequency_dict = {}
+        for column in all_values:
+            column_experiment_frequency_dict[column] = {}
+
+        # get all the data
+        for file_full_addr in file_full_addr_list:
+            with open(file_full_addr, newline='') as csvfile:
+                resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+                experiment_name = get_experiments_name( file_full_addr, input_all_res_column_name_number)
+                for column_value in all_values:
+                    column_experiment_frequency_dict[column_value][experiment_name] = 0
+
+                for i, row in enumerate(resultReader):
+                    if row[trueNum] != "True":
+                        continue
+                    if i > 1:
+                        column_experiment_frequency_dict[row[columne_number]][experiment_name] += 1
+
+        # prepare for plotting and plot
+        plt.figure()
+        index = experiment_names
+        plotdata = pd.DataFrame(column_experiment_frequency_dict, index=index)
+        plotdata.plot(kind='bar', stacked=True)
+        plt.xlabel("experiments", **axis_font)
+        plt.ylabel(column_name)
+        plt.title("experiment vs " + column_name)
+        # dump in the top folder
+        output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+        output_dir = os.path.join(output_base_dir, "cross_workloads/space_navigation")
+        if not os.path.exists(output_dir):
+            os.mkdir(output_dir)
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir,'_'.join(column_name.split(" "))+".png"))
+        plt.close('all')
+
+# the function to plot distance to goal vs. iteration cnt
+def plotDistToGoalVSitr(input_dir_names, all_res_column_name_number):
+    itrColNum = all_res_column_name_number["iteration cnt"]
+    distColNum = all_res_column_name_number["dist_to_goal_non_cost"]
+    trueNum  =  all_res_column_name_number["move validity"]
+
+    experiment_itr_dist_to_goal_dict = {}
+    # iterate through directories, get data and store in a dictionary
+    for dir_name in input_dir_names:
         itr = []
         distToGoal = []
+        file_full_addr = os.path.join(dir_name, "result_summary/FARSI_simple_run_0_1_all_reults.csv")
+        with open(file_full_addr, newline='') as csvfile:
+            resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+            experiment_name = get_experiments_name(file_full_addr, all_res_column_name_number)
+            for i, row in enumerate(resultReader):
+                if row[trueNum] != "True":
+                    continue
+                if i > 1:
+                    itr.append(int(row[itrColNum]))
+                    distToGoal.append(float(row[distColNum]))
 
-        for i, row in enumerate(resultReader):
-            if row[trueNum] != "True":
-                continue
+            experiment_itr_dist_to_goal_dict[experiment_name] = (itr[:], distToGoal[:])
 
-            if i > 1:
-                itr.append(int(row[itrColNum]))
-                distToGoal.append(float(row[distColNum]))
-        
-        plt.figure()
-        plt.plot(itr, distToGoal)
+    plt.figure()
+    # iterate and plot
+    for experiment_name, value in experiment_itr_dist_to_goal_dict.items():
+        itr, distToGoal = value[0], value[1]
+        if len(itr) == 0 or len(distToGoal) == 0: # no valid move
+            continue
+        plt.plot(itr, distToGoal, label=experiment_name)
         plt.xlabel("Iteration Cnt")
         plt.ylabel("Distance to Goal")
         plt.title("Distance to Goal vs. Iteration Cnt")
-        plt.savefig(dirName + fileName + "/distToGoalVSitr-" + fileName + ".png")
-        # plt.show()
-        plt.close('all')
+
+    # decide on the output dir
+    if len(input_dir_names) == 1:
+        output_dir = input_dir_names[0]
+    else:
+        # dump in the top folder
+        output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+        output_dir  = os.path.join(output_base_dir, "cross_workloads")
+        if not os.path.exists(output_dir):
+            os.mkdir(output_dir)
+
+    plt.savefig(os.path.join(output_dir, "distToGoalVSitr.png"))
+    # plt.show()
+    plt.close('all')
+
 
 # the function to plot distance to goal vs. iteration cnt
 def plotRefDistToGoalVSitr(dirName, fileName, itrColNum, refDistColNum, trueNum):
@@ -703,72 +1054,99 @@ def plotBudgetsVSitr3d(dirName, subDirName):
     # plt.show()
     plt.close('all')
 
+def get_experiment_dir_list(run_folder_name):
+    workload_set_folder_list = os.listdir(run_folder_name)
+
+    experiment_full_addr_list = []
+    #  iterate and generate plots
+    for workload_set_folder in workload_set_folder_list:
+        # ignore irelevant files
+        if workload_set_folder in config_plotting.ignore_file_names:
+            continue
+
+        # get experiment folder
+        workload_set_full_addr = os.path.join(run_folder_name,workload_set_folder)
+        folder_list = os.listdir(workload_set_full_addr)
+        for experiment_name_relative_addr in folder_list:
+            if experiment_name_relative_addr in config_plotting.ignore_file_names:
+                continue
+            experiment_full_addr_list.append(os.path.join(workload_set_full_addr, experiment_name_relative_addr))
+
+    return experiment_full_addr_list
+
 # the main function. comment out the plots if you do not need them
 if __name__ == "__main__":
-    # change the directory name and the result folder name accordingly. the directory name is the place for all your results
-    dirName = "/home/yingj4/Desktop/Project_FARSI/data_collection/data/simple_run/07-17-2021/"
-    # if you want to generate the figures for a single result folder, change the fileName variable on the next line (and of course, move the functions outside the loop below). otherwise, it will do an automatic sweep
-    # fileName = "07-17_15-09_04____pow_0.1__area_5e-05"
-    #
-    # commcompColNum = columnNum(dirName, fileName, "comm_comp", "all")
-    # trueNum = columnNum(dirName, fileName, "move validity", "all")
-    # optColNum = columnNum(dirName, fileName, "optimization name", "all")
-    # archColNum = columnNum(dirName, fileName, "architectural principle", "all")
-    # sysBlkNum = columnNum(dirName, fileName, "system block count", "all")
-    # simColNum = columnNum(dirName, fileName, "simulation time", "all")
-    # movGenColNum = columnNum(dirName, fileName, "transformation generation time", "all")
-    # movColNum = columnNum(dirName, fileName, "move name", "all")
-    # itrNum = columnNum(dirName, fileName, "iteration cnt", "all")
-    # distColNum = columnNum(dirName, fileName, "dist_to_goal_non_cost", "all")
-    # refDistColNum = columnNum(dirName, fileName, "ref_des_dist_to_goal_non_cost", "all")
-    # latNum = columnNum(dirName, fileName, "latency", "all")
-    # powNum = columnNum(dirName, fileName, "power", "all")
-    # areaNum = columnNum(dirName, fileName, "area", "all")
+    # populate parameters
+    run_folder_name =  config_plotting.run_folder_name
+    zoneNum = config_plotting.zoneNum
 
-    # change the number of zones to suit for your analysis
-    zoneNum = 4
+    # get all the experiments under the run folder
+    experiment_full_addr_list = get_experiment_dir_list(run_folder_name)
 
-    subDirList = os.listdir(dirName)
-    for subDirName in subDirList:
-        if subDirName != "README.md":
-            print(subDirName)
-            plotBudgetsVSitr3d(dirName, subDirName)
+    # according to the plot type, plot
+    if "cross_workloads" in config_plotting.plot_list:
+        # get column orders (assumption is that the column order doesn't change between experiments)
+        all_res_column_name_number = get_column_name_number(experiment_full_addr_list[0], "all")
+        summary_res_column_name_number = get_column_name_number(experiment_full_addr_list[0], "simple")
+        plot_convergence_analysis_cross_workloads(experiment_full_addr_list, all_res_column_name_number)
+        plot_convergence_analysis_within_workloads(experiment_full_addr_list, all_res_column_name_number)
+        plot_space_navigation_analysis(experiment_full_addr_list, all_res_column_name_number)
+        plot_system_implication_analysis(experiment_full_addr_list, summary_res_column_name_number)
 
-            subDirFullName = dirName + subDirName + "/"
-            fileList = os.listdir(subDirFullName)
-            for fileName in fileList:
-                if fileName != "figures":
-                    print(fileName)
-                    commcompColNum = columnNum(subDirFullName, fileName, "comm_comp", "all")
-                    trueNum = columnNum(subDirFullName, fileName, "move validity", "all")
-                    optColNum = columnNum(subDirFullName, fileName, "optimization name", "all")
-                    archColNum = columnNum(subDirFullName, fileName, "architectural principle", "all")
-                    sysBlkNum = columnNum(subDirFullName, fileName, "system block count", "all")
-                    simColNum = columnNum(subDirFullName, fileName, "simulation time", "all")
-                    movGenColNum = columnNum(subDirFullName, fileName, "transformation generation time", "all")
-                    movColNum = columnNum(subDirFullName, fileName, "move name", "all")
-                    itrNum = columnNum(subDirFullName, fileName, "iteration cnt", "all")
-                    distColNum = columnNum(subDirFullName, fileName, "dist_to_goal_non_cost", "all")
-                    refDistColNum = columnNum(subDirFullName, fileName, "ref_des_dist_to_goal_non_cost", "all")
-                    latNum = columnNum(subDirFullName, fileName, "latency", "all")
-                    powNum = columnNum(subDirFullName, fileName, "power", "all")
-                    areaNum = columnNum(subDirFullName, fileName, "area", "all")
+    # get the the workload_set folder
+    # each workload_set has a bunch of experiments underneath it
+    workload_set_folder_list = os.listdir(run_folder_name)
 
-                    # comment or uncomment the following functions for your plottings
+    #  iterate and generate plots
+    for workload_set_folder in workload_set_folder_list:
+        # ignore irelevant files
+        if workload_set_folder in config_plotting.ignore_file_names:
+            continue
 
-                    plotCommCompAll(subDirFullName, fileName, commcompColNum, trueNum)
-                    plothighLevelOptAll(subDirFullName, fileName, optColNum, trueNum)
-                    plotArchVarImpAll(subDirFullName, fileName, archColNum, trueNum)
-                    plotSimTimeVSblk(subDirFullName, fileName, sysBlkNum, simColNum, trueNum)
-                    plotMoveGenTimeVSblk(subDirFullName, fileName, sysBlkNum, movGenColNum, trueNum)
-                    plotDistToGoalVSitr(subDirFullName, fileName, itrNum, distColNum, trueNum)
-                    plotRefDistToGoalVSitr(subDirFullName, fileName, itrNum, refDistColNum, trueNum)
-                    plotSimTimeVSmoveNameZoneDist(subDirFullName, fileName, zoneNum, movColNum, distColNum, simColNum, trueNum)
-                    plotMovGenTimeVSmoveNameZoneDist(subDirFullName, fileName, zoneNum, movColNum, distColNum, movGenColNum, trueNum)
-                    plotSimTimeVScommCompZoneDist(subDirFullName, fileName, zoneNum, commcompColNum, distColNum, simColNum, trueNum)
-                    plotMovGenTimeVScommCompZoneDist(subDirFullName, fileName, zoneNum, commcompColNum, distColNum, movGenColNum, trueNum)
-                    plotSimTimeVShighLevelOptZoneDist(subDirFullName, fileName, zoneNum, optColNum, distColNum, simColNum, trueNum)
-                    plotMovGenTimeVShighLevelOptZoneDist(subDirFullName, fileName, zoneNum, optColNum, distColNum, movGenColNum, trueNum)
-                    plotSimTimeVSarchVarImpZoneDist(subDirFullName, fileName, zoneNum, archColNum, distColNum, simColNum, trueNum)
-                    plotMovGenTimeVSarchVarImpZoneDist(subDirFullName, fileName, zoneNum, archColNum, distColNum, movGenColNum, trueNum)
+        # start plotting
+        plotBudgetsVSitr3d(run_folder_name, workload_set_folder)
+
+        # get experiment folder
+        workload_set_full_addr = os.path.join(run_folder_name,workload_set_folder)
+        folder_list = os.listdir(workload_set_full_addr)
+        for experiment_name_relative_addr in folder_list:
+            if experiment_name_relative_addr in config_plotting.ignore_file_names:
+                continue
+            experiment_full_addr = os.path.join(workload_set_full_addr, experiment_name_relative_addr)
+
+            all_res_column_name_number = get_column_name_number(experiment_full_addr, "all")
+            summary_res_column_name_number = get_column_name_number(experiment_full_addr, "simple")
+
+            workload_set_full_addr +="/" # this is because you didn't use join
+            commcompColNum = columnNum(workload_set_full_addr, experiment_name_relative_addr, "comm_comp", "all")
+            trueNum = columnNum(workload_set_full_addr, experiment_name_relative_addr, "move validity", "all")
+            optColNum = columnNum(workload_set_full_addr, experiment_name_relative_addr, "optimization name", "all")
+            archColNum = columnNum(workload_set_full_addr, experiment_name_relative_addr, "architectural principle", "all")
+            sysBlkNum = columnNum(workload_set_full_addr, experiment_name_relative_addr, "system block count", "all")
+            simColNum = columnNum(workload_set_full_addr, experiment_name_relative_addr, "simulation time", "all")
+            movGenColNum = columnNum(workload_set_full_addr, experiment_name_relative_addr, "transformation generation time", "all")
+            movColNum = columnNum(workload_set_full_addr, experiment_name_relative_addr, "move name", "all")
+            itrNum = columnNum(workload_set_full_addr, experiment_name_relative_addr, "iteration cnt", "all")
+            distColNum = columnNum(workload_set_full_addr, experiment_name_relative_addr, "dist_to_goal_non_cost", "all")
+            refDistColNum = columnNum(workload_set_full_addr, experiment_name_relative_addr, "ref_des_dist_to_goal_non_cost", "all")
+            latNum = columnNum(workload_set_full_addr, experiment_name_relative_addr, "latency", "all")
+            powNum = columnNum(workload_set_full_addr, experiment_name_relative_addr, "power", "all")
+            areaNum = columnNum(workload_set_full_addr, experiment_name_relative_addr, "area", "all")
+
+            # comment or uncomment the following functions for your plottings
+            plotDistToGoalVSitr([experiment_full_addr], all_res_column_name_number)
+            plotCommCompAll(workload_set_full_addr, experiment_name_relative_addr, all_res_column_name_number)
+            plothighLevelOptAll(workload_set_full_addr, experiment_name_relative_addr, all_res_column_name_number)
+            plotArchVarImpAll(workload_set_full_addr, experiment_name_relative_addr, archColNum, trueNum)
+            plotSimTimeVSblk(workload_set_full_addr, experiment_name_relative_addr, sysBlkNum, simColNum, trueNum)
+            plotMoveGenTimeVSblk(workload_set_full_addr, experiment_name_relative_addr, sysBlkNum, movGenColNum, trueNum)
+            plotRefDistToGoalVSitr(workload_set_full_addr, experiment_name_relative_addr, itrNum, refDistColNum, trueNum)
+            plotSimTimeVSmoveNameZoneDist(workload_set_full_addr, experiment_name_relative_addr, zoneNum, movColNum, distColNum, simColNum, trueNum)
+            plotMovGenTimeVSmoveNameZoneDist(workload_set_full_addr, experiment_name_relative_addr, zoneNum, movColNum, distColNum, movGenColNum, trueNum)
+            plotSimTimeVScommCompZoneDist(workload_set_full_addr, experiment_name_relative_addr, zoneNum, commcompColNum, distColNum, simColNum, trueNum)
+            plotMovGenTimeVScommCompZoneDist(workload_set_full_addr, experiment_name_relative_addr, zoneNum, commcompColNum, distColNum, movGenColNum, trueNum)
+            plotSimTimeVShighLevelOptZoneDist(workload_set_full_addr, experiment_name_relative_addr, zoneNum, optColNum, distColNum, simColNum, trueNum)
+            plotMovGenTimeVShighLevelOptZoneDist(workload_set_full_addr, experiment_name_relative_addr, zoneNum, optColNum, distColNum, movGenColNum, trueNum)
+            plotSimTimeVSarchVarImpZoneDist(workload_set_full_addr, experiment_name_relative_addr, zoneNum, archColNum, distColNum, simColNum, trueNum)
+            plotMovGenTimeVSarchVarImpZoneDist(workload_set_full_addr, experiment_name_relative_addr, zoneNum, archColNum, distColNum, movGenColNum, trueNum)
 
