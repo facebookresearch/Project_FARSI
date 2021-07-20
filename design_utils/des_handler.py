@@ -23,6 +23,7 @@ import _pickle as cPickle
 # set
 class move:
     def __init__(self, transformation_name, transformation_sub_name, batch_mode, dir, metric, blck, krnel, krnl_prob_dict_sorted):
+        self.workload = ""
         self.transformation_name = transformation_name
         self.parallelism_type = []
         self.locality_type = []
@@ -184,6 +185,8 @@ class move:
     def set_logs(self, data, type_):
         if type_ == "cost":
             self.cost = data
+        if type_ == "workload":
+            self.workload = data
         if type_ == "pickling_time":
             self.pickling_time = data
         if type_ == "metric_selection_time":
@@ -213,7 +216,8 @@ class move:
         return self.batch_mode
 
     def get_logs(self, type_):
-
+        if type_ == "workload":
+            return self.workload
         if type_ == "cost":
             return self.cost
         if type_ == "kernels":
