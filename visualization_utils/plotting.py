@@ -338,7 +338,7 @@ def plot_codesign_analysis_within_workloads(input_dir_names, res_column_name_num
 
             # dump in the top folder
             output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
-            output_dir = os.path.join(output_base_dir, "cross_workloads/convergence_analysis")
+            output_dir = os.path.join(output_base_dir, "cross_workloads/co_design")
             if not os.path.exists(output_dir):
                 os.mkdir(output_dir)
             fig.savefig(os.path.join(output_dir,experiment_name+"_codesign_of_"+y_column_name+".png"))
@@ -1306,6 +1306,8 @@ if __name__ == "__main__":
         # start plotting
         plotBudgets3d(run_folder_name, workload_set_folder)
 
+
+        """
         # get experiment folder
         workload_set_full_addr = os.path.join(run_folder_name,workload_set_folder)
         folder_list = os.listdir(workload_set_full_addr)
@@ -1350,4 +1352,4 @@ if __name__ == "__main__":
             plotMovGenTimeVShighLevelOptZoneDist(workload_set_full_addr, experiment_name_relative_addr, zoneNum, optColNum, distColNum, movGenColNum, trueNum)
             plotSimTimeVSarchVarImpZoneDist(workload_set_full_addr, experiment_name_relative_addr, zoneNum, archColNum, distColNum, simColNum, trueNum)
             plotMovGenTimeVSarchVarImpZoneDist(workload_set_full_addr, experiment_name_relative_addr, zoneNum, archColNum, distColNum, movGenColNum, trueNum)
-
+        """
