@@ -168,6 +168,11 @@ def gen_task_graph(library_dir, prefix, misc_knobs):
 
     # collect number of instructions for each tasks
     work_dict = gen_task_graph_work_dict(library_dir, IP_perf_file_name, Block_char_file_name, misc_knobs)
+    """ 
+    for task_name, work in work_dict.items():
+        print(task_name+","+str(work))
+    exit(0)
+    """
 
     for task_name_, values in task_graph_dict.items():
         task_ = TaskL(task_name=task_name_, work=work_dict[task_name_])
@@ -623,7 +628,12 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
     return hardware_library_dict
 
 # collect budget values for each workload
-def collect_budgets(workloads_to_consider, library_dir, prefix=""):
+def collect_budgets(workloads_to_consider, budget_misc_knobs, library_dir, prefix=""):
+    if "base_budget_scaling" not in budget_misc_knobs.keys():
+        base_budget_scaling = {"latency":1, "power":1, "area":1}
+    else:
+        base_budget_scaling = budget_misc_knobs["base_budget_scaling"]
+
     # get files
     file_list = [f for f in os.listdir(library_dir) if os.path.isfile(os.path.join(library_dir, f))]
     misc_file_name = get_full_file_name(prefix + "Budget.csv", file_list)
@@ -642,15 +652,17 @@ def collect_budgets(workloads_to_consider, library_dir, prefix=""):
     for metric in config.budgetted_metrics:
         if metric in ["power", "area"]:
             budgets_dict["glass"][metric] = (df.loc[df['Workload'] == "all"])[metric].values[0]
+            budgets_dict["glass"][metric] *= float(base_budget_scaling[metric])
             # this is a hack for now. change later.
             # but used for budget sweep for now
-            budgets_dict["glass"][metric] = config.budget_dict["glass"][metric]
+            #budgets_dict["glass"][metric] = config.budget_dict["glass"][metric]
         elif metric in ["latency"]:
             for idx in range(0, len(workloads)):
                 workload_name = workloads[idx]
                 if workload_name == "all" or workload_name not in workloads_to_consider:
                     continue
                 budgets_dict["glass"][metric][workload_name] = (df.loc[df['Workload'] == workload_name])[metric].values[0]
+                budgets_dict["glass"][metric][workload_name] *= float(base_budget_scaling[metric])
 
     for metric in config.other_metrics:
         other_values_dict["glass"][metric] = (df.loc[df['Workload'] == "all"])[metric].values[0]

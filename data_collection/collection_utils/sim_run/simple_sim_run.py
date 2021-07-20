@@ -58,12 +58,15 @@ if __name__ == "__main__":
     # -------------------------------------------
     experiment_repetition_cnt = 1
     reduction = "most_likely"
-    db_population_misc_knobs = {"ip_freq_correction_ratio":1, "gpp_freq_correction_ratio":1}
     #workloads = {"audio_decoder", "edge_detection"}
     #workloads = {"audio_decoder"}
     #workloads = {"edge_detection"}
     #workloads = {"hpvm_cava"}
     workloads = {"partial_SOC_example_hard"}
+    tech_node_SF = {"perf":1, "energy":{"non_gpp":.064, "gpp":1}, "area":{"non_mem":.0374 , "mem":.079, "gpp":1}}   # technology node scaling factor
+    db_population_misc_knobs = {"ip_freq_correction_ratio": 1, "gpp_freq_correction_ratio": 1,
+                                "tech_node_SF":tech_node_SF,
+                                "base_budget_scaling":{"latency":.5, "power":1, "area":1}}
     sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "parse",
                                  "workloads": workloads, "misc_knobs":db_population_misc_knobs}
 
@@ -87,6 +90,10 @@ if __name__ == "__main__":
          "one_over_area": 1}
     hw_sampling = {"mode": "exact", "population_size": 1, "reduction": reduction,
                    "accuracy_percentage": accuracy_percentage}
+
+
+
+
     db_input = database_input_class(sw_hw_database_population)
     print("hw_sampling:" + str(hw_sampling))
     print("budget set to:" + str(db_input.get_budget_dict("glass")))
