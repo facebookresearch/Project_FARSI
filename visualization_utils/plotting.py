@@ -271,6 +271,80 @@ def get_all_col_values_of_a_folders(input_dir_names, input_all_res_column_name_n
 def extract_latency_values(values_):
     print("")
 
+
+def plot_codesign_analysis_within_workloads(input_dir_names, res_column_name_number):
+    #itrColNum = all_res_column_name_number["iteration cnt"]
+    #distColNum = all_res_column_name_number["dist_to_goal_non_cost"]
+    trueNum  =  all_res_column_name_number["move validity"]
+
+    # experiment_names
+    experiment_names = []
+    file_full_addr_list = []
+    for dir_name in input_dir_names:
+        file_full_addr = os.path.join(dir_name, "result_summary/FARSI_simple_run_0_1_all_reults.csv")
+        file_full_addr_list.append(file_full_addr)
+        experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
+        experiment_names.append(experiment_name)
+
+    axis_font = {'fontname': 'Arial', 'size': '9'}
+    x_column_name = "iteration cnt"
+    y_column_name_list = ["high level optimization name", "exact optimization name", "architectural principle", "comm_comp"]
+
+
+    experiment_column_value = {}
+    for file_full_addr in file_full_addr_list:
+        experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
+        for y_column_name in y_column_name_list:
+            y_column_number = res_column_name_number[y_column_name]
+            x_column_number = res_column_name_number[x_column_name]
+            experiment_column_value[experiment_name] = []
+            all_values = get_all_col_values_of_a_folders(input_dir_names, all_res_column_name_number, y_column_name)
+            all_values_encoding = {}
+            for idx, val in enumerate(all_values):
+                all_values_encoding[val] = idx
+
+            with open(file_full_addr, newline='') as csvfile:
+                resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+                rows = list(resultReader)
+                for i, row in enumerate(rows):
+                    #if row[trueNum] != "True":
+                    #    continue
+                    if i >= 1:
+                        if row[y_column_number] not in all_values:
+                            continue
+
+                        col_value = row[y_column_number]
+                        col_values = col_value.split(";")
+                        for idx, col_val in enumerate(col_values):
+                            last_row =  rows[i-1]
+                            delta_x_column = (float(row[x_column_number]) - float(last_row[x_column_number]))/len(col_values)
+                            value_to_add = (float(last_row[x_column_number])+ idx*delta_x_column, col_val)
+                            experiment_column_value[experiment_name].append(value_to_add)
+
+            # prepare for plotting and plot
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            x_values = [el[0] for el in experiment_column_value[experiment_name]]
+            #y_values = [all_values_encoding[el[1]] for el in experiment_column_value[experiment_name]]
+            y_values = [el[1] for el in experiment_column_value[experiment_name]]
+
+            #ax.set_title("experiment vs system implicaction")
+            ax.tick_params(axis='both', which='major', labelsize=7, rotation=60)
+            ax.set_xlabel(x_column_name, fontsize=6)
+            ax.set_ylabel(y_column_name, fontsize=6)
+            #plt.tight_layout()
+            ax.plot(x_values, y_values, label=y_column_name)
+            ax.legend()
+
+            # dump in the top folder
+            output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+            output_dir = os.path.join(output_base_dir, "cross_workloads/convergence_analysis")
+            if not os.path.exists(output_dir):
+                os.mkdir(output_dir)
+            fig.savefig(os.path.join(output_dir,experiment_name+"_codesign_of_"+y_column_name+".png"))
+            plt.close('all')
+
+
 def plot_convergence_analysis_within_workloads(input_dir_names, res_column_name_number):
     #itrColNum = all_res_column_name_number["iteration cnt"]
     #distColNum = all_res_column_name_number["dist_to_goal_non_cost"]
@@ -312,7 +386,7 @@ def plot_convergence_analysis_within_workloads(input_dir_names, res_column_name_
         # prepare for plotting and plot
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        #plt.tight_layout()
+        plt.tight_layout()
         for column, values in experiment_column_value[experiment_name].items():
             if column == "latency":
                 latency_values = extract_latency_values(values)
@@ -571,7 +645,7 @@ def plot_space_navigation_analysis(input_dir_names, input_all_res_column_name_nu
             os.makedirs(output_dir)
         plt.tight_layout()
         plt.savefig(os.path.join(output_dir,'_'.join(column_name.split(" "))+".png"))
-        plt.show()
+        #plt.show()
         plt.close('all')
         column_column_value_experiment_frequency_dict[column_name] = copy.deepcopy(column_value_experiment_frequency_dict)
 
@@ -1210,8 +1284,10 @@ if __name__ == "__main__":
         summary_res_column_name_number = get_column_name_number(experiment_full_addr_list[0], "simple")
         plot_convergence_analysis_cross_workloads(experiment_full_addr_list, all_res_column_name_number)
         plot_convergence_analysis_within_workloads(experiment_full_addr_list, all_res_column_name_number)
+        plot_codesign_analysis_within_workloads(experiment_full_addr_list, all_res_column_name_number)
         column_column_value_experiment_frequency_dict = plot_space_navigation_analysis(experiment_full_addr_list, all_res_column_name_number)
         plot_system_implication_analysis(experiment_full_addr_list, summary_res_column_name_number)
+
 
         # post processing
         plot_space_navigation_analysis_post_processing(experiment_full_addr_list, column_column_value_experiment_frequency_dict)
