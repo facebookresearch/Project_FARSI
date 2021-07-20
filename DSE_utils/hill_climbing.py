@@ -254,10 +254,20 @@ class HillClimbing:
                         matched_idx.append(idx_2)
         return matching_blocks
 
+    def get_task_parallelism_type(self, sim_dp, task, parallel_task):
+        workload_tasks = sim_dp.database.db_input.workload_tasks
+        task_s_workload = sim_dp.database.db_input.task_workload[task]
+        parallel_task_s_workload = sim_dp.database.db_input.task_workload[parallel_task]
+        if task_s_workload == parallel_task_s_workload:
+            return "task_level_parallelism"
+        else:
+            return "workload_level_parallelism"
+
     # check if there is another task (on the block that can run in parallel with the task of interest
     def check_if_task_can_run_with_any_other_task_in_parallel(self, sim_dp, task, block):
+        parallelism_type = []
         if task.get_name() in ["souurce", "siink", "dummy_last"]:
-            return False
+            return False, parallelism_type
         if block.type == "pe":
             task_dir = "loop_back"
         else:
@@ -267,15 +277,17 @@ class HillClimbing:
         if config.parallelism_analysis == "static":
             for task_ in tasks_of_block:
                 if sim_dp.get_dp_rep().get_hardware_graph().get_task_graph().tasks_can_run_in_parallel(task_, task):
-                    return True
+                    return True, _
         elif config.parallelism_analysis == "dynamic":
             parallel_tasks_names_ = sim_dp.get_dp_rep().get_tasks_parallel_task_dynamically(task)
             tasks_using_diff_pipe_cluster = sim_dp.get_dp_rep().get_tasks_using_the_different_pipe_cluster(task, block)
             parallel_tasks_names= list(set(parallel_tasks_names_) - set(tasks_using_diff_pipe_cluster))
             for task_ in tasks_of_block:
                 if task_.get_name() in  parallel_tasks_names:
-                    return True
-        return False
+                    parallelism_type.append(self.get_task_parallelism_type(sim_dp, task.get_name(), task_.get_name()))
+            if len(parallelism_type)  > 0:
+                return True, list(set(parallelism_type))
+        return False, parallelism_type
 
 
     # ------------------------------
@@ -457,8 +469,9 @@ class HillClimbing:
         return selected_metric_to_sort
 
     def select_block_to_migrate_to(self, ex_dp, sim_dp, hot_blck_synced, selected_metric, sorted_metric_dir, selected_krnl):
-
         # get initial information
+        locality_type = []
+        parallelism_type =[]
         task = ex_dp.get_hardware_graph().get_task_graph().get_task_by_name(selected_krnl.get_task_name())
         selected_metric = list(sorted_metric_dir.keys())[-1]
         selected_dir = sorted_metric_dir[selected_metric]
@@ -466,8 +479,9 @@ class HillClimbing:
         equal_imm_blocks_present_for_migration = self.dh.get_equal_immediate_blocks_present(ex_dp, hot_blck_synced,
                                                                 selected_metric, selected_dir, [task])
 
+
         # does parallelism exist in the current occupying block
-        current_block_parallelism_exist = self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp,
+        current_block_parallelism_exist, parallelism_type = self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp,
                                                                                                      task,
                                                                                                      hot_blck_synced)
         inequality_dir = selected_dir*-1
@@ -490,6 +504,7 @@ class HillClimbing:
             for el in equal_imm_blocks_present_for_migration:
                 if el not in potential_mems:
                     remove_list.append(el)
+                    locality_type = ["spatial_locality"]
             for el in remove_list:
                 equal_imm_blocks_present_for_migration.remove(el)
         elif hot_blck_synced.type == "pe":
@@ -503,6 +518,7 @@ class HillClimbing:
             for el in equal_imm_blocks_present_for_migration:
                 if el not in potential_pes:
                     remove_list.append(el)
+                    locality_type = ["spatial_locality"]
             for el in remove_list:
                 equal_imm_blocks_present_for_migration.remove(el)
 
@@ -516,20 +532,21 @@ class HillClimbing:
             # iterate and found blocks that are at least as good as the current block
             if getattr(block_to_migrate_to, block_metric_attr) == getattr(hot_blck_synced, block_metric_attr):
                 # blocks have similar attr value
-
                 if (selected_metric == "power" and selected_dir == -1)  or \
                     (selected_metric == "latency" and selected_dir == 1) or (selected_metric == "area"):
                     # if we want to slow down (reduce latency, improve power), look for parallel task on the other block
-                    block_to_mig_to_parallelism_exist = self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp,
+                    block_to_mig_to_parallelism_exist, parallelism_type = self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp,
                                                                                                                task,
                                                                                                                block_to_migrate_to)
                     if (selected_metric == "area" and selected_dir == -1):
                         # no parallelism possibly allows for theo the other memory to shrink
                         if not block_to_mig_to_parallelism_exist:
                             results_block.append(block_to_migrate_to)
+                            parallelism_type = ["serialism"]
                     else:
                         if block_to_mig_to_parallelism_exist:
                             results_block.append(block_to_migrate_to)
+                            parallelism_type = ["serialism"]
                 else:
                     # if we want to accelerate (improve latency, get more power), look for parallel task on the same block
                     if current_block_parallelism_exist:
@@ -557,7 +574,7 @@ class HillClimbing:
                 selection_mode = "single"
 
 
-        return result_block, found_block_to_mig_to, selection_mode
+        return result_block, found_block_to_mig_to, selection_mode, parallelism_type, locality_type
 
 
     def is_system_ic(self, ex_dp, sim_dp, blck):
@@ -626,13 +643,13 @@ class HillClimbing:
         selected_metric = list(sorted_metric_dir.keys())[-1]
         selected_dir = sorted_metric_dir[selected_metric]
 
-        equal_imm_block_present_for_migration, found_blck_to_mig_to, selection_mode = self.select_block_to_migrate_to(ex_dp, sim_dp, hot_blck_synced,
+        equal_imm_block_present_for_migration, found_blck_to_mig_to, selection_mode, parallelism_type, locality_type = self.select_block_to_migrate_to(ex_dp, sim_dp, hot_blck_synced,
                                                                 selected_metric, sorted_metric_dir, selected_krnl)
 
         hot_block_type = hot_blck_synced.type
         hot_block_subtype = hot_blck_synced.subtype
 
-        parallelism_exist = self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp, task, hot_blck_synced)
+        parallelism_exist, parallelism_type = self.check_if_task_can_run_with_any_other_task_in_parallel(sim_dp, task, hot_blck_synced)
         other_block_parallelism_exist = False
         all_transformations = config.metric_trans_dict[selected_metric]
         can_improve_locality = self.can_improve_locality(ex_dp, hot_blck_synced, task)
@@ -1430,10 +1447,20 @@ class HillClimbing:
             migrant_tasks = self.dh.migrant_selection(ex_dp, sim_dp, blck_ref, blck_ref_cp, move_to_apply.get_kernel_ref(),
                                                       move_to_apply.get_transformation_batch())
 
+
+            # determine the parallelism type
+            parallelism_type_ = [] #with repetition
+            parallelism_type = []
+            migrant_tasks_names = [el.get_name() for el in migrant_tasks]
+            for task_ in migrant_tasks_names:
+                parallelism_type_.append(self.get_task_parallelism_type(sim_dp, task_, selected_krnl.get_task_name()))
+            parallelism_type = list(set(parallelism_type_))
+
             if len(migrant_tasks) == 0:
                 self.select_transformation(ex_dp, sim_dp, selected_block, selected_metric, selected_krnl,
                                            sorted_metric_dir)
 
+            move_to_apply.set_parallelism_type(parallelism_type)
             move_to_apply.set_tasks(migrant_tasks)
             if len(migrant_tasks) == 0:
                 move_to_apply.set_validity(False, "NoParallelTaskException")
@@ -1444,12 +1471,15 @@ class HillClimbing:
         elif move_to_apply.get_transformation_name() == "migrate":
             if not selected_block.type == "ic":  # ic migration is not supported
                 # check and see if tasks exist (if not, it was a read)
-                imm_block_present, found_blck_to_mig_to, mig_selection_mode = self.select_block_to_migrate_to(ex_dp,
+                imm_block_present, found_blck_to_mig_to, mig_selection_mode, parallelism_type, locality_type = self.select_block_to_migrate_to(ex_dp,
                                                                                                               sim_dp,
                                                                                                               blck_ref_cp,
                                                                                                               move_to_apply.get_metric(),
                                                                                                               move_to_apply.get_sorted_metric_dir(),
                                                                                                               move_to_apply.get_kernel_ref())
+
+                move_to_apply.set_parallelism_type(parallelism_type)
+                move_to_apply.set_locality_type(locality_type)
                 self.dh.unload_buses(ex_dp)  # unload buses
                 self.dh.unload_read_mem(ex_dp)  # unload memories
                 self.change_read_task_to_write_if_necessary(ex_dp, sim_dp, move_to_apply, selected_krnl)

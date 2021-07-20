@@ -24,6 +24,8 @@ import _pickle as cPickle
 class move:
     def __init__(self, transformation_name, transformation_sub_name, batch_mode, dir, metric, blck, krnel, krnl_prob_dict_sorted):
         self.transformation_name = transformation_name
+        self.parallelism_type = []
+        self.locality_type = []
         self.transformation_sub_name = transformation_sub_name
         self.customization_type = ""
         self.metric = metric
@@ -106,9 +108,9 @@ class move:
 
         # which high level optimization targgeted: topology/mapping/tunning
         if self.get_transformation_name() in ["swap", "split_swap"]:
-            high_level_optimization = "customization"
+            high_level_optimization = "hardware_tunning"
         elif self.get_transformation_name() in ["split_swap"]:
-            high_level_optimization = "customization;topology"
+            high_level_optimization = "hardware_tunning;topology"
         elif self.get_transformation_name() in ["migrate"]:
             high_level_optimization = "mapping"
         elif self.get_transformation_name() in ["split_swap", "split", "transfer","routing"]:
@@ -125,13 +127,24 @@ class move:
 
         # which architectural variable targgeted: topology/mapping/tunning
         if self.get_transformation_name() in ["split"]:
-            architectural_principle = "parallelization"
+            architectural_principle = ""
+            for el in self.parallelism_type:
+                architectural_principle +=  el+";"
+            architectural_principle = architectural_principle[:-1]
         elif self.get_transformation_name() in ["migrate"]:
-            architectural_principle = "parallelization"
+            architectural_principle = ""
+            for el in self.parallelism_type:
+                architectural_principle +=  el+";"
+            for el in self.locality_type:
+                architectural_principle +=  el+";"
+            architectural_principle = architectural_principle[:-1]
         elif self.get_transformation_name() in ["split_swap", "swap"]:
-            architectural_principle = "customization"
+            if "loop_iteration_modulation" in  exact_optimization:
+                architectural_principle = "loop_level_parallelism"
+            else:
+                architectural_principle = "customization"
         elif self.get_transformation_name() in ["transfer","routing"]:
-            architectural_principle = "locality"
+            architectural_principle = "spatial_locality"
         elif self.get_transformation_name() in ["cost"]:
             architectural_principle = "cost"
         elif self.get_transformation_name() in ["dram_fix"]:
@@ -146,6 +159,13 @@ class move:
         self.system_improvement_dict["high_level_optimization"] = high_level_optimization
         self.system_improvement_dict["exact_optimization"] = exact_optimization
         self.system_improvement_dict["architectural_principle"] = architectural_principle
+
+
+    def set_parallelism_type(self, parallelism_type):
+        self.parallelism_type = parallelism_type
+
+    def set_locality_type(self, locality_type):
+        self.locality_type = locality_type
 
 
     def get_transformation_sub_name(self):
@@ -284,14 +304,16 @@ class move:
                 elif ref_block.subtype == "ip" and imm_block.subtype =="gpp":
                     self.customization_type = "softening"
                 else:
-                    print("we should have coverred all the customizations. what is missing then")
-                    exit(0)
+                    self.customization_type = "unknown"
+                    #print("we should have coverred all the customizations. what is missing then (1)")
+                    #exit(0)
             elif ref_block.type == "mem":
                 #self.customization_type = "memory_cell_ref_block.subtype +"_to_"  + imm_block.subtype
                 self.customization_type = "mem_allocation"
             else:
-                print("we should have coverreed all the customizations. what is missing then")
-                exit(0)
+                self.customization_type = "unknown"
+                # print("we should have coverred all the customizations. what is missing then (1)")
+                # exit(0)
         else:
             if not ref_block.get_loop_itr_cnt() == imm_block.get_loop_itr_cnt():
                 self.customization_type = "loop_iteration_modulation"
@@ -300,8 +322,10 @@ class move:
             elif not ref_block.get_block_bus_width() == imm_block.get_block_bus_width():
                 self.customization_type = "bus_width_modulation"
             else:
-                print("we should have coverreed all the customizations. what is missing then")
-                exit(0)
+                self.customization_type = "unknown"
+                # print("we should have coverred all the customizations. what is missing then (1)")
+                # exit(0)
+
 
     def get_block_attr(self, selected_metric):
         if selected_metric == "latency":
