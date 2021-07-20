@@ -507,7 +507,7 @@ def plot_space_navigation_analysis_post_processing(input_dir_names, column_colum
 
 
 def plot_space_navigation_analysis(input_dir_names, input_all_res_column_name_number):
-    trueNum  =  all_res_column_name_number["move validity"]
+    trueNum  =  input_all_res_column_name_number["move validity"]
 
     # experiment_names
     experiment_names = []
