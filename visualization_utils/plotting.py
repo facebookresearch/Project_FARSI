@@ -111,17 +111,17 @@ def plothighLevelOptAll(dirName, fileName, all_res_column_name_number):
             if i > 1:
                 if row[colNum] == "topology":
                     topoNum += 1
-                elif row[colNum] == "tunning":
+                elif row[colNum] == "customization":
                     tunNum += 1
                 elif row[colNum] == "mapping":
                     mapNum += 1
                 elif row[colNum] == "identity":
                     idenOptNum += 1
                 else:
-                    raise Exception("high level optimization name is not giving topology or tunning or mapping or identity! The new type: " + row[colNum])
+                    raise Exception("high level optimization name is not giving topology or customization or mapping or identity! The new type: " + row[colNum])
         
         plt.figure()
-        plt.pie([topoNum, tunNum, mapNum, idenOptNum], labels = ["topology", "tunning", "mapping", "identity"])
+        plt.pie([topoNum, tunNum, mapNum, idenOptNum], labels = ["topology", "customization", "mapping", "identity"])
         plt.title("High Level Optimization: Frequency")
         plt.savefig(dirName + fileName + "/highLevelOpt-" + fileName + ".png")
         # plt.show()
@@ -507,7 +507,7 @@ def plot_space_navigation_analysis_post_processing(input_dir_names, column_colum
 
 
 def plot_space_navigation_analysis(input_dir_names, input_all_res_column_name_number):
-    trueNum  =  input_all_res_column_name_number["move validity"]
+    trueNum = input_all_res_column_name_number["move validity"]
 
     # experiment_names
     experiment_names = []
@@ -906,19 +906,19 @@ def plotSimTimeVShighLevelOptZoneDist(dirName, fileName, zoneNum, optColNum, dis
             if i > 1:
                 if row[optColNum] == "topology":
                     topoSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
-                elif row[optColNum] == "tunning":
+                elif row[optColNum] == "customization":
                     tunSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
                 elif row[optColNum] == "mapping":
                     mapSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
                 elif row[optColNum] == "identity":
                     idenOptSim[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[simColNum])
                 else:
-                    raise Exception("high level optimization name is not giving topology or tunning or mapping or identity! The new type: " + row[optColNum])
+                    raise Exception("high level optimization name is not giving topology or customization or mapping or identity! The new type: " + row[optColNum])
         
         plt.figure()
         plotdata = pd.DataFrame({
             "topology":topoSim,
-            "tunning":tunSim,
+            "customization":tunSim,
             "mapping":mapSim,
             "identity":idenOptSim
         }, index = index
@@ -956,19 +956,19 @@ def plotMovGenTimeVShighLevelOptZoneDist(dirName, fileName, zoneNum, optColNum, 
             if i > 1:
                 if row[optColNum] == "topology":
                     topoMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
-                elif row[optColNum] == "tunning":
+                elif row[optColNum] == "customization":
                     tunMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
                 elif row[optColNum] == "mapping":
                     mapMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
                 elif row[optColNum] == "identity":
                     idenOptMov[zonalPartition(float(row[distColNum]), zoneNum, maxDist)] += float(row[movGenColNum])
                 else:
-                    raise Exception("high level optimization name is not giving topology or tunning or mapping or identity! The new type: " + row[optColNum])
+                    raise Exception("high level optimization name is not giving topology or customization or mapping or identity! The new type: " + row[optColNum])
         
         plt.figure()
         plotdata = pd.DataFrame({
             "topology":topoMov,
-            "tunning":tunMov,
+            "customization":tunMov,
             "mapping":mapMov,
             "identity":idenOptMov
         }, index = index
@@ -1081,8 +1081,8 @@ def plotMovGenTimeVSarchVarImpZoneDist(dirName, fileName, zoneNum, archColNum, d
         # plt.show()
         plt.close('all')
 
-# the function to plot convergence vs. iteration cnt
-def plotBudgetsVSitr3d(dirName, subDirName):
+# the function to plot convergence vs. iteration cnt, system block count, and routing complexity in 3d
+def plotBudgets3d(dirName, subDirName):
     newDirName = dirName + "/"+ subDirName + "/"
     if os.path.exists(newDirName + "/figures"):
         shutil.rmtree(newDirName + "/figures")
@@ -1091,6 +1091,8 @@ def plotBudgetsVSitr3d(dirName, subDirName):
     powBudgets = []
     areaBudgets = []
     itrValues = []
+    cntValues = []
+    routingValues = []
     workloads = []
     for j, fileName in enumerate(resultList):
         with open(newDirName + fileName + "/result_summary/FARSI_simple_run_0_1.csv", newline='') as csvfile:
@@ -1098,6 +1100,8 @@ def plotBudgetsVSitr3d(dirName, subDirName):
             for i, row in enumerate(resultReader):
                 if i == 1:
                     itrValues.append(int(row[columnNum(newDirName, fileName, "iteration cnt", "simple")]))
+                    cntValues.append(int(row[columnNum(newDirName, fileName, "system block count", "simple")]))
+                    routingValues.append(float(row[columnNum(newDirName, fileName, "routing complexity", "simple")]))
                     powBudgets.append(float(row[columnNum(newDirName, fileName, "power_budget", "simple")]))
                     areaBudgets.append(float(row[columnNum(newDirName, fileName, "area_budget", "simple")]))
                     lat = row[int(columnNum(newDirName, fileName, "latency_budget", "simple"))][:-1]
@@ -1112,18 +1116,49 @@ def plotBudgetsVSitr3d(dirName, subDirName):
 
     m = ['o', 'x', '^', 's', 'd', '+', 'v', '<', '>']
     os.mkdir(newDirName + "figures")
-    fig = plt.figure(figsize=(10, 8))
-    ax = fig.add_subplot(projection = '3d')
+    fig_budget_itr = plt.figure(figsize=(10, 8))
+    ax_itr = fig_budget_itr.add_subplot(projection = '3d')
     for i in range(0, len(latBudgets)):
-        img = ax.scatter3D(powBudgets, areaBudgets, latBudgets[i], c=itrValues, cmap="bwr", marker=m[i], s=80, label='{0}'.format(workloads[i]))
-    ax.set_xlabel("Power Budget")
-    ax.set_ylabel("Area Budget")
-    ax.set_zlabel("Latency Budget")
-    ax.legend()
-    cbar = fig.colorbar(img, aspect = 40)
-    cbar.set_label("Number of Iterations", rotation = 270)
+        img = ax_itr.scatter3D(powBudgets, areaBudgets, latBudgets[i], c=itrValues, cmap="bwr", marker=m[i], s=80, label='{0}'.format(workloads[i]))
+    ax_itr.set_xlabel("Power Budget")
+    ax_itr.set_ylabel("Area Budget")
+    ax_itr.set_zlabel("Latency Budget")
+    ax_itr.legend()
+    cbar_itr = fig_budget_itr.colorbar(img, aspect = 40)
+    cbar_itr.set_label("Number of Iterations", rotation = 270)
     plt.title("{Power Budget, Area Budget, Latency Budget} VS Iteration Cnt: " + subDirName)
     plt.savefig(newDirName + "figures/budgetVSitr-" + subDirName + ".png")
+    # plt.show()
+    plt.close('all')
+
+    fig_budget_blkcnt = plt.figure(figsize=(10, 8))
+    ax_blkcnt = fig_budget_blkcnt.add_subplot(projection='3d')
+    for i in range(0, len(latBudgets)):
+        img = ax_blkcnt.scatter3D(powBudgets, areaBudgets, latBudgets[i], c=cntValues, cmap="bwr", marker=m[i], s=80, label='{0}'.format(workloads[i]))
+    ax_blkcnt.set_xlabel("Power Budget")
+    ax_blkcnt.set_ylabel("Area Budget")
+    ax_blkcnt.set_zlabel("Latency Budget")
+    ax_blkcnt.legend()
+    cbar = fig_budget_blkcnt.colorbar(img, aspect=40)
+    cbar.set_label("System Block Count", rotation=270)
+    plt.title("{Power Budget, Area Budget, Latency Budget} VS System Block Count: " + subDirName)
+    plt.savefig(newDirName + "figures/budgetVSblkcnt-" + subDirName + ".png")
+    # plt.show()
+    plt.close('all')
+
+    fig_budget_routing = plt.figure(figsize=(10, 8))
+    ax_routing = fig_budget_routing.add_subplot(projection='3d')
+    for i in range(0, len(latBudgets)):
+        img = ax_routing.scatter3D(powBudgets, areaBudgets, latBudgets[i], c=cntValues, cmap="bwr", marker=m[i], s=80,
+                                  label='{0}'.format(workloads[i]))
+    ax_routing.set_xlabel("Power Budget")
+    ax_routing.set_ylabel("Area Budget")
+    ax_routing.set_zlabel("Latency Budget")
+    ax_routing.legend()
+    cbar = fig_budget_routing.colorbar(img, aspect=40)
+    cbar.set_label("System Block Count", rotation=270)
+    plt.title("{Power Budget, Area Budget, Latency Budget} VS System Block Count: " + subDirName)
+    plt.savefig(newDirName + "figures/budgetVSroutingComplexity-" + subDirName + ".png")
     # plt.show()
     plt.close('all')
 
@@ -1162,8 +1197,8 @@ if __name__ == "__main__":
         run_folder_name = find_the_most_recent_directory(config_plotting.top_result_folder)[0]
 
     zoneNum = config_plotting.zoneNum
-
     # get all the experiments under the run folder
+    print(run_folder_name)
     experiment_full_addr_list = get_experiment_dir_list(run_folder_name)
 
     # according to the plot type, plot
@@ -1191,12 +1226,13 @@ if __name__ == "__main__":
             continue
 
         # start plotting
-        plotBudgetsVSitr3d(run_folder_name, workload_set_folder)
+        plotBudgets3d(run_folder_name, workload_set_folder)
 
         # get experiment folder
         workload_set_full_addr = os.path.join(run_folder_name,workload_set_folder)
         folder_list = os.listdir(workload_set_full_addr)
         for experiment_name_relative_addr in folder_list:
+            print(experiment_name_relative_addr)
             if experiment_name_relative_addr in config_plotting.ignore_file_names:
                 continue
             experiment_full_addr = os.path.join(workload_set_full_addr, experiment_name_relative_addr)
