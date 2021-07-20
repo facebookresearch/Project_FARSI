@@ -534,7 +534,7 @@ def plot_system_implication_analysis(input_dir_names, res_column_name_number):
 
 
 
-def plot_nav_breakdown_post_processing(input_dir_names, column_column_value_experiment_frequency_dict):
+def plot_co_design_nav_breakdown_post_processing(input_dir_names, column_column_value_experiment_frequency_dict):
     column_name_list = [("exact optimization name", "neighbouring design space size", "div")]
     #column_name = "move name"
     for n, column_name_tuple in enumerate(column_name_list):
@@ -1352,7 +1352,7 @@ if __name__ == "__main__":
         plot_convergence_cross_workloads(experiment_full_addr_list, all_res_column_name_number)
         column_column_value_experiment_frequency_dict = plot_codesign_nav_breakdown_cross_workload(experiment_full_addr_list, all_res_column_name_number)
         plot_system_implication_analysis(experiment_full_addr_list, summary_res_column_name_number)
-        plot_nav_breakdown_post_processing(experiment_full_addr_list, column_column_value_experiment_frequency_dict)
+        plot_co_design_nav_breakdown_post_processing(experiment_full_addr_list, column_column_value_experiment_frequency_dict)
 
     if "single_workload" in config_plotting.plot_list:
         # single workload
