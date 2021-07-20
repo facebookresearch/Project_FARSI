@@ -442,7 +442,7 @@ def plot_system_implication_analysis(input_dir_names, res_column_name_number):
                             column_experiment_value[column_name][experiment_name] = float(col_val)
 
     # prepare for plotting and plot
-    plt.figure()
+    # plt.figure()
     index = experiment_names
     plotdata = pd.DataFrame(column_experiment_value, index=index)
     plotdata.plot(kind='bar')
@@ -463,7 +463,7 @@ def plot_system_implication_analysis(input_dir_names, res_column_name_number):
 def plot_space_navigation_analysis_post_processing(input_dir_names, column_column_value_experiment_frequency_dict):
     column_name_list = [("exact optimization name", "neighbouring design space size", "div")]
     #column_name = "move name"
-    for column_name_tuple in column_name_list:
+    for n, column_name_tuple in enumerate(column_name_list):
         first_column =  column_name_tuple[0]
         second_column =  column_name_tuple[1]
         operation =   column_name_tuple[2]
@@ -486,10 +486,10 @@ def plot_space_navigation_analysis_post_processing(input_dir_names, column_colum
         axis_font = {'fontname': 'Arial', 'size': '9'}
         experiment_names =  list(set(experiment_names))
         # prepare for plotting and plot
-        plt.figure()
+        # plt.figure(n)
         index = experiment_names
         plotdata = pd.DataFrame(modified_column_value_experiment_frequency_dict, index=index)
-        plotdata.plot(kind='bar', stacked=True)
+        plotdata.plot(kind='bar', stacked=True, figsize=(10, 20))
         plt.xlabel("experiments", **axis_font)
         plt.ylabel(new_column_name)
         plt.title("experiment vs " + new_column_name)
@@ -498,8 +498,9 @@ def plot_space_navigation_analysis_post_processing(input_dir_names, column_colum
         output_dir = os.path.join(output_base_dir, "cross_workloads/space_navigation")
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
-        plt.tight_layout()
+        # plt.tight_layout()
         plt.savefig(os.path.join(output_dir,'_'.join(new_column_name.split(" "))+".png"))
+        # plt.show()
         plt.close('all')
 
 
@@ -556,10 +557,10 @@ def plot_space_navigation_analysis(input_dir_names, input_all_res_column_name_nu
                             print("what")
 
         # prepare for plotting and plot
-        plt.figure()
+        # plt.figure(figsize=(10, 8))
         index = experiment_names
         plotdata = pd.DataFrame(column_value_experiment_frequency_dict, index=index)
-        plotdata.plot(kind='bar', stacked=True)
+        plotdata.plot(kind='bar', stacked=True, figsize=(12, 12))
         plt.xlabel("experiments", **axis_font)
         plt.ylabel(column_name)
         plt.title("experiment vs " + column_name)
@@ -570,6 +571,7 @@ def plot_space_navigation_analysis(input_dir_names, input_all_res_column_name_nu
             os.makedirs(output_dir)
         plt.tight_layout()
         plt.savefig(os.path.join(output_dir,'_'.join(column_name.split(" "))+".png"))
+        plt.show()
         plt.close('all')
         column_column_value_experiment_frequency_dict[column_name] = copy.deepcopy(column_value_experiment_frequency_dict)
 
@@ -714,7 +716,7 @@ def plotSimTimeVSmoveNameZoneDist(dirName, fileName, zoneNum, moveColNum, distCo
                 else:
                     raise Exception("move name is not split_swap or split or migrate or swap or transfer or routing or identity! The new type: " + row[moveColNum])
         
-        plt.figure()
+        # plt.figure()
         plotdata = pd.DataFrame({
             "split_swap":splitSwapSim,
             "split":splitSim,
@@ -778,7 +780,7 @@ def plotMovGenTimeVSmoveNameZoneDist(dirName, fileName, zoneNum, moveColNum, dis
                 else:
                     raise Exception("move name is not split_swap or split or migrate or swap or transfer of routing or identity! The new type: " + row[moveColNum])
         
-        plt.figure()
+        # plt.figure()
         plotdata = pd.DataFrame({
             "split_swap":splitSwapMov,
             "split":splitMov,
@@ -825,7 +827,7 @@ def plotSimTimeVScommCompZoneDist(dirName, fileName, zoneNum, commcompColNum, di
                 else:
                     raise Exception("comm_comp is not giving comm or comp! The new type: " + row[colNum])
         
-        plt.figure()
+        # plt.figure()
         plotdata = pd.DataFrame({
             "comm":commSim,
             "comp":compSim
@@ -867,7 +869,7 @@ def plotMovGenTimeVScommCompZoneDist(dirName, fileName, zoneNum, commcompColNum,
                 else:
                     raise Exception("comm_comp is not giving comm or comp! The new type: " + row[colNum])
         
-        plt.figure()
+        # plt.figure()
         plotdata = pd.DataFrame({
             "comm":commMov,
             "comp":compMov
@@ -915,7 +917,7 @@ def plotSimTimeVShighLevelOptZoneDist(dirName, fileName, zoneNum, optColNum, dis
                 else:
                     raise Exception("high level optimization name is not giving topology or customization or mapping or identity! The new type: " + row[optColNum])
         
-        plt.figure()
+        # plt.figure()
         plotdata = pd.DataFrame({
             "topology":topoSim,
             "customization":tunSim,
@@ -965,7 +967,7 @@ def plotMovGenTimeVShighLevelOptZoneDist(dirName, fileName, zoneNum, optColNum, 
                 else:
                     raise Exception("high level optimization name is not giving topology or customization or mapping or identity! The new type: " + row[optColNum])
         
-        plt.figure()
+        # plt.figure()
         plotdata = pd.DataFrame({
             "topology":topoMov,
             "customization":tunMov,
@@ -1015,7 +1017,7 @@ def plotSimTimeVSarchVarImpZoneDist(dirName, fileName, zoneNum, archColNum, dist
                 else:
                     raise Exception("architectural principle is not giving parallelization or customization or locality or identity! The new type: " + row[archColNum])
         
-        plt.figure()
+        # plt.figure()
         plotdata = pd.DataFrame({
             "parallelization":paraSim,
             "customization":custSim,
@@ -1065,7 +1067,7 @@ def plotMovGenTimeVSarchVarImpZoneDist(dirName, fileName, zoneNum, archColNum, d
                 else:
                     raise Exception("architectural principle is not giving parallelization or customization or locality or identity! The new type: " + row[archColNum])
         
-        plt.figure()
+        # plt.figure()
         plotdata = pd.DataFrame({
             "parallelization":paraMov,
             "customization":custMov,
