@@ -378,8 +378,8 @@ def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_n
             y_values_non_co_design_efficacy = column_non_co_design_efficacy[y_column_name]
             y_values_non_co_design_efficacy_total =sum(y_values_non_co_design_efficacy)
 
-            column_co_design_efficacy_rate[y_column_name] = y_values_co_design_efficacy_total/total_iter
-            column_non_co_design_efficacy_rate[y_column_name] = y_values_non_co_design_efficacy_total/total_iter
+            column_co_design_efficacy_rate[y_column_name] = y_values_co_design_efficacy_total/(y_values_non_co_design_efficacy_total + y_values_co_design_efficacy_total)
+            column_non_co_design_efficacy_rate[y_column_name] = y_values_non_co_design_efficacy_total/(y_values_non_co_design_efficacy_total + y_values_co_design_efficacy_total)
 
 
         result = {"rate":{}, "efficacy":{}}
@@ -393,7 +393,7 @@ def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_n
         plt.figure()
         plotdata = pd.DataFrame(result["rate"], index=y_column_name_list)
         fontSize = 10
-        plotdata.plot(kind='bar', fontsize=fontSize)
+        plotdata.plot(kind='bar', fontsize=fontSize, stacked=True)
         plt.xticks(fontsize=fontSize, rotation=6)
         plt.yticks(fontsize=fontSize)
         plt.xlabel("co design parameter", fontsize=fontSize)
@@ -413,7 +413,7 @@ def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_n
         plt.figure()
         plotdata = pd.DataFrame(result["efficacy_rate"], index=y_column_name_list)
         fontSize = 10
-        plotdata.plot(kind='bar', fontsize=fontSize)
+        plotdata.plot(kind='bar', fontsize=fontSize, stacked=True)
         plt.xticks(fontsize=fontSize, rotation=6)
         plt.yticks(fontsize=fontSize)
         plt.xlabel("co design parameter", fontsize=fontSize)
@@ -428,6 +428,7 @@ def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_n
 
         plt.savefig(os.path.join(output_dir,"co_design_efficacy_rate_"+'_'.join(y_column_name_list)+".png"))
         plt.close('all')
+
 
 
 def plot_codesign_progression_per_workloads(input_dir_names, res_column_name_number):
@@ -886,6 +887,7 @@ def plot_codesign_nav_breakdown_cross_workload(input_dir_names, input_all_res_co
     axis_font = {'size': '20'}
     fontSize = 20
     column_name_list = ["transformation_metric", "transformation_block_type", "move name", "comm_comp", "architectural principle", "high level optimization name", "exact optimization name", "neighbouring design space size"]
+    #column_name_list = ["transformation_metric", "move name"]#, "comm_comp", "architectural principle", "high level optimization name", "exact optimization name", "neighbouring design space size"]
     #column_name = "move name"
     # initialize the dictionary
     column_column_value_experiment_frequency_dict = {}
@@ -944,10 +946,12 @@ def plot_codesign_nav_breakdown_cross_workload(input_dir_names, input_all_res_co
         plt.close('all')
         column_column_value_experiment_frequency_dict[column_name] = copy.deepcopy(column_value_experiment_frequency_dict)
 
-
+    """
     # multi-stack plot here
     index = experiment_names
     plotdata = pd.DataFrame(column_column_value_experiment_frequency_dict, index=index)
+
+    df_g = plotdata.groupby(["transformation_metric", "move name"])
     plotdata.plot(kind='bar', stacked=True, figsize=(12, 10))
     plt.rc('font', **axis_font)
     plt.xlabel("experiments", **axis_font)
@@ -965,7 +969,7 @@ def plot_codesign_nav_breakdown_cross_workload(input_dir_names, input_all_res_co
     plt.savefig(os.path.join(output_dir,'column____'.join(column_name.split(" "))+".png"), bbox_inches='tight')
     # plt.show()
     plt.close('all')
-
+    """
     return column_column_value_experiment_frequency_dict
 
 
