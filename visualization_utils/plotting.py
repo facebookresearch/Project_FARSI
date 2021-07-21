@@ -426,7 +426,7 @@ def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_n
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        plt.savefig(os.path.join(output_dir,"co_design_efficacy_rate_"+y_column_name_list+".png"))
+        plt.savefig(os.path.join(output_dir,"co_design_efficacy_rate_"+'_'.join(y_column_name_list)+".png"))
         plt.close('all')
 
 
@@ -538,6 +538,8 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
     #itrColNum = all_res_column_name_number["iteration cnt"]
     #distColNum = all_res_column_name_number["dist_to_goal_non_cost"]
     trueNum  =  all_res_column_name_number["move validity"]
+    move_name_number =  all_res_column_name_number["move name"]
+
 
     # experiment_names
     experiment_names = []
@@ -559,6 +561,9 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
         for y_column_name in y_column_name_list:
             y_column_number = res_column_name_number[y_column_name]
             x_column_number = res_column_name_number[x_column_name]
+            dis_to_goal_column_number = res_column_name_number["dist_to_goal_non_cost"]
+            ref_des_dis_to_goal_column_number = res_column_name_number["ref_des_dist_to_goal_non_cost"]
+
             if not y_column_name == "latency":
                 experiment_column_value[experiment_name][y_column_name] = []
 
@@ -566,7 +571,12 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
             with open(file_full_addr, newline='') as csvfile:
                 resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
                 for i, row in enumerate(resultReader):
-                    if i >= 1:
+                    if i > 1:
+                        if row[trueNum] == "FALSE" or row[move_name_number]=="identity":
+                            continue
+                        #if row[ref_des_dis_to_goal_column_number] =="" or (float(row[ref_des_dis_to_goal_column_number]) - float(row[dis_to_goal_column_number])) < 0:
+                        #    continue
+
                         col_value = row[y_column_number]
                         if ";" in col_value:
                             col_value = col_value[:-1]
@@ -587,7 +597,7 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
                                new_tuple = (value_to_add[0], float(value_to_add[1])*1000)
                                experiment_column_value[experiment_name][y_column_name].append(new_tuple)
                             elif y_column_name in ["area"]:
-                                new_tuple = (value_to_add[0], float(value_to_add[1]) * 1000000)
+                                new_tuple = (value_to_add[0], float(value_to_add[1]) * 1000)
                                 experiment_column_value[experiment_name][y_column_name].append(new_tuple)
 
             # prepare for plotting and plot
