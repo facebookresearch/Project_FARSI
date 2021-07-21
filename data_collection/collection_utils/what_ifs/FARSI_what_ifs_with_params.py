@@ -112,12 +112,21 @@ if __name__ == "__main__":
     SA_depth = [10]
     freq_range = [1, 4, 6, 8]
 
-    #workloads =[{"edge_detection"}, {"hpvm_cava"}, {"audio_decoder"}, {"edge_detection", "audio_decoder"}, {"hpvm_cava", "audio_decoder"}] #, {"audio_decoder", "edge_detection", "hpvm_cava"}]
-    workloads =[{"hpvm_cava"}]#, {"hpvm_cava", "audio_decoder"}] #, {"audio_decoder", "edge_detection", "hpvm_cava"}]
+    # fast run
+    #workloads = [{"edge_detection"}]
 
-    latency_scaling_range  = [1,2]
-    power_scaling_range  = [1]
-    area_scaling_range  = [1]
+    # each workload in isolation
+    #workloads =[{"audio_decoder"}, {"edge_detection"}, {"hpvm_cava"}]
+
+    # all workloads together
+    workloads =[{"audio_decoder", "edge_detection", "hpvm_cava"}]
+
+    # entire workload set
+    #workloads = [{"hpvm_cava"}, {"audio_decoder"}, {"edge_detection"}, {"edge_detection", "audio_decoder"}, {"hpvm_cava", "audio_decoder"}, {"hpvm_cava", "edge_detection"} , {"audio_decoder", "edge_detection", "hpvm_cava"}]
+
+    latency_scaling_range  = [.8, 1, 1.2]
+    power_scaling_range  = [.8,1,1.2]
+    area_scaling_range  = [.8,1,1.2]
 
     result_home_dir_default = os.path.join(os.getcwd(), "data_collection/data/" + study_type)
     result_folder = os.path.join(config.home_dir, "data_collection/data/" + study_type)
