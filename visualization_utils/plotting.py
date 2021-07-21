@@ -455,50 +455,56 @@ def plot_codesign_progression_per_workloads(input_dir_names, res_column_name_num
 
 
             # prepare for plotting and plot
-            fig = plt.figure()
+            axis_font = {'size': '20'}
+            fontSize = 20
+
+            fig = plt.figure(figsize=(12, 8))
+            plt.rc('font', **axis_font)
             ax = fig.add_subplot(111)
             x_values = [el[0] for el in experiment_column_value[experiment_name]]
             #y_values = [all_values_encoding[el[1]] for el in experiment_column_value[experiment_name]]
             y_values = [el[1] for el in experiment_column_value[experiment_name]]
 
             #ax.set_title("experiment vs system implicaction")
-            ax.tick_params(axis='both', which='major', labelsize=7, rotation=60)
-            ax.set_xlabel(x_column_name, fontsize=6)
-            ax.set_ylabel(y_column_name, fontsize=6)
-            ax.plot(x_values, y_values, label=y_column_name)
-            ax.legend()
+            ax.tick_params(axis='both', which='major', labelsize=fontSize, rotation=60)
+            ax.set_xlabel(x_column_name, fontsize=20)
+            ax.set_ylabel(y_column_name, fontsize=20)
+            ax.plot(x_values, y_values, label=y_column_name, linewidth=2)
+            ax.legend(bbox_to_anchor=(1, 1), loc='upper left', fontsize=fontSize)
 
             # dump in the top folder
             output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
             output_dir = os.path.join(output_base_dir, "single_workload/progression")
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
+            plt.tight_layout()
             fig.savefig(os.path.join(output_dir,experiment_name+"_progression_"+'_'.join(y_column_name_list)+".png"))
+            plt.show()
             plt.close('all')
 
-
-            # prepare for plotting and plot
-            fig = plt.figure()
+            fig = plt.figure(figsize=(12, 8))
+            plt.rc('font', **axis_font)
             ax = fig.add_subplot(111)
             x_values = [el[0] for el in experiment_column_value[experiment_name]]
-            #y_values = [all_values_encoding[el[1]] for el in experiment_column_value[experiment_name]]
+            # y_values = [all_values_encoding[el[1]] for el in experiment_column_value[experiment_name]]
             y_values = [el[1] for el in experiment_column_value[experiment_name]]
 
-            #ax.set_title("experiment vs system implicaction")
-            ax.tick_params(axis='both', which='major', labelsize=7, rotation=60)
-            ax.set_xlabel(x_column_name, fontsize=6)
-            ax.set_ylabel(y_column_name, fontsize=6)
-            ax.plot(x_values, y_values, label=y_column_name)
-            ax.legend()
+            # ax.set_title("experiment vs system implicaction")
+            ax.tick_params(axis='both', which='major', labelsize=fontSize, rotation=60)
+            ax.set_xlabel(x_column_name, fontsize=20)
+            ax.set_ylabel(y_column_name, fontsize=20)
+            ax.plot(x_values, y_values, label=y_column_name, linewidth=2)
+            ax.legend(bbox_to_anchor=(1, 1), loc='upper left', fontsize=fontSize)
 
             # dump in the top folder
             output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
             output_dir = os.path.join(output_base_dir, "single_workload/progression")
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
-            fig.savefig(os.path.join(output_dir,experiment_name+"_progression_"+'_'.join(y_column_name_list)+".png"))
+            plt.tight_layout()
+            fig.savefig(os.path.join(output_dir, experiment_name + "_progression_" + y_column_name + ".png"))
+            plt.show()
             plt.close('all')
-
 
 
 def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
@@ -725,18 +731,18 @@ def plot_co_design_nav_breakdown_post_processing(input_dir_names, column_column_
                     modified_column_value_experiment_frequency_dict[column_val][experiment] = first_column_value_experiment_frequency_dict[column_val][experiment]/max(second_column_value_experiment_frequency_dict[column_val][experiment],.0000000000001)
                 experiment_names.append(experiment)
 
-        axis_font = {'size': '24'}
-        fontSize = 24
+        axis_font = {'size': '22'}
+        fontSize = 22
         experiment_names =  list(set(experiment_names))
         # prepare for plotting and plot
         # plt.figure(n)
         plt.rc('font', **axis_font)
         index = experiment_names
         plotdata = pd.DataFrame(modified_column_value_experiment_frequency_dict, index=index)
-        plotdata.plot(kind='bar', stacked=True, figsize=(18, 13))
+        plotdata.plot(kind='bar', stacked=True, figsize=(13, 8))
         plt.xlabel("experiments", **axis_font)
         plt.ylabel(new_column_name, **axis_font)
-        plt.xticks(fontsize=fontSize, rotation=0)
+        plt.xticks(fontsize=fontSize, rotation=45)
         plt.yticks(fontsize=fontSize)
         plt.title("experiment vs " + new_column_name, **axis_font)
         plt.legend(bbox_to_anchor=(1, 1), loc='upper left', fontsize=fontSize)
@@ -748,7 +754,7 @@ def plot_co_design_nav_breakdown_post_processing(input_dir_names, column_column_
         # plt.tight_layout()
         plt.savefig(os.path.join(output_dir,'_'.join(new_column_name.split(" "))+".png"), bbox_inches='tight')
         plt.tight_layout()
-        plt.show()
+        # plt.show()
         plt.close('all')
 
 
@@ -769,8 +775,8 @@ def plot_codesign_nav_breakdown_per_workload(input_dir_names, input_all_res_colu
 
     axis_font = {'size': '20'}
     fontSize = 20
-    column_name_list = ["transformation_metric", "comm_comp", "workload"]#, "architectural principle", "high level optimization name", "exact optimization name"]
-    #column_name_list = ["architectural principle", "exact optimization name"]
+    # column_name_list = ["transformation_metric", "comm_comp", "workload"]#, "architectural principle", "high level optimization name", "exact optimization name"]
+    column_name_list = ["architectural principle", "exact optimization name"]
 
     #column_name = "move name"
     # initialize the dictionary
@@ -803,14 +809,14 @@ def plot_codesign_nav_breakdown_per_workload(input_dir_names, input_all_res_colu
 
         index = column_name_list
         plotdata = pd.DataFrame(column_column_value_frequency_dict, index=index)
-        plotdata.plot(kind='bar', stacked=True, figsize=(13, 13))
+        plotdata.plot(kind='bar', stacked=True, figsize=(10, 10))
         plt.rc('font', ** axis_font)
         plt.xlabel("experiments", **axis_font)
         plt.ylabel(column_name, **axis_font)
-        plt.xticks(fontsize=fontSize, rotation=0)
+        plt.xticks(fontsize=fontSize, rotation=45)
         plt.yticks(fontsize=fontSize)
         plt.title("experiment vs " + column_name, **axis_font)
-        plt.legend(bbox_to_anchor=(1, 1), loc='upper left', fontsize=fontSize - 5)
+        plt.legend(bbox_to_anchor=(1, 1), loc='upper left', fontsize=fontSize)
         # dump in the top folder
         output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
         output_dir = os.path.join(output_base_dir, "single_workload/nav_breakdown")
@@ -839,8 +845,8 @@ def plot_codesign_nav_breakdown_cross_workload(input_dir_names, input_all_res_co
         experiment_name = get_experiments_name(file_full_addr, input_all_res_column_name_number)
         experiment_names.append(experiment_name)
 
-    axis_font = {'size': '18'}
-    fontSize = 18
+    axis_font = {'size': '20'}
+    fontSize = 20
     column_name_list = ["transformation_metric", "transformation_block_type", "move name", "comm_comp", "architectural principle", "high level optimization name", "exact optimization name", "neighbouring design space size"]
     #column_name = "move name"
     # initialize the dictionary
@@ -881,14 +887,14 @@ def plot_codesign_nav_breakdown_cross_workload(input_dir_names, input_all_res_co
         # plt.figure(figsize=(10, 8))
         index = experiment_names
         plotdata = pd.DataFrame(column_value_experiment_frequency_dict, index=index)
-        plotdata.plot(kind='bar', stacked=True, figsize=(12, 7))
+        plotdata.plot(kind='bar', stacked=True, figsize=(12, 10))
         plt.rc('font', **axis_font)
         plt.xlabel("experiments", **axis_font)
         plt.ylabel(column_name, **axis_font)
-        plt.xticks(fontsize=fontSize, rotation=0)
+        plt.xticks(fontsize=fontSize, rotation=45)
         plt.yticks(fontsize=fontSize)
         plt.title("experiment vs " + column_name, **axis_font)
-        plt.legend(bbox_to_anchor=(1, 1), loc='upper left', fontsize=fontSize-5)
+        plt.legend(bbox_to_anchor=(1, 1), loc='upper left', fontsize=fontSize)
         # dump in the top folder
         output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
         output_dir = os.path.join(output_base_dir, "cross_workloads/nav_breakdown")
