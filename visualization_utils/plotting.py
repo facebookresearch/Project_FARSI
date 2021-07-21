@@ -361,7 +361,7 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
 
     axis_font = {'fontname': 'Arial', 'size': '9'}
     x_column_name = "iteration cnt"
-    y_column_name_list = ["power", "area"]
+    y_column_name_list = ["power", "area", "latency"]
 
     experiment_column_value = {}
     for file_full_addr in file_full_addr_list:
@@ -370,47 +370,59 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
         for y_column_name in y_column_name_list:
             y_column_number = res_column_name_number[y_column_name]
             x_column_number = res_column_name_number[x_column_name]
-            experiment_column_value[experiment_name][y_column_name] = []
+            if not y_column_name == "latency":
+                experiment_column_value[experiment_name][y_column_name] = []
+
+
             with open(file_full_addr, newline='') as csvfile:
                 resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
                 for i, row in enumerate(resultReader):
-                    #if row[trueNum] != "True":
-                    #    continue
                     if i >= 1:
-                        if y_column_name == "latency":
-                            value_to_add = (float(row[x_column_number]), row[y_column_number])
-                        else:
-                            value_to_add = (float(row[x_column_number]), float(row[y_column_number]))
-                        experiment_column_value[experiment_name][y_column_name].append(value_to_add)
+                        col_value = row[y_column_number]
+                        if ";" in col_value:
+                            col_value = col_value[:-1]
+                        col_values = col_value.split(";")
+                        for col_val in col_values:
+                            if "=" in col_val:
+                                val_splitted = col_val.split("=")
+                                value_to_add = (float(row[x_column_number]), (val_splitted[0], val_splitted[1]))
+                            else:
+                                value_to_add = (float(row[x_column_number]), col_val)
 
-        # prepare for plotting and plot
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        plt.tight_layout()
-        for column, values in experiment_column_value[experiment_name].items():
-            if column == "latency":
-                latency_values = extract_latency_values(values)
-                for workload, values_ in latency_values:
-                    x_values = [el[0] for el in values_]
-                    y_values = [el[1] for el in values_]
-                    ax.scatter(x_values, y_values, label=column)
-            else:
+                            if y_column_name in ["latency"]:
+                                new_tuple = (value_to_add[0], 1000*float(value_to_add[1][1]))
+                                if y_column_name+"_"+value_to_add[1][0] not in experiment_column_value[experiment_name].keys():
+                                    experiment_column_value[experiment_name][y_column_name + "_" + value_to_add[1][0]] = []
+                                experiment_column_value[experiment_name][y_column_name+"_"+value_to_add[1][0]].append(new_tuple)
+                            if y_column_name in ["power"]:
+                               new_tuple = (value_to_add[0], float(value_to_add[1])*1000)
+                               experiment_column_value[experiment_name][y_column_name].append(new_tuple)
+                            elif y_column_name in ["area"]:
+                                new_tuple = (value_to_add[0], float(value_to_add[1]) * 1000000)
+                                experiment_column_value[experiment_name][y_column_name].append(new_tuple)
+
+            # prepare for plotting and plot
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            for column, values in experiment_column_value[experiment_name].items():
                 x_values = [el[0] for el in values]
                 y_values = [el[1] for el in values]
-                ax.scatter(x_values, y_values, label=column)
+                ax.set_yscale('log')
+                ax.plot(x_values, y_values, label=column)
 
-        #ax.set_title("experiment vs system implicaction")
-        ax.set_xlabel(x_column_name)
-        ax.set_ylabel(y_column_name)
-        ax.legend()
+            #ax.set_title("experiment vs system implicaction")
+            ax.set_xlabel(x_column_name)
+            y_axis_name = "_".join(list(experiment_column_value[experiment_name].keys()))
+            ax.set_ylabel(y_axis_name)
+            ax.legend()
 
-        # dump in the top folder
-        output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
-        output_dir = os.path.join(output_base_dir, "single_workload/convergence")
-        if not os.path.exists(output_dir):
-            os.mkdir(output_dir)
-        fig.savefig(os.path.join(output_dir,experiment_name+"_convergence.png"))
-        plt.close('all')
+            # dump in the top folder
+            output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+            output_dir = os.path.join(output_base_dir, "single_workload/convergence")
+            if not os.path.exists(output_dir):
+                os.mkdir(output_dir)
+            fig.savefig(os.path.join(output_dir,experiment_name+"_convergence.png"))
+            plt.close('all')
 
 
 def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
