@@ -426,7 +426,7 @@ def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_n
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        plt.savefig(os.path.join(output_dir,"co_design_efficacy_rate_"+'_'.join(y_column_name_list)+".png"))
+        plt.savefig(os.path.join(output_dir,"co_design_efficacy_rate_"+y_column_name_list+".png"))
         plt.close('all')
 
 
@@ -1477,7 +1477,7 @@ def plotBudgets3d(dirName, subDirName):
     m = ['o', 'x', '^', 's', 'd', '+', 'v', '<', '>']
     os.mkdir(newDirName + "figures")
     fig_budget_itr = plt.figure(figsize=(10, 8))
-    ax_itr = fig_budget_itr.add_subplot(projection = '3d')
+    ax_itr = fig_budget_itr.add_subplot(projection='3d')
     for i in range(0, len(latBudgets)):
         img = ax_itr.scatter3D(powBudgets, areaBudgets, latBudgets[i], c=itrValues, cmap="bwr", marker=m[i], s=80, label='{0}'.format(workloads[i]))
     ax_itr.set_xlabel("Power Budget")
