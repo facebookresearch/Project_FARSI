@@ -272,6 +272,137 @@ def extract_latency_values(values_):
     print("")
 
 
+def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_number):
+    #itrColNum = all_res_column_name_number["iteration cnt"]
+    #distColNum = all_res_column_name_number["dist_to_goal_non_cost"]
+    trueNum  =  all_res_column_name_number["move validity"]
+
+    # experiment_names
+    file_full_addr_list = []
+    for dir_name in input_dir_names:
+        file_full_addr = os.path.join(dir_name, "result_summary/FARSI_simple_run_0_1_all_reults.csv")
+        file_full_addr_list.append(file_full_addr)
+
+    axis_font = {'fontname': 'Arial', 'size': '9'}
+    x_column_name = "iteration cnt"
+    y_column_name_list = ["high level optimization name", "exact optimization name", "architectural principle", "comm_comp"]
+
+
+
+    column_co_design_cnt = {}
+    column_non_co_design_cnt = {}
+    column_co_design_rate = {}
+    column_non_co_design_rate = {}
+    column_co_design_efficacy_rate = {}
+    column_non_co_design_efficacy_rate = {}
+    column_non_co_design_efficacy = {}
+    column_co_design_efficacy= {}
+    last_col_val = ""
+    for file_full_addr in file_full_addr_list:
+        column_co_design_cnt = {}
+        for y_column_name in y_column_name_list:
+            y_column_number = res_column_name_number[y_column_name]
+            x_column_number = res_column_name_number[x_column_name]
+
+
+            dis_to_goal_column_number = res_column_name_number["dist_to_goal_non_cost"]
+            ref_des_dis_to_goal_column_number = res_column_name_number["ref_des_dist_to_goal_non_cost"]
+            column_co_design_cnt[y_column_name] = []
+            column_non_co_design_cnt[y_column_name] = []
+
+            column_non_co_design_efficacy[y_column_name] = []
+            column_co_design_efficacy[y_column_name] = []
+
+            all_values = get_all_col_values_of_a_folders(input_dir_names, all_res_column_name_number, y_column_name)
+
+            with open(file_full_addr, newline='') as csvfile:
+                resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+                rows = list(resultReader)
+                for i, row in enumerate(rows):
+                    if i >= 1:
+                        if row[y_column_number] not in all_values:
+                            continue
+
+                        col_value = row[y_column_number]
+                        col_values = col_value.split(";")
+                        for idx, col_val in enumerate(col_values):
+                            last_row =  rows[i-1]
+                            delta_x_column = (float(row[x_column_number]) - float(last_row[x_column_number]))/len(col_values)
+
+                            value_to_add_1 = (float(last_row[x_column_number]) + idx * delta_x_column, 1)
+                            value_to_add_0 = (float(last_row[x_column_number]) + idx * delta_x_column, 0)
+
+                            # only for improvement
+                            if float(row[ref_des_dis_to_goal_column_number]) - float(row[dis_to_goal_column_number]) < 0:
+                                continue
+
+                            if not col_val == last_col_val:
+                                column_co_design_cnt[y_column_name].append(value_to_add_1)
+                                column_non_co_design_cnt[y_column_name].append(value_to_add_0)
+                                column_co_design_efficacy[y_column_name].append((float(row[ref_des_dis_to_goal_column_number]) - float(row[dis_to_goal_column_number]))/float(row[ref_des_dis_to_goal_column_number]))
+                                column_non_co_design_efficacy[y_column_name].append(0)
+                            else:
+                                column_co_design_cnt[y_column_name].append(value_to_add_0)
+                                column_non_co_design_cnt[y_column_name].append(value_to_add_1)
+                                column_co_design_efficacy[y_column_name].append(0)
+                                column_non_co_design_efficacy[y_column_name].append((float(row[ref_des_dis_to_goal_column_number]) - float(row[dis_to_goal_column_number]))/float(row[ref_des_dis_to_goal_column_number]))
+
+                            last_col_val = col_val
+
+
+
+            # co_des cnt
+            x_values_co_design_cnt = [el[0] for el in column_co_design_cnt[y_column_name]]
+            y_values_co_design_cnt = [el[1] for el in column_co_design_cnt[y_column_name]]
+            y_values_co_design_cnt_total =sum(y_values_co_design_cnt)
+            total_iter = x_values_co_design_cnt[-1]
+
+            # non co_des cnt
+            x_values_non_co_design_cnt = [el[0] for el in column_non_co_design_cnt[y_column_name]]
+            y_values_non_co_design_cnt = [el[1] for el in column_non_co_design_cnt[y_column_name]]
+            y_values_non_co_design_cnt_total =sum(y_values_non_co_design_cnt)
+
+            column_co_design_rate[y_column_name] = y_values_co_design_cnt_total/total_iter
+            column_non_co_design_rate[y_column_name] = y_values_non_co_design_cnt_total/total_iter
+
+            # co_des efficacy
+            y_values_co_design_efficacy =  column_co_design_efficacy[y_column_name]
+            y_values_co_design_efficacy_total =sum(y_values_co_design_efficacy)
+
+
+            # non co_des efficacy
+            y_values_non_co_design_efficacy = column_non_co_design_efficacy[y_column_name]
+            y_values_non_co_design_efficacy_total =sum(y_values_non_co_design_efficacy)
+
+            column_co_design_efficacy_rate[y_column_name] = y_values_co_design_efficacy_total/total_iter
+            column_non_co_design_efficacy_rate[y_column_name] = y_values_non_co_design_efficacy_total/total_iter
+
+
+        result = {"co_design":{}, "non_co_design":{}}
+        result["co_design"]["rate"]  =  column_co_design_rate
+        result["non_co_design"]["rate"]  =  column_non_co_design_rate
+        result["co_design"]["efficacy_rate"]  =  column_co_design_efficacy_rate
+        result["non_co_design"]["efficacy_rate"]  =  column_non_co_design_efficacy_rate
+
+        # prepare for plotting and plot
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+
+        plotdata = pd.DataFrame(result["co_design"], index=y_column_name_list)
+        plotdata.plot(kind='bar')
+        plt.xlabel("co design parameter", **axis_font)
+        plt.ylabel("non co design rate")
+        plt.title("non co desgin rate of different parameters")
+
+        # dump in the top folder
+        output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+        output_dir = os.path.join(output_base_dir, "single_workload/co_design_rate")
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        fig.savefig(os.path.join(output_dir,"non_co_design_rate_"+y_column_name+".png"))
+        plt.close('all')
+
+
 def plot_codesign_progression_per_workloads(input_dir_names, res_column_name_number):
     #itrColNum = all_res_column_name_number["iteration cnt"]
     #distColNum = all_res_column_name_number["dist_to_goal_non_cost"]
@@ -321,6 +452,8 @@ def plot_codesign_progression_per_workloads(input_dir_names, res_column_name_num
                             value_to_add = (float(last_row[x_column_number])+ idx*delta_x_column, col_val)
                             experiment_column_value[experiment_name].append(value_to_add)
 
+
+
             # prepare for plotting and plot
             fig = plt.figure()
             ax = fig.add_subplot(111)
@@ -332,7 +465,6 @@ def plot_codesign_progression_per_workloads(input_dir_names, res_column_name_num
             ax.tick_params(axis='both', which='major', labelsize=7, rotation=60)
             ax.set_xlabel(x_column_name, fontsize=6)
             ax.set_ylabel(y_column_name, fontsize=6)
-            #plt.tight_layout()
             ax.plot(x_values, y_values, label=y_column_name)
             ax.legend()
 
@@ -341,8 +473,32 @@ def plot_codesign_progression_per_workloads(input_dir_names, res_column_name_num
             output_dir = os.path.join(output_base_dir, "single_workload/progression")
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
-            fig.savefig(os.path.join(output_dir,experiment_name+"_progression_"+y_column_name+".png"))
+            fig.savefig(os.path.join(output_dir,experiment_name+"_progression_"+'_'.join(y_column_name_list)+".png"))
             plt.close('all')
+
+
+            # prepare for plotting and plot
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            x_values = [el[0] for el in experiment_column_value[experiment_name]]
+            #y_values = [all_values_encoding[el[1]] for el in experiment_column_value[experiment_name]]
+            y_values = [el[1] for el in experiment_column_value[experiment_name]]
+
+            #ax.set_title("experiment vs system implicaction")
+            ax.tick_params(axis='both', which='major', labelsize=7, rotation=60)
+            ax.set_xlabel(x_column_name, fontsize=6)
+            ax.set_ylabel(y_column_name, fontsize=6)
+            ax.plot(x_values, y_values, label=y_column_name)
+            ax.legend()
+
+            # dump in the top folder
+            output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+            output_dir = os.path.join(output_base_dir, "single_workload/progression")
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+            fig.savefig(os.path.join(output_dir,experiment_name+"_progression_"+'_'.join(y_column_name_list)+".png"))
+            plt.close('all')
+
 
 
 def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
@@ -590,6 +746,7 @@ def plot_co_design_nav_breakdown_post_processing(input_dir_names, column_column_
         plt.close('all')
 
 
+
 # navigation breakdown
 def plot_codesign_nav_breakdown_per_workload(input_dir_names, input_all_res_column_name_number):
     trueNum = input_all_res_column_name_number["move validity"]
@@ -604,10 +761,8 @@ def plot_codesign_nav_breakdown_per_workload(input_dir_names, input_all_res_colu
         experiment_names.append(experiment_name)
 
     axis_font = {'fontname': 'Arial', 'size': '9'}
-    #column_name_list = ["transformation_metric", "comm_comp", "architectural principle", "high level optimization name", "exact optimization name"]
-    #column_name_list = ["transformation_metric", "comm_comp"]#, "architectural principle", "high level optimization name", "exact optimization name"]
-    #column_name_list = ["architectural principle", "exact optimization name"]
     column_name_list = ["transformation_metric", "comm_comp", "workload"]#, "architectural principle", "high level optimization name", "exact optimization name"]
+    #column_name_list = ["architectural principle", "exact optimization name"]
 
     #column_name = "move name"
     # initialize the dictionary
@@ -1369,6 +1524,7 @@ if __name__ == "__main__":
     if "single_workload" in config_plotting.plot_list:
         # single workload
         plot_codesign_progression_per_workloads(experiment_full_addr_list, all_res_column_name_number)
+        plot_codesign_rate_efficacy_per_workloads(experiment_full_addr_list, all_res_column_name_number)
         _ = plot_codesign_nav_breakdown_per_workload(experiment_full_addr_list, all_res_column_name_number)
         plot_convergence_per_workloads(experiment_full_addr_list, all_res_column_name_number)
 
