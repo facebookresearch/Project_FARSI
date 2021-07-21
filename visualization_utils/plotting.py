@@ -276,6 +276,7 @@ def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_n
     #itrColNum = all_res_column_name_number["iteration cnt"]
     #distColNum = all_res_column_name_number["dist_to_goal_non_cost"]
     trueNum  =  all_res_column_name_number["move validity"]
+    move_name_number =  all_res_column_name_number["move name"]
 
     # experiment_names
     file_full_addr_list = []
@@ -283,9 +284,12 @@ def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_n
         file_full_addr = os.path.join(dir_name, "result_summary/FARSI_simple_run_0_1_all_reults.csv")
         file_full_addr_list.append(file_full_addr)
 
-    axis_font = {'fontname': 'Arial', 'size': '9'}
+    axis_font = {'fontname': 'Arial', 'size': '4'}
     x_column_name = "iteration cnt"
-    y_column_name_list = ["high level optimization name", "exact optimization name", "architectural principle", "comm_comp"]
+    #y_column_name_list = ["high level optimization name", "exact optimization name", "architectural principle", "comm_comp"]
+    y_column_name_list = ["exact optimization name",  "architectural principle", "comm_comp", "workload"]
+
+    #y_column_name_list = ["high level optimization name", "exact optimization name", "architectural principle", "comm_comp"]
 
 
 
@@ -320,13 +324,13 @@ def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_n
                 rows = list(resultReader)
                 for i, row in enumerate(rows):
                     if i >= 1:
-                        if row[y_column_number] not in all_values:
+                        last_row = rows[i - 1]
+                        if row[y_column_number] not in all_values or row[trueNum] == "FALSE" or row[move_name_number]=="identity":
                             continue
 
                         col_value = row[y_column_number]
                         col_values = col_value.split(";")
                         for idx, col_val in enumerate(col_values):
-                            last_row =  rows[i-1]
                             delta_x_column = (float(row[x_column_number]) - float(last_row[x_column_number]))/len(col_values)
 
                             value_to_add_1 = (float(last_row[x_column_number]) + idx * delta_x_column, 1)
@@ -378,28 +382,51 @@ def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_n
             column_non_co_design_efficacy_rate[y_column_name] = y_values_non_co_design_efficacy_total/total_iter
 
 
-        result = {"co_design":{}, "non_co_design":{}}
-        result["co_design"]["rate"]  =  column_co_design_rate
-        result["non_co_design"]["rate"]  =  column_non_co_design_rate
-        result["co_design"]["efficacy_rate"]  =  column_co_design_efficacy_rate
-        result["non_co_design"]["efficacy_rate"]  =  column_non_co_design_efficacy_rate
+        result = {"rate":{}, "efficacy":{}}
+        rate_column_co_design = {}
 
+        result["rate"] =  {"co_design":column_co_design_rate, "non_co_design": column_non_co_design_rate}
+        result["efficacy_rate"] =  {"co_design":column_co_design_efficacy_rate, "non_co_design": column_non_co_design_efficacy_rate}
         # prepare for plotting and plot
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
 
-        plotdata = pd.DataFrame(result["co_design"], index=y_column_name_list)
-        plotdata.plot(kind='bar')
-        plt.xlabel("co design parameter", **axis_font)
-        plt.ylabel("non co design rate")
-        plt.title("non co desgin rate of different parameters")
+
+        plt.figure()
+        plotdata = pd.DataFrame(result["rate"], index=y_column_name_list)
+        fontSize = 10
+        plotdata.plot(kind='bar', fontsize=fontSize)
+        plt.xticks(fontsize=fontSize, rotation=6)
+        plt.yticks(fontsize=fontSize)
+        plt.xlabel("co design parameter", fontsize=fontSize)
+        plt.ylabel("co design rate", fontsize=fontSize)
+        plt.title("co desgin rate of different parameters",  fontsize=fontSize)
 
         # dump in the top folder
         output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
         output_dir = os.path.join(output_base_dir, "single_workload/co_design_rate")
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
-        fig.savefig(os.path.join(output_dir,"non_co_design_rate_"+y_column_name+".png"))
+
+        plt.savefig(os.path.join(output_dir,"co_design_rate_"+'_'.join(y_column_name_list)+".png"))
+        plt.close('all')
+
+
+        plt.figure()
+        plotdata = pd.DataFrame(result["efficacy_rate"], index=y_column_name_list)
+        fontSize = 10
+        plotdata.plot(kind='bar', fontsize=fontSize)
+        plt.xticks(fontsize=fontSize, rotation=6)
+        plt.yticks(fontsize=fontSize)
+        plt.xlabel("co design parameter", fontsize=fontSize)
+        plt.ylabel("co design efficacy rate", fontsize=fontSize)
+        plt.title("co design efficacy rate of different parameters", fontsize=fontSize)
+
+        # dump in the top folder
+        output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+        output_dir = os.path.join(output_base_dir, "single_workload/co_design_rate")
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        plt.savefig(os.path.join(output_dir,"co_design_efficacy_rate_"+'_'.join(y_column_name_list)+".png"))
         plt.close('all')
 
 
