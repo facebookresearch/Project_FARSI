@@ -1378,6 +1378,7 @@ class HillClimbing:
         # log the data for future profiling/data collection/debugging
         move_to_apply = move(transformation_name, transformation_sub_name, transformation_batch_mode, move_dir, selected_metric, selected_block, selected_krnl, krnl_prob_dir_dict_sorted)
         move_to_apply.set_sorted_metric_dir(sorted_metric_dir)
+        move_to_apply.set_logs(sim_dp.database.db_input.task_workload[selected_krnl.get_task_name()],"workload")
         move_to_apply.set_logs(sim_dp.dp_stats.get_system_complex_metric("cost"), "cost")
         move_to_apply.set_logs(krnl_prob_dict, "kernels")
         move_to_apply.set_logs(metric_prob_dir_dict, "metrics")
@@ -2253,6 +2254,7 @@ class HillClimbing:
                 ref_des_dist_to_goal_all = ma.get_logs("ref_des_dist_to_goal_all")
                 ref_des_dist_to_goal_non_cost = ma.get_logs("ref_des_dist_to_goal_non_cost")
                 neighbouring_design_space_size = self.convert_dictionary_to_parsable_csv_with_semi_column(ma.get_design_space_size())
+                workload = ma.get_logs("workload")
             else:  # happens at the very fist iteration
                 pickling_time = 0
                 sorted_metrics = ""
@@ -2279,6 +2281,7 @@ class HillClimbing:
                 ref_des_dist_to_goal_all = ""
                 ref_des_dist_to_goal_non_cost = ""
                 neighbouring_design_space_size = ""
+                workload = ""
 
 
             sub_block_area_break_down = self.convert_dictionary_to_parsable_csv_with_underline(sim_dp.dp_stats.SOC_area_subtype_dict)
@@ -2299,6 +2302,7 @@ class HillClimbing:
                     "iteration cnt" : self.total_iteration_cnt,
                     "observed population number" : sim_dp.dp_rep.get_population_observed_number(),
                     "SA_total_depth": str(config.SA_depth),
+                    "workload": workload,
                     "population generation cnt": sim_dp.dp_rep.get_population_generation_cnt(),
                     "simulation time" : sim_dp.dp_rep.get_simulation_time(),
                     "transformation generation time" : generation_time,
@@ -2320,6 +2324,7 @@ class HillClimbing:
                     "system bus count" : bus_cnt,
                     "system memory count" : mem_cnt,
                     "routing complexity" : routing_complexity,
+
                     "block_impact_sorted" : sorted_blocks,
                     "kernel_impact_sorted" : sorted_kernels,
                     "metric_impact_sorted" : sorted_metrics,

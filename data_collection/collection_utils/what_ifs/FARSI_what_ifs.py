@@ -631,7 +631,8 @@ if __name__ == "__main__":
                                 "ip_spawn": {"ip_loop_unrolling": ip_loop_unrolling, "ip_freq_range": ip_freq_range},
                                 "mem_spawn": {"mem_freq_range":mem_freq_range},
                                 "ic_spawn": {"ic_freq_range":ic_freq_range},
-                                "tech_node_SF":tech_node_SF}
+                                "tech_node_SF":tech_node_SF,
+                                "base_budget_scaling":{"latency":.5, "power":1, "area":1}}
 
     # set software hardware database population
     # for SLAM
