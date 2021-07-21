@@ -506,7 +506,7 @@ def plot_codesign_progression_per_workloads(input_dir_names, res_column_name_num
                 os.makedirs(output_dir)
             plt.tight_layout()
             fig.savefig(os.path.join(output_dir,experiment_name+"_progression_"+'_'.join(y_column_name_list)+".png"))
-            plt.show()
+            # plt.show()
             plt.close('all')
 
             fig = plt.figure(figsize=(12, 8))
@@ -530,7 +530,7 @@ def plot_codesign_progression_per_workloads(input_dir_names, res_column_name_num
                 os.makedirs(output_dir)
             plt.tight_layout()
             fig.savefig(os.path.join(output_dir, experiment_name + "_progression_" + y_column_name + ".png"))
-            plt.show()
+            # plt.show()
             plt.close('all')
 
 
@@ -672,6 +672,7 @@ def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
         for experiment_name, values in column_experiment_value[y_column_name].items():
             x_values = [el[0] for el in values]
             y_values = [el[1] for el in values]
+            ax.set_yscale('log')
             ax.scatter(x_values, y_values, label=experiment_name)
 
         #ax.set_title("experiment vs system implicaction")
@@ -942,6 +943,28 @@ def plot_codesign_nav_breakdown_cross_workload(input_dir_names, input_all_res_co
         # plt.show()
         plt.close('all')
         column_column_value_experiment_frequency_dict[column_name] = copy.deepcopy(column_value_experiment_frequency_dict)
+
+
+    # multi-stack plot here
+    index = experiment_names
+    plotdata = pd.DataFrame(column_column_value_experiment_frequency_dict, index=index)
+    plotdata.plot(kind='bar', stacked=True, figsize=(12, 10))
+    plt.rc('font', **axis_font)
+    plt.xlabel("experiments", **axis_font)
+    plt.ylabel(column_name, **axis_font)
+    plt.xticks(fontsize=fontSize, rotation=45)
+    plt.yticks(fontsize=fontSize)
+    plt.title("experiment vs " + column_name, **axis_font)
+    plt.legend(bbox_to_anchor=(1, 1), loc='upper left', fontsize=fontSize)
+    # dump in the top folder
+    output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+    output_dir = os.path.join(output_base_dir, "cross_workloads/nav_breakdown")
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir,'column____'.join(column_name.split(" "))+".png"), bbox_inches='tight')
+    # plt.show()
+    plt.close('all')
 
     return column_column_value_experiment_frequency_dict
 
@@ -1485,11 +1508,18 @@ def plotBudgets3d(dirName, subDirName):
                         latBudgets[k].append(float(latList[k]))
 
     m = ['o', 'x', '^', 's', 'd', '+', 'v', '<', '>']
+    axis_font = {'size': '10'}
+    fontSize = 10
     os.mkdir(newDirName + "figures")
-    fig_budget_itr = plt.figure(figsize=(10, 8))
+    fig_budget_itr = plt.figure(figsize=(12, 12))
+    plt.rc('font', **axis_font)
     ax_itr = fig_budget_itr.add_subplot(projection='3d')
     for i in range(0, len(latBudgets)):
         img = ax_itr.scatter3D(powBudgets, areaBudgets, latBudgets[i], c=itrValues, cmap="bwr", marker=m[i], s=80, label='{0}'.format(workloads[i]))
+        for j in range(0, len(latBudgets[i])):
+            coordinate = "itr: " + str(itrValues[j])
+            ax_itr.text(powBudgets[j], areaBudgets[j], latBudgets[i][j], '%s' % coordinate, size=fontSize)
+        break
     ax_itr.set_xlabel("Power Budget")
     ax_itr.set_ylabel("Area Budget")
     ax_itr.set_zlabel("Latency Budget")
@@ -1497,14 +1527,20 @@ def plotBudgets3d(dirName, subDirName):
     cbar_itr = fig_budget_itr.colorbar(img, aspect = 40)
     cbar_itr.set_label("Number of Iterations", rotation = 270)
     plt.title("{Power Budget, Area Budget, Latency Budget} VS Iteration Cnt: " + subDirName)
+    plt.tight_layout()
     plt.savefig(newDirName + "figures/budgetVSitr-" + subDirName + ".png")
     # plt.show()
     plt.close('all')
 
-    fig_budget_blkcnt = plt.figure(figsize=(10, 8))
+    fig_budget_blkcnt = plt.figure(figsize=(12, 12))
+    plt.rc('font', **axis_font)
     ax_blkcnt = fig_budget_blkcnt.add_subplot(projection='3d')
     for i in range(0, len(latBudgets)):
         img = ax_blkcnt.scatter3D(powBudgets, areaBudgets, latBudgets[i], c=cntValues, cmap="bwr", marker=m[i], s=80, label='{0}'.format(workloads[i]))
+        for j in range(0, len(latBudgets[i])):
+            coordinate = "blkcnt: " + str(cntValues[j])
+            ax_blkcnt.text(powBudgets[j], areaBudgets[j], latBudgets[i][j], '%s' % coordinate, size=fontSize)
+        break
     ax_blkcnt.set_xlabel("Power Budget")
     ax_blkcnt.set_ylabel("Area Budget")
     ax_blkcnt.set_zlabel("Latency Budget")
@@ -1512,15 +1548,20 @@ def plotBudgets3d(dirName, subDirName):
     cbar = fig_budget_blkcnt.colorbar(img, aspect=40)
     cbar.set_label("System Block Count", rotation=270)
     plt.title("{Power Budget, Area Budget, Latency Budget} VS System Block Count: " + subDirName)
+    plt.tight_layout()
     plt.savefig(newDirName + "figures/budgetVSblkcnt-" + subDirName + ".png")
     # plt.show()
     plt.close('all')
 
-    fig_budget_routing = plt.figure(figsize=(10, 8))
+    fig_budget_routing = plt.figure(figsize=(12, 12))
+    plt.rc('font', **axis_font)
     ax_routing = fig_budget_routing.add_subplot(projection='3d')
     for i in range(0, len(latBudgets)):
-        img = ax_routing.scatter3D(powBudgets, areaBudgets, latBudgets[i], c=cntValues, cmap="bwr", marker=m[i], s=80,
-                                  label='{0}'.format(workloads[i]))
+        img = ax_routing.scatter3D(powBudgets, areaBudgets, latBudgets[i], c=cntValues, cmap="bwr", marker=m[i], s=80, label='{0}'.format(workloads[i]))
+        for j in range(0, len(latBudgets[i])):
+            coordinate = "routing complexity: " + str(routingValues[j])
+            ax_routing.text(powBudgets[j], areaBudgets[j], latBudgets[i][j], '%s' % coordinate, size=fontSize)
+        break
     ax_routing.set_xlabel("Power Budget")
     ax_routing.set_ylabel("Area Budget")
     ax_routing.set_zlabel("Latency Budget")
@@ -1528,6 +1569,7 @@ def plotBudgets3d(dirName, subDirName):
     cbar = fig_budget_routing.colorbar(img, aspect=40)
     cbar.set_label("System Block Count", rotation=270)
     plt.title("{Power Budget, Area Budget, Latency Budget} VS System Block Count: " + subDirName)
+    plt.tight_layout()
     plt.savefig(newDirName + "figures/budgetVSroutingComplexity-" + subDirName + ".png")
     # plt.show()
     plt.close('all')
