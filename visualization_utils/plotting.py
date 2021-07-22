@@ -226,6 +226,7 @@ def get_experiments_name(file_full_addr, all_res_column_name_number):
         latency_budget =  row2[all_res_column_name_number["latency_budget"]]
         power_budget =  row2[all_res_column_name_number["power_budget"]]
         area_budget =  row2[all_res_column_name_number["area_budget"]]
+        transformation_selection_mode =  row2[all_res_column_name_number["transformation_selection_mode"]]
 
 
         workload_latency = latency_budget[:-1].split(';')
@@ -233,7 +234,7 @@ def get_experiments_name(file_full_addr, all_res_column_name_number):
         for workload_latency in workload_latency:
             latency_budget_refined +="_" + (workload_latency.split("=")[0][0]+workload_latency.split("=")[1])
 
-        return latency_budget_refined+"_" + power_budget + "_" + area_budget
+        return latency_budget_refined+"_" + power_budget + "_" + area_budget+"_"+transformation_selection_mode
 
 
 
@@ -555,17 +556,19 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
     x_column_name = "iteration cnt"
     y_column_name_list = ["power", "area", "latency"]
 
+    prefix = "best_des_so_far_"
     experiment_column_value = {}
     for file_full_addr in file_full_addr_list:
         experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
         experiment_column_value[experiment_name] = {}
         for y_column_name in y_column_name_list:
+            y_column_name = prefix+y_column_name
             y_column_number = res_column_name_number[y_column_name]
             x_column_number = res_column_name_number[x_column_name]
-            dis_to_goal_column_number = res_column_name_number["dist_to_goal_non_cost"]
-            ref_des_dis_to_goal_column_number = res_column_name_number["ref_des_dist_to_goal_non_cost"]
+            #dis_to_goal_column_number = res_column_name_number["dist_to_goal_non_cost"]
+            #ref_des_dis_to_goal_column_number = res_column_name_number["ref_des_dist_to_goal_non_cost"]
 
-            if not y_column_name == "latency":
+            if not y_column_name == prefix+"latency":
                 experiment_column_value[experiment_name][y_column_name] = []
 
 
@@ -575,9 +578,6 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
                     if i > 1:
                         if row[trueNum] == "FALSE" or row[move_name_number]=="identity":
                             continue
-                        #if row[ref_des_dis_to_goal_column_number] =="" or (float(row[ref_des_dis_to_goal_column_number]) - float(row[dis_to_goal_column_number])) < 0:
-                        #    continue
-
                         col_value = row[y_column_number]
                         if ";" in col_value:
                             col_value = col_value[:-1]
@@ -589,15 +589,15 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
                             else:
                                 value_to_add = (float(row[x_column_number]), col_val)
 
-                            if y_column_name in ["latency"]:
+                            if y_column_name in [prefix+"latency"]:
                                 new_tuple = (value_to_add[0], 1000*float(value_to_add[1][1]))
                                 if y_column_name+"_"+value_to_add[1][0] not in experiment_column_value[experiment_name].keys():
                                     experiment_column_value[experiment_name][y_column_name + "_" + value_to_add[1][0]] = []
                                 experiment_column_value[experiment_name][y_column_name+"_"+value_to_add[1][0]].append(new_tuple)
-                            if y_column_name in ["power"]:
+                            if y_column_name in [prefix+"power"]:
                                new_tuple = (value_to_add[0], float(value_to_add[1])*1000)
                                experiment_column_value[experiment_name][y_column_name].append(new_tuple)
-                            elif y_column_name in ["area"]:
+                            elif y_column_name in [prefix+"area"]:
                                 new_tuple = (value_to_add[0], float(value_to_add[1]) * 1000)
                                 experiment_column_value[experiment_name][y_column_name].append(new_tuple)
 
@@ -641,7 +641,7 @@ def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
 
     axis_font = {'size': '20'}
     x_column_name = "iteration cnt"
-    y_column_name_list = ["dist_to_goal_non_cost"]
+    y_column_name_list = ["best_des_so_far_dist_to_goal_non_cost"]
 
     column_experiment_value = {}
     #column_name = "move name"
@@ -673,7 +673,6 @@ def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
         for experiment_name, values in column_experiment_value[y_column_name].items():
             x_values = [el[0] for el in values]
             y_values = [el[1] for el in values]
-            ax.set_yscale('log')
             ax.scatter(x_values, y_values, label=experiment_name)
 
         #ax.set_title("experiment vs system implicaction")
@@ -762,6 +761,8 @@ def plot_co_design_nav_breakdown_post_processing(input_dir_names, column_column_
 
         experiment_names = []
         for column_val, experiment_freq  in first_column_value_experiment_frequency_dict.items():
+            if column_val == "unknown":
+                continue
             modified_column_value_experiment_frequency_dict[column_val] = {}
             for experiment, freq in  experiment_freq.items():
                 if(second_column_value_experiment_frequency_dict[column_val][experiment]) < .000001:
@@ -814,8 +815,8 @@ def plot_codesign_nav_breakdown_per_workload(input_dir_names, input_all_res_colu
 
     axis_font = {'size': '20'}
     fontSize = 20
-    # column_name_list = ["transformation_metric", "comm_comp", "workload"]#, "architectural principle", "high level optimization name", "exact optimization name"]
-    column_name_list = ["architectural principle", "exact optimization name"]
+    column_name_list = ["transformation_metric", "comm_comp", "workload"]#, "architectural principle", "high level optimization name", "exact optimization name"]
+    #column_name_list = ["architectural principle", "exact optimization name"]
 
     #column_name = "move name"
     # initialize the dictionary
@@ -908,8 +909,8 @@ def plot_codesign_nav_breakdown_cross_workload(input_dir_names, input_all_res_co
                     column_value_experiment_frequency_dict[column_value][experiment_name] = 0
 
                 for i, row in enumerate(resultReader):
-                    if row[trueNum] != "True":
-                        continue
+                    #if row[trueNum] != "True":
+                    #    continue
                     if i > 1:
                         try:
                             col_value = row[columne_number]

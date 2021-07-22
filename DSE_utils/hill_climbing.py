@@ -1441,7 +1441,7 @@ class HillClimbing:
                                                           move_to_apply.get_transformation_batch())
                 #migrant_tasks  = list(set(move_to_apply.get_block_ref().get_tasks()) - set(migrant_tasks_))  # reverse the order to allow for swap to happen on the ref_block
                 move_to_apply.set_tasks(migrant_tasks)
-            move_to_apply.set_customization_type(blck_ref, imm_block)
+                move_to_apply.set_customization_type(blck_ref, imm_block)
         elif move_to_apply.get_transformation_name() in ["split"]:
             # select tasks to migrate
             #self.change_read_task_to_write_if_necessary(ex_dp, sim_dp, move_to_apply, selected_krnl)
@@ -2302,6 +2302,7 @@ class HillClimbing:
                     "iteration cnt" : self.total_iteration_cnt,
                     "observed population number" : sim_dp.dp_rep.get_population_observed_number(),
                     "SA_total_depth": str(config.SA_depth),
+                    "transformation_selection_mode": str(config.transformation_selection_mode),
                     "workload": workload,
                     "population generation cnt": sim_dp.dp_rep.get_population_generation_cnt(),
                     "simulation time" : sim_dp.dp_rep.get_simulation_time(),
@@ -2319,13 +2320,17 @@ class HillClimbing:
                                                                            mode="eliminate"),
                     "ref_des_dist_to_goal_all" : ref_des_dist_to_goal_all,
                     "ref_des_dist_to_goal_non_cost" : ref_des_dist_to_goal_non_cost,
+                    "best_des_so_far_dist_to_goal_non_cost": self.so_far_best_sim_dp.dp_stats.dist_to_goal(metrics_to_look_into=["area", "latency", "power"],
+                                                                           mode="eliminate"),
+                    "best_des_so_far_dist_to_goal_all": self.so_far_best_sim_dp.dp_stats.dist_to_goal(metrics_to_look_into=["area", "latency", "power"],
+                                                                           mode="eliminate"),
                     "system block count" : blk_cnt,
                     "system PE count" : pe_cnt,
                     "system bus count" : bus_cnt,
                     "system memory count" : mem_cnt,
                     "routing complexity" : routing_complexity,
-
-                    "block_impact_sorted" : sorted_blocks,
+                     "workload_set" : '_'.join(sim_dp.database.db_input.workload_tasks.keys()),
+            "block_impact_sorted" : sorted_blocks,
                     "kernel_impact_sorted" : sorted_kernels,
                     "metric_impact_sorted" : sorted_metrics,
                     "transformation_metric" : metric,
@@ -2363,6 +2368,16 @@ class HillClimbing:
                     else:
                         data__ = data_
                     data[metric +"_budget"] = data__
+
+            for metric in config.all_metrics:
+                # convert dictionary to a parsable data
+                data_ = self.so_far_best_sim_dp.dp_stats.get_system_complex_metric(metric)
+                if isinstance(data_, dict):
+                    data__ = self.convert_dictionary_to_parsable_csv_with_semi_column(data_)
+                else:
+                    data__ = data_
+                data["best_des_so_far_"+metric] = data__
+
             ctr +=1
             self.log_data_list.append(data)
 
