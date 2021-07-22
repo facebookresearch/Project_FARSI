@@ -1484,7 +1484,7 @@ def plotBudgets3d(dirName, subDirName):
     for i in range(0, len(latBudgets)):
         img = ax_itr.scatter3D(powBudgets, areaBudgets, latBudgets[i], c=itrValues, cmap="bwr", marker=m[i], s=80, label='{0}'.format(workloads[i]))
         for j in range(0, len(latBudgets[i])):
-            coordinate = "itr: " + str(itrValues[j])
+            coordinate = str(itrValues[j])
             ax_itr.text(powBudgets[j], areaBudgets[j], latBudgets[i][j], '%s' % coordinate, size=fontSize)
         break
     ax_itr.set_xlabel("Power Budget")
@@ -1505,7 +1505,7 @@ def plotBudgets3d(dirName, subDirName):
     for i in range(0, len(latBudgets)):
         img = ax_blkcnt.scatter3D(powBudgets, areaBudgets, latBudgets[i], c=cntValues, cmap="bwr", marker=m[i], s=80, label='{0}'.format(workloads[i]))
         for j in range(0, len(latBudgets[i])):
-            coordinate = "blkcnt: " + str(cntValues[j])
+            coordinate = str(cntValues[j])
             ax_blkcnt.text(powBudgets[j], areaBudgets[j], latBudgets[i][j], '%s' % coordinate, size=fontSize)
         break
     ax_blkcnt.set_xlabel("Power Budget")
@@ -1526,7 +1526,7 @@ def plotBudgets3d(dirName, subDirName):
     for i in range(0, len(latBudgets)):
         img = ax_routing.scatter3D(powBudgets, areaBudgets, latBudgets[i], c=cntValues, cmap="bwr", marker=m[i], s=80, label='{0}'.format(workloads[i]))
         for j in range(0, len(latBudgets[i])):
-            coordinate = "routing complexity: " + str(routingValues[j])
+            coordinate = str(routingValues[j])
             ax_routing.text(powBudgets[j], areaBudgets[j], latBudgets[i][j], '%s' % coordinate, size=fontSize)
         break
     ax_routing.set_xlabel("Power Budget")
