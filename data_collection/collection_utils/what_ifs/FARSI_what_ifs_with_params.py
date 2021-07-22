@@ -37,7 +37,8 @@ else:
 
 
 
-def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, study_type, workload_folder):
+def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, trans_sel_mode, study_type, workload_folder):
+    config.transformation_selection_mode = trans_sel_mode
     config.SA_depth = SA_depth
     # set the number of workers to be used (parallelism applied)
     current_process_id = 0
@@ -113,13 +114,13 @@ if __name__ == "__main__":
     freq_range = [1, 4, 6, 8]
 
     # fast run
-    #workloads = [{"edge_detection"}]
+    workloads = [{"edge_detection"}]
 
     # each workload in isolation
     #workloads =[{"audio_decoder"}, {"edge_detection"}, {"hpvm_cava"}]
 
     # all workloads together
-    workloads =[{"audio_decoder", "edge_detection", "hpvm_cava"}]
+    #workloads =[{"audio_decoder", "edge_detection", "hpvm_cava"}]
 
     # entire workload set
     #workloads = [{"hpvm_cava"}, {"audio_decoder"}, {"edge_detection"}, {"edge_detection", "audio_decoder"}, {"hpvm_cava", "audio_decoder"}, {"hpvm_cava", "edge_detection"} , {"audio_decoder", "edge_detection", "hpvm_cava"}]
@@ -128,17 +129,26 @@ if __name__ == "__main__":
     power_scaling_range  = [.8,1,1.2]
     area_scaling_range  = [.8,1,1.2]
 
+    latency_scaling_range  = [1]
+    power_scaling_range  = [1]
+    area_scaling_range  = [1]
+
+
     result_home_dir_default = os.path.join(os.getcwd(), "data_collection/data/" + study_type)
     result_folder = os.path.join(config.home_dir, "data_collection/data/" + study_type)
     date_time = datetime.now().strftime('%m-%d_%H-%M_%S')
     run_folder = os.path.join(result_folder, date_time)
     os.mkdir(run_folder)
 
-    for w in workloads:
-        workloads_first_letter = '_'.join(sorted([el[0] for el in w]))
-        workload_folder = os.path.join(run_folder, workloads_first_letter)
-        os.mkdir(workload_folder)
-        for d in SA_depth:
-            for latency_scaling,power_scaling, area_scaling in itertools.product(latency_scaling_range, power_scaling_range, area_scaling_range):
-                base_budget_scaling = {"latency": latency_scaling, "power": power_scaling, "area": area_scaling}
-                run_with_params(w, d, freq_range, base_budget_scaling, study_type, workload_folder)
+    #transformation_selection_mode_list = ["arch-aware","random"]  # choose from {random, arch-aware}
+    transformation_selection_mode_list = ["arch-aware"]
+
+    for trans_sel_mode in transformation_selection_mode_list:
+        for w in workloads:
+            workloads_first_letter = '_'.join(sorted([el[0] for el in w])) +"__"+trans_sel_mode[0]
+            workload_folder = os.path.join(run_folder, workloads_first_letter)
+            os.mkdir(workload_folder)
+            for d in SA_depth:
+                for latency_scaling,power_scaling, area_scaling in itertools.product(latency_scaling_range, power_scaling_range, area_scaling_range):
+                    base_budget_scaling = {"latency": latency_scaling, "power": power_scaling, "area": area_scaling}
+                    run_with_params(w, d, freq_range, base_budget_scaling, trans_sel_mode, study_type, workload_folder)

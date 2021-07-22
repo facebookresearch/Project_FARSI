@@ -226,6 +226,7 @@ def get_experiments_name(file_full_addr, all_res_column_name_number):
         latency_budget =  row2[all_res_column_name_number["latency_budget"]]
         power_budget =  row2[all_res_column_name_number["power_budget"]]
         area_budget =  row2[all_res_column_name_number["area_budget"]]
+        transformation_selection_mode =  row2[all_res_column_name_number["transformation_selection_mode"]]
 
 
         workload_latency = latency_budget[:-1].split(';')
@@ -233,7 +234,7 @@ def get_experiments_name(file_full_addr, all_res_column_name_number):
         for workload_latency in workload_latency:
             latency_budget_refined +="_" + (workload_latency.split("=")[0][0]+workload_latency.split("=")[1])
 
-        return latency_budget_refined+"_" + power_budget + "_" + area_budget
+        return latency_budget_refined+"_" + power_budget + "_" + area_budget+"_"+transformation_selection_mode
 
 
 
@@ -378,8 +379,8 @@ def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_n
             y_values_non_co_design_efficacy = column_non_co_design_efficacy[y_column_name]
             y_values_non_co_design_efficacy_total =sum(y_values_non_co_design_efficacy)
 
-            column_co_design_efficacy_rate[y_column_name] = y_values_co_design_efficacy_total/total_iter
-            column_non_co_design_efficacy_rate[y_column_name] = y_values_non_co_design_efficacy_total/total_iter
+            column_co_design_efficacy_rate[y_column_name] = y_values_co_design_efficacy_total/(y_values_non_co_design_efficacy_total + y_values_co_design_efficacy_total)
+            column_non_co_design_efficacy_rate[y_column_name] = y_values_non_co_design_efficacy_total/(y_values_non_co_design_efficacy_total + y_values_co_design_efficacy_total)
 
 
         result = {"rate":{}, "efficacy":{}}
@@ -393,7 +394,7 @@ def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_n
         plt.figure()
         plotdata = pd.DataFrame(result["rate"], index=y_column_name_list)
         fontSize = 10
-        plotdata.plot(kind='bar', fontsize=fontSize)
+        plotdata.plot(kind='bar', fontsize=fontSize, stacked=True)
         plt.xticks(fontsize=fontSize, rotation=6)
         plt.yticks(fontsize=fontSize)
         plt.xlabel("co design parameter", fontsize=fontSize)
@@ -413,7 +414,7 @@ def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_n
         plt.figure()
         plotdata = pd.DataFrame(result["efficacy_rate"], index=y_column_name_list)
         fontSize = 10
-        plotdata.plot(kind='bar', fontsize=fontSize)
+        plotdata.plot(kind='bar', fontsize=fontSize, stacked=True)
         plt.xticks(fontsize=fontSize, rotation=6)
         plt.yticks(fontsize=fontSize)
         plt.xlabel("co design parameter", fontsize=fontSize)
@@ -426,8 +427,9 @@ def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_n
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        plt.savefig(os.path.join(output_dir,"co_design_efficacy_rate_"+y_column_name+".png"))
+        plt.savefig(os.path.join(output_dir,"co_design_efficacy_rate_"+'_'.join(y_column_name_list)+".png"))
         plt.close('all')
+
 
 
 def plot_codesign_progression_per_workloads(input_dir_names, res_column_name_number):
@@ -538,6 +540,8 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
     #itrColNum = all_res_column_name_number["iteration cnt"]
     #distColNum = all_res_column_name_number["dist_to_goal_non_cost"]
     trueNum  =  all_res_column_name_number["move validity"]
+    move_name_number =  all_res_column_name_number["move name"]
+
 
     # experiment_names
     experiment_names = []
@@ -552,21 +556,28 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
     x_column_name = "iteration cnt"
     y_column_name_list = ["power", "area", "latency"]
 
+    prefix = "best_des_so_far_"
     experiment_column_value = {}
     for file_full_addr in file_full_addr_list:
         experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
         experiment_column_value[experiment_name] = {}
         for y_column_name in y_column_name_list:
+            y_column_name = prefix+y_column_name
             y_column_number = res_column_name_number[y_column_name]
             x_column_number = res_column_name_number[x_column_name]
-            if not y_column_name == "latency":
+            #dis_to_goal_column_number = res_column_name_number["dist_to_goal_non_cost"]
+            #ref_des_dis_to_goal_column_number = res_column_name_number["ref_des_dist_to_goal_non_cost"]
+
+            if not y_column_name == prefix+"latency":
                 experiment_column_value[experiment_name][y_column_name] = []
 
 
             with open(file_full_addr, newline='') as csvfile:
                 resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
                 for i, row in enumerate(resultReader):
-                    if i >= 1:
+                    if i > 1:
+                        if row[trueNum] == "FALSE" or row[move_name_number]=="identity":
+                            continue
                         col_value = row[y_column_number]
                         if ";" in col_value:
                             col_value = col_value[:-1]
@@ -578,16 +589,16 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
                             else:
                                 value_to_add = (float(row[x_column_number]), col_val)
 
-                            if y_column_name in ["latency"]:
+                            if y_column_name in [prefix+"latency"]:
                                 new_tuple = (value_to_add[0], 1000*float(value_to_add[1][1]))
                                 if y_column_name+"_"+value_to_add[1][0] not in experiment_column_value[experiment_name].keys():
                                     experiment_column_value[experiment_name][y_column_name + "_" + value_to_add[1][0]] = []
                                 experiment_column_value[experiment_name][y_column_name+"_"+value_to_add[1][0]].append(new_tuple)
-                            if y_column_name in ["power"]:
+                            if y_column_name in [prefix+"power"]:
                                new_tuple = (value_to_add[0], float(value_to_add[1])*1000)
                                experiment_column_value[experiment_name][y_column_name].append(new_tuple)
-                            elif y_column_name in ["area"]:
-                                new_tuple = (value_to_add[0], float(value_to_add[1]) * 1000000)
+                            elif y_column_name in [prefix+"area"]:
+                                new_tuple = (value_to_add[0], float(value_to_add[1]) * 1000)
                                 experiment_column_value[experiment_name][y_column_name].append(new_tuple)
 
             # prepare for plotting and plot
@@ -630,7 +641,7 @@ def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
 
     axis_font = {'size': '20'}
     x_column_name = "iteration cnt"
-    y_column_name_list = ["dist_to_goal_non_cost"]
+    y_column_name_list = ["best_des_so_far_dist_to_goal_non_cost"]
 
     column_experiment_value = {}
     #column_name = "move name"
@@ -750,6 +761,8 @@ def plot_co_design_nav_breakdown_post_processing(input_dir_names, column_column_
 
         experiment_names = []
         for column_val, experiment_freq  in first_column_value_experiment_frequency_dict.items():
+            if column_val == "unknown":
+                continue
             modified_column_value_experiment_frequency_dict[column_val] = {}
             for experiment, freq in  experiment_freq.items():
                 if(second_column_value_experiment_frequency_dict[column_val][experiment]) < .000001:
@@ -802,8 +815,8 @@ def plot_codesign_nav_breakdown_per_workload(input_dir_names, input_all_res_colu
 
     axis_font = {'size': '20'}
     fontSize = 20
-    # column_name_list = ["transformation_metric", "comm_comp", "workload"]#, "architectural principle", "high level optimization name", "exact optimization name"]
-    column_name_list = ["architectural principle", "exact optimization name"]
+    column_name_list = ["transformation_metric", "comm_comp", "workload"]#, "architectural principle", "high level optimization name", "exact optimization name"]
+    #column_name_list = ["architectural principle", "exact optimization name"]
 
     #column_name = "move name"
     # initialize the dictionary
@@ -875,6 +888,7 @@ def plot_codesign_nav_breakdown_cross_workload(input_dir_names, input_all_res_co
     axis_font = {'size': '20'}
     fontSize = 20
     column_name_list = ["transformation_metric", "transformation_block_type", "move name", "comm_comp", "architectural principle", "high level optimization name", "exact optimization name", "neighbouring design space size"]
+    #column_name_list = ["transformation_metric", "move name"]#, "comm_comp", "architectural principle", "high level optimization name", "exact optimization name", "neighbouring design space size"]
     #column_name = "move name"
     # initialize the dictionary
     column_column_value_experiment_frequency_dict = {}
@@ -895,8 +909,8 @@ def plot_codesign_nav_breakdown_cross_workload(input_dir_names, input_all_res_co
                     column_value_experiment_frequency_dict[column_value][experiment_name] = 0
 
                 for i, row in enumerate(resultReader):
-                    if row[trueNum] != "True":
-                        continue
+                    #if row[trueNum] != "True":
+                    #    continue
                     if i > 1:
                         try:
                             col_value = row[columne_number]
@@ -933,6 +947,30 @@ def plot_codesign_nav_breakdown_cross_workload(input_dir_names, input_all_res_co
         plt.close('all')
         column_column_value_experiment_frequency_dict[column_name] = copy.deepcopy(column_value_experiment_frequency_dict)
 
+    """
+    # multi-stack plot here
+    index = experiment_names
+    plotdata = pd.DataFrame(column_column_value_experiment_frequency_dict, index=index)
+
+    df_g = plotdata.groupby(["transformation_metric", "move name"])
+    plotdata.plot(kind='bar', stacked=True, figsize=(12, 10))
+    plt.rc('font', **axis_font)
+    plt.xlabel("experiments", **axis_font)
+    plt.ylabel(column_name, **axis_font)
+    plt.xticks(fontsize=fontSize, rotation=45)
+    plt.yticks(fontsize=fontSize)
+    plt.title("experiment vs " + column_name, **axis_font)
+    plt.legend(bbox_to_anchor=(1, 1), loc='upper left', fontsize=fontSize)
+    # dump in the top folder
+    output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+    output_dir = os.path.join(output_base_dir, "cross_workloads/nav_breakdown")
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir,'column____'.join(column_name.split(" "))+".png"), bbox_inches='tight')
+    # plt.show()
+    plt.close('all')
+    """
     return column_column_value_experiment_frequency_dict
 
 

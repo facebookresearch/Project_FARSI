@@ -186,12 +186,14 @@ def write_one_results(sim_dp, dse, reason_to_terminate, case_study, result_dir_s
         output_fh_minimal.write("reason_to_terminate" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("population generation cnt" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("iteration cnt" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("workload_set" + ",")  # for now only write the latency accuracy as the other
         #output_fh_minimal.write("iterationxdepth number" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("simulation time" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("move generation time" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("kernel selection time" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("block selection time" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("transformation selection time" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("transformation_selection_mode" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("dist_to_goal_all" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("dist_to_goal_non_cost" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("system block count" + ",")  # for now only write the latency accuracy as the other
@@ -297,12 +299,14 @@ def write_one_results(sim_dp, dse, reason_to_terminate, case_study, result_dir_s
 
     output_fh_minimal.write(str(sim_dp.dp_rep.get_population_generation_cnt())+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(dse.get_total_iteration_cnt())+ ",")  # for now only write the latency accuracy as the other
+    output_fh_minimal.write('_'.join(sim_dp.database.db_input.workload_tasks.keys()) +",")
     #output_fh_minimal.write(str(itr_depth_multiplied)+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(sim_dp.dp_rep.get_simulation_time())+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(generation_time)+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(kernel_selection_time)+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(block_selection_time)+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(transformation_selection_time)+ ",")  # for now only write the latency accuracy as the other
+    output_fh_minimal.write(str(config.transformation_selection_mode)+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(sim_dp.dp_stats.dist_to_goal(metrics_to_look_into = ["area", "latency", "power", "cost"], mode = "eliminate")) + ",")
     output_fh_minimal.write(str(sim_dp.dp_stats.dist_to_goal(metrics_to_look_into = ["area", "latency", "power"], mode = "eliminate")) + ",")
     output_fh_minimal.write(str(blk_cnt) + ",")  # for now only write the latency accuracy as the other
