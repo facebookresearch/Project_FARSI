@@ -226,7 +226,10 @@ def get_experiments_name(file_full_addr, all_res_column_name_number):
         latency_budget =  row2[all_res_column_name_number["latency_budget"]]
         power_budget =  row2[all_res_column_name_number["power_budget"]]
         area_budget =  row2[all_res_column_name_number["area_budget"]]
-        transformation_selection_mode =  row2[all_res_column_name_number["transformation_selection_mode"]]
+        try:
+            transformation_selection_mode =  row2[all_res_column_name_number["transformation_selection_mode"]]
+        except:
+            transformation_selection_mode =  ""
 
 
         workload_latency = latency_budget[:-1].split(';')
@@ -235,9 +238,6 @@ def get_experiments_name(file_full_addr, all_res_column_name_number):
             latency_budget_refined +="_" + (workload_latency.split("=")[0][0]+workload_latency.split("=")[1])
 
         return latency_budget_refined+"_" + power_budget + "_" + area_budget+"_"+transformation_selection_mode
-
-
-
 
 def get_all_col_values_of_a_file(file_full_addr, all_res_column_name_number, column_name):
     column_number = all_res_column_name_number[column_name]
@@ -304,6 +304,7 @@ def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_n
     column_co_design_efficacy= {}
     last_col_val = ""
     for file_full_addr in file_full_addr_list:
+        experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
         column_co_design_cnt = {}
         for y_column_name in y_column_name_list:
             y_column_number = res_column_name_number[y_column_name]
@@ -326,7 +327,7 @@ def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_n
                 for i, row in enumerate(rows):
                     if i >= 1:
                         last_row = rows[i - 1]
-                        if row[y_column_number] not in all_values or row[trueNum] == "FALSE" or row[move_name_number]=="identity":
+                        if row[y_column_number] not in all_values or row[trueNum] == "False" or row[move_name_number]=="identity":
                             continue
 
                         col_value = row[y_column_number]
@@ -342,6 +343,7 @@ def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_n
                                 continue
 
                             if not col_val == last_col_val:
+
                                 column_co_design_cnt[y_column_name].append(value_to_add_1)
                                 column_non_co_design_cnt[y_column_name].append(value_to_add_0)
                                 column_co_design_efficacy[y_column_name].append((float(row[ref_des_dis_to_goal_column_number]) - float(row[dis_to_goal_column_number]))/float(row[ref_des_dis_to_goal_column_number]))
@@ -407,7 +409,7 @@ def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_n
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        plt.savefig(os.path.join(output_dir,"co_design_rate_"+'_'.join(y_column_name_list)+".png"))
+        plt.savefig(os.path.join(output_dir,experiment_name +"_"+"co_design_rate_"+'_'.join(y_column_name_list)+".png"))
         plt.close('all')
 
 
@@ -427,7 +429,7 @@ def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_n
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        plt.savefig(os.path.join(output_dir,"co_design_efficacy_rate_"+'_'.join(y_column_name_list)+".png"))
+        plt.savefig(os.path.join(output_dir,experiment_name+"_"+"co_design_efficacy_rate_"+'_'.join(y_column_name_list)+".png"))
         plt.close('all')
 
 
@@ -848,6 +850,14 @@ def plot_codesign_nav_breakdown_per_workload(input_dir_names, input_all_res_colu
                                 column_column_value_frequency_dict[col_val][column_name] += 1
 
         index = column_name_list
+        total_cnt = 0
+        for val in column_column_value_frequency_dict[column].values():
+            total_cnt += val
+
+        for col_val, column_name_val in column_column_value_frequency_dict.items():
+            for column_name, val in column_name_val.items():
+                column_column_value_frequency_dict[col_val][column_name] /= total_cnt
+
         plotdata = pd.DataFrame(column_column_value_frequency_dict, index=index)
         plotdata.plot(kind='bar', stacked=True, figsize=(10, 10))
         plt.rc('font', ** axis_font)
@@ -923,6 +933,17 @@ def plot_codesign_nav_breakdown_cross_workload(input_dir_names, input_all_res_co
                                     column_value_experiment_frequency_dict[col_val][experiment_name] += 1
                         except:
                             print("what")
+
+        total_cnt = {}
+        for el in column_value_experiment_frequency_dict.values():
+            for exp, values in el.items():
+                if exp not in total_cnt.keys():
+                    total_cnt[exp] = 0
+                total_cnt[exp] += values
+
+        for col_val, exp_vals in column_value_experiment_frequency_dict.items():
+            for exp, values in exp_vals.items():
+                column_value_experiment_frequency_dict[col_val][exp] /= total_cnt[exp]
 
         # prepare for plotting and plot
         # plt.figure(figsize=(10, 8))
@@ -1623,7 +1644,7 @@ if __name__ == "__main__":
     summary_res_column_name_number = get_column_name_number(experiment_full_addr_list[0], "simple")
     if "cross_workloads" in config_plotting.plot_list:
         # get column orders (assumption is that the column order doesn't change between experiments)
-        plot_convergence_cross_workloads(experiment_full_addr_list, all_res_column_name_number)
+        #plot_convergence_cross_workloads(experiment_full_addr_list, all_res_column_name_number)
         column_column_value_experiment_frequency_dict = plot_codesign_nav_breakdown_cross_workload(experiment_full_addr_list, all_res_column_name_number)
         plot_system_implication_analysis(experiment_full_addr_list, summary_res_column_name_number)
         plot_co_design_nav_breakdown_post_processing(experiment_full_addr_list, column_column_value_experiment_frequency_dict)
