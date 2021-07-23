@@ -762,7 +762,6 @@ class HillClimbing:
         return feasible_transformations
 
     def get_transformation_design_space_size(self, move_to_apply, ex_dp, sim_dp, block_of_interest, selected_metric, sorted_metric_dir):
-
         # if this knob is set, we randomly pick a transformation
         # THis is to illustrate the architectural awareness of FARSI a
         imm_block = self.dh.get_immediate_block_multi_metric(block_of_interest, selected_metric, sorted_metric_dir,  block_of_interest.get_tasks_of_block())
@@ -1143,6 +1142,12 @@ class HillClimbing:
     def select_block(self, sim_dp, ex_dp, selected_krnl, selected_metric):
         # get the hot block for the kernel. Hot means the most contributing block for the kernel/metric of interest
         hot_blck = sim_dp.get_dp_stats().get_hot_block_of_krnel(selected_krnl.get_task_name(), selected_metric)
+
+        # randomly pick one
+        if config.transformation_selection_mode =="random":
+            random.seed(datetime.now().microsecond)
+            hot_blck = any_block = random.choice(ex_dp.get_hardware_graph().get_blocks())  # this is just dummmy to prevent breaking the plotting
+
         # hot_blck_synced is the same block but ensured that the block instance
         # is chosen from ex instead of sim, so it can be modified
         hot_blck_synced = self.dh.find_cores_hot_kernel_blck_bottlneck(ex_dp, hot_blck)
@@ -1457,10 +1462,6 @@ class HillClimbing:
                 parallelism_type_.append(self.get_task_parallelism_type(sim_dp, task_, selected_krnl.get_task_name()))
             parallelism_type = list(set(parallelism_type_))
 
-            if len(migrant_tasks) == 0:
-                self.select_transformation(ex_dp, sim_dp, selected_block, selected_metric, selected_krnl,
-                                           sorted_metric_dir)
-
             move_to_apply.set_parallelism_type(parallelism_type)
             move_to_apply.set_tasks(migrant_tasks)
             if len(migrant_tasks) == 0:
@@ -1479,11 +1480,14 @@ class HillClimbing:
                                                                                                               move_to_apply.get_sorted_metric_dir(),
                                                                                                               move_to_apply.get_kernel_ref())
 
+
+
                 move_to_apply.set_parallelism_type(parallelism_type)
                 move_to_apply.set_locality_type(locality_type)
                 self.dh.unload_buses(ex_dp)  # unload buses
                 self.dh.unload_read_mem(ex_dp)  # unload memories
-                self.change_read_task_to_write_if_necessary(ex_dp, sim_dp, move_to_apply, selected_krnl)
+                if not imm_block_present.subtype == "ip":
+                    self.change_read_task_to_write_if_necessary(ex_dp, sim_dp, move_to_apply, selected_krnl)
                 if not found_blck_to_mig_to:
                     move_to_apply.set_validity(False, "NoMigrantException")
                     imm_block_present = blck_ref
@@ -1493,9 +1497,6 @@ class HillClimbing:
                 else:
                     migrant_tasks = self.dh.migrant_selection(ex_dp, sim_dp, blck_ref, blck_ref_cp, move_to_apply.get_kernel_ref(),
                                                               mig_selection_mode)
-                    if len(migrant_tasks)  == 0:
-                        self.select_transformation(ex_dp, sim_dp, selected_block, selected_metric, selected_krnl,
-                                              sorted_metric_dir)
 
                     move_to_apply.set_tasks(migrant_tasks)
                     move_to_apply.set_dest_block(imm_block_present)

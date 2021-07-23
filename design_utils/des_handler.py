@@ -1933,15 +1933,11 @@ class DesignHandler:
     def migrant_selection(self, ex_dp, sim_dp, block_after_unload, block_before_unload, selected_kernel, selection_mode):
         if config.DEBUG_FIX: random.seed(0)
         else: time.sleep(.00001), random.seed(datetime.now().microsecond)
-        clustered_tasks = self.cluster_tasks(ex_dp,sim_dp, block_after_unload, selected_kernel, selection_mode)
-        """ 
-        clusters_tasks_0_names = [tsk.get_name() for tsk in clustered_tasks[0]]
-        result = []
-        for task in block_after_unload.get_tasks_of_block():
-            if task.get_name() in clusters_tasks_0_names:
-                result.append(task)
-        return  result
-        """
+        try:
+            clustered_tasks = self.cluster_tasks(ex_dp,sim_dp, block_after_unload, selected_kernel, selection_mode)
+        except:
+            print("migrant selection went wrong. This needs to be fixed. Most likely occurs with random (As opposed to arch-aware) transformation_selection_mode")
+            return []
         return clustered_tasks[0]
 
     # ------------------------------
