@@ -555,6 +555,7 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
         experiment_names.append(experiment_name)
 
     axis_font = {'size': '20'}
+    fontSize = 20
     x_column_name = "iteration cnt"
     y_column_name_list = ["power", "area", "latency"]
 
@@ -604,7 +605,7 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
                                 experiment_column_value[experiment_name][y_column_name].append(new_tuple)
 
             # prepare for plotting and plot
-            fig = plt.figure()
+            fig = plt.figure(figsize=(15, 8))
             ax = fig.add_subplot(111)
             for column, values in experiment_column_value[experiment_name].items():
                 x_values = [el[0] for el in values]
@@ -616,7 +617,8 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
             ax.set_xlabel(x_column_name)
             y_axis_name = "_".join(list(experiment_column_value[experiment_name].keys()))
             ax.set_ylabel(y_axis_name)
-            ax.legend()
+            ax.legend(bbox_to_anchor=(1, 1), loc='upper left', fontsize=fontSize)
+            plt.tight_layout()
 
             # dump in the top folder
             output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
@@ -624,6 +626,7 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
             if not os.path.exists(output_dir):
                 os.mkdir(output_dir)
             fig.savefig(os.path.join(output_dir,experiment_name+"_convergence.png"))
+            plt.show()
             plt.close('all')
 
 
@@ -675,12 +678,13 @@ def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
         for experiment_name, values in column_experiment_value[y_column_name].items():
             x_values = [el[0] for el in values]
             y_values = [el[1] for el in values]
-            ax.scatter(x_values, y_values, label=experiment_name)
+            ax.scatter(x_values, y_values, label=experiment_name[1:])
 
         #ax.set_title("experiment vs system implicaction")
+        ax.legend(bbox_to_anchor=(1, 1), loc="upper left")
         ax.set_xlabel(x_column_name)
         ax.set_ylabel(y_column_name)
-        ax.legend()
+        plt.tight_layout()
 
         # dump in the top folder
         output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
@@ -688,6 +692,7 @@ def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
         fig.savefig(os.path.join(output_dir,x_column_name+"_"+y_column_name+".png"))
+        # plt.show()
         plt.close('all')
 
 def plot_system_implication_analysis(input_dir_names, res_column_name_number):
@@ -1543,7 +1548,7 @@ def plotBudgets3d(dirName, subDirName):
     for i in range(0, len(latBudgets)):
         img = ax_itr.scatter3D(powBudgets, areaBudgets, latBudgets[i], c=itrValues, cmap="bwr", marker=m[i], s=80, label='{0}'.format(workloads[i]))
         for j in range(0, len(latBudgets[i])):
-            coordinate = "itr: " + str(itrValues[j])
+            coordinate = str(itrValues[j])
             ax_itr.text(powBudgets[j], areaBudgets[j], latBudgets[i][j], '%s' % coordinate, size=fontSize)
         break
     ax_itr.set_xlabel("Power Budget")
@@ -1564,7 +1569,7 @@ def plotBudgets3d(dirName, subDirName):
     for i in range(0, len(latBudgets)):
         img = ax_blkcnt.scatter3D(powBudgets, areaBudgets, latBudgets[i], c=cntValues, cmap="bwr", marker=m[i], s=80, label='{0}'.format(workloads[i]))
         for j in range(0, len(latBudgets[i])):
-            coordinate = "blkcnt: " + str(cntValues[j])
+            coordinate = str(cntValues[j])
             ax_blkcnt.text(powBudgets[j], areaBudgets[j], latBudgets[i][j], '%s' % coordinate, size=fontSize)
         break
     ax_blkcnt.set_xlabel("Power Budget")
@@ -1585,7 +1590,7 @@ def plotBudgets3d(dirName, subDirName):
     for i in range(0, len(latBudgets)):
         img = ax_routing.scatter3D(powBudgets, areaBudgets, latBudgets[i], c=cntValues, cmap="bwr", marker=m[i], s=80, label='{0}'.format(workloads[i]))
         for j in range(0, len(latBudgets[i])):
-            coordinate = "routing complexity: " + str(routingValues[j])
+            coordinate = str(routingValues[j])
             ax_routing.text(powBudgets[j], areaBudgets[j], latBudgets[i][j], '%s' % coordinate, size=fontSize)
         break
     ax_routing.set_xlabel("Power Budget")
@@ -1644,7 +1649,7 @@ if __name__ == "__main__":
     summary_res_column_name_number = get_column_name_number(experiment_full_addr_list[0], "simple")
     if "cross_workloads" in config_plotting.plot_list:
         # get column orders (assumption is that the column order doesn't change between experiments)
-        #plot_convergence_cross_workloads(experiment_full_addr_list, all_res_column_name_number)
+        plot_convergence_cross_workloads(experiment_full_addr_list, all_res_column_name_number)
         column_column_value_experiment_frequency_dict = plot_codesign_nav_breakdown_cross_workload(experiment_full_addr_list, all_res_column_name_number)
         plot_system_implication_analysis(experiment_full_addr_list, summary_res_column_name_number)
         plot_co_design_nav_breakdown_post_processing(experiment_full_addr_list, column_column_value_experiment_frequency_dict)
