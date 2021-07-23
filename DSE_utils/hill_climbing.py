@@ -2288,6 +2288,8 @@ class HillClimbing:
             sub_block_area_break_down = self.convert_dictionary_to_parsable_csv_with_underline(sim_dp.dp_stats.SOC_area_subtype_dict)
             block_area_break_down = self.convert_dictionary_to_parsable_csv_with_underline(sim_dp.dp_stats.SOC_area_dict)
             routing_complexity = sim_dp.dp_rep.get_hardware_graph().get_routing_complexity()
+            area_non_dram = sim_dp.dp_stats.get_system_complex_area_stacked_dram()["non_dram"]
+            area_dram = sim_dp.dp_stats.get_system_complex_area_stacked_dram()["dram"]
             simple_topology = sim_dp.dp_rep.get_hardware_graph().get_simplified_topology_code()
             channel_cnt = sim_dp.dp_rep.get_hardware_graph().get_number_of_channels()
             blk_cnt = sum([int(el) for el in simple_topology.split("_")])
@@ -2325,6 +2327,8 @@ class HillClimbing:
                                                                            mode="eliminate"),
                     "best_des_so_far_dist_to_goal_all": self.so_far_best_sim_dp.dp_stats.dist_to_goal(metrics_to_look_into=["area", "latency", "power"],
                                                                            mode="eliminate"),
+                    "best_des_so_far_area_non_dram": self.so_far_best_sim_dp.dp_stats.get_system_complex_area_stacked_dram()["non_dram"],
+                    "best_des_so_far_area_dram": self.so_far_best_sim_dp.dp_stats.get_system_complex_area_stacked_dram()["dram"],
                     "system block count" : blk_cnt,
                     "system PE count" : pe_cnt,
                     "system bus count" : bus_cnt,
@@ -2349,7 +2353,9 @@ class HillClimbing:
                     "block_area_break_down":block_area_break_down,
                     "sub_block_area_break_down":sub_block_area_break_down,
                 "task_cnt": task_cnt,
-                "channel_cnt":channel_cnt
+                "channel_cnt":channel_cnt,
+                "area_dram":area_dram,
+                "area_non_dram":area_non_dram
             }
 
             for metric in config.all_metrics:

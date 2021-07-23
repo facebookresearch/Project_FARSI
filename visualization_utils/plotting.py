@@ -237,7 +237,7 @@ def get_experiments_name(file_full_addr, all_res_column_name_number):
         for workload_latency in workload_latency:
             latency_budget_refined +="_" + (workload_latency.split("=")[0][0]+workload_latency.split("=")[1])
 
-        return latency_budget_refined+"_" + power_budget + "_" + area_budget+"_"+transformation_selection_mode
+        return latency_budget_refined[1:]+"_" + power_budget + "_" + area_budget+"_"+transformation_selection_mode
 
 def get_all_col_values_of_a_file(file_full_addr, all_res_column_name_number, column_name):
     column_number = all_res_column_name_number[column_name]
@@ -272,6 +272,161 @@ def get_all_col_values_of_a_folders(input_dir_names, input_all_res_column_name_n
 def extract_latency_values(values_):
     print("")
 
+
+def plot_codesign_rate_efficacy_cross_workloads_updated(input_dir_names, res_column_name_number):
+    #itrColNum = all_res_column_name_number["iteration cnt"]
+    #distColNum = all_res_column_name_number["dist_to_goal_non_cost"]
+    trueNum  =  all_res_column_name_number["move validity"]
+    move_name_number =  all_res_column_name_number["move name"]
+
+    # experiment_names
+    file_full_addr_list = []
+    for dir_name in input_dir_names:
+        file_full_addr = os.path.join(dir_name, "result_summary/FARSI_simple_run_0_1_all_reults.csv")
+        file_full_addr_list.append(file_full_addr)
+
+    axis_font = {'fontname': 'Arial', 'size': '4'}
+    x_column_name = "iteration cnt"
+    #y_column_name_list = ["high level optimization name", "exact optimization name", "architectural principle", "comm_comp"]
+    y_column_name_list = ["exact optimization name",  "architectural principle", "comm_comp", "workload"]
+
+    #y_column_name_list = ["high level optimization name", "exact optimization name", "architectural principle", "comm_comp"]
+
+
+
+    column_co_design_cnt = {}
+    column_non_co_design_cnt = {}
+    column_co_design_rate = {}
+    column_non_co_design_rate = {}
+    column_co_design_efficacy_avg = {}
+    column_non_co_design_efficacy_rate = {}
+    column_non_co_design_efficacy = {}
+    column_co_design_dist= {}
+    column_co_design_dist_avg= {}
+    column_co_design_improvement = {}
+    experiment_name_list = []
+    last_col_val = ""
+    for file_full_addr in file_full_addr_list:
+        experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
+        experiment_name_list.append(experiment_name)
+        column_co_design_dist_avg[experiment_name] = {}
+        column_co_design_efficacy_avg[experiment_name] = {}
+
+        column_co_design_cnt = {}
+        for y_column_name in y_column_name_list:
+            y_column_number = res_column_name_number[y_column_name]
+            x_column_number = res_column_name_number[x_column_name]
+
+
+            dis_to_goal_column_number = res_column_name_number["dist_to_goal_non_cost"]
+            ref_des_dis_to_goal_column_number = res_column_name_number["ref_des_dist_to_goal_non_cost"]
+            column_co_design_cnt[y_column_name] = []
+            column_non_co_design_cnt[y_column_name] = []
+
+            column_non_co_design_efficacy[y_column_name] = []
+            column_co_design_dist[y_column_name] = []
+            column_co_design_improvement[y_column_name] = []
+            column_co_design_rate[y_column_name] = []
+
+            all_values = get_all_col_values_of_a_folders(input_dir_names, all_res_column_name_number, y_column_name)
+
+            last_row_change = ""
+            with open(file_full_addr, newline='') as csvfile:
+                resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+                rows = list(resultReader)
+                for i, row in enumerate(rows):
+                    if i >= 1:
+                        last_row = rows[i - 1]
+                        if row[y_column_number] not in all_values or row[move_name_number]=="identity":
+                            continue
+
+                        col_value = row[y_column_number]
+                        col_values = col_value.split(";")
+                        for idx, col_val in enumerate(col_values):
+
+
+                            # only for improvement
+                            if float(row[ref_des_dis_to_goal_column_number]) - float(row[dis_to_goal_column_number]) < 0:
+                                continue
+
+                            delta_x_column = (float(row[x_column_number]) - float(last_row[x_column_number]))/len(col_values)
+                            delta_improvement = (float(last_row[dis_to_goal_column_number]) - float(row[dis_to_goal_column_number]))/(float(last_row[dis_to_goal_column_number])*len(col_values))
+
+
+                            if not col_val == last_col_val and i > 1:
+                                if not last_row_change == "":
+                                    distance_from_last_change =  float(last_row[x_column_number]) - float(last_row_change[x_column_number]) + idx * delta_x_column
+                                    column_co_design_dist[y_column_name].append(distance_from_last_change)
+                                    improvement_from_last_change =  (float(last_row[dis_to_goal_column_number]) - float(row[dis_to_goal_column_number]))/float(last_row[dis_to_goal_column_number])  + idx *delta_improvement
+                                    column_co_design_improvement[y_column_name].append(improvement_from_last_change)
+
+                                last_row_change = copy.deepcopy(last_row)
+
+
+                            last_col_val = col_val
+
+
+
+            # co_des cnt
+            # we ignore the first element as the first element distance is always zero
+            co_design_dist_sum = 0
+            co_design_efficacy_sum = 0
+            avg_ctr = 1
+            co_design_dist_selected = column_co_design_dist[y_column_name]
+            co_design_improvement_selected = column_co_design_improvement[y_column_name]
+            for idx,el in enumerate(column_co_design_dist[y_column_name]):
+                if idx == len(co_design_dist_selected) - 1:
+                    break
+                co_design_dist_sum += (column_co_design_dist[y_column_name][idx] + column_co_design_dist[y_column_name][idx+1])
+                co_design_efficacy_sum += (column_co_design_improvement[y_column_name][idx] + column_co_design_improvement[y_column_name][idx+1])
+                #/(column_co_design_dist[y_column_name][idx] + column_co_design_dist[y_column_name][idx+1])
+                avg_ctr+=1
+
+            column_co_design_improvement = {}
+            column_co_design_dist_avg[experiment_name][y_column_name]= co_design_dist_sum/avg_ctr
+            column_co_design_efficacy_avg[experiment_name][y_column_name] = co_design_efficacy_sum/avg_ctr
+
+        #result = {"rate":{}, "efficacy":{}}
+        #rate_column_co_design = {}
+
+    plt.figure()
+    plotdata = pd.DataFrame(column_co_design_dist_avg, index=y_column_name_list)
+    fontSize = 10
+    plotdata.plot(kind='bar', fontsize=fontSize)
+    plt.xticks(fontsize=fontSize, rotation=6)
+    plt.yticks(fontsize=fontSize)
+    plt.xlabel("co design parameter", fontsize=fontSize)
+    plt.ylabel("co design distance", fontsize=fontSize)
+    plt.title("co desgin distance of different parameters",  fontsize=fontSize)
+
+    # dump in the top folder
+    output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+    output_dir = os.path.join(output_base_dir, "cross_workloads/co_design_rate")
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    plt.savefig(os.path.join(output_dir,"_".join(experiment_name_list) +"_"+"co_design_avg_dist"+'_'.join(y_column_name_list)+".png"))
+    plt.close('all')
+
+
+    plt.figure()
+    plotdata = pd.DataFrame(column_co_design_efficacy_avg, index=y_column_name_list)
+    fontSize = 10
+    plotdata.plot(kind='bar', fontsize=fontSize)
+    plt.xticks(fontsize=fontSize, rotation=6)
+    plt.yticks(fontsize=fontSize)
+    plt.xlabel("co design parameter", fontsize=fontSize)
+    plt.ylabel("co design dis", fontsize=fontSize)
+    plt.title("co desgin efficacy of different parameters",  fontsize=fontSize)
+
+    # dump in the top folder
+    output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+    output_dir = os.path.join(output_base_dir, "cross_workloads/co_design_rate")
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    plt.savefig(os.path.join(output_dir,"_".join(experiment_name_list) +"_"+"co_design_efficacy"+'_'.join(y_column_name_list)+".png"))
+    plt.close('all')
 
 def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_number):
     #itrColNum = all_res_column_name_number["iteration cnt"]
@@ -554,17 +709,27 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
         experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
         experiment_names.append(experiment_name)
 
+    color_values = ["r","b","y","black","brown","purple"]
+    column_name_color_val_dict = {"best_des_so_far_power":"purple", "power_budget":"purple","best_des_so_far_area_non_dram":"blue", "area_budget":"blue",
+                                  "latency_budget_hpvm_cava":"orange", "latency_budget_audio_decoder":"yellow", "latency_budget_edge_detection":"red",
+                                  "best_des_so_far_latency_hpvm_cava":"orange", "best_des_so_far_latency_audio_decoder": "yellow","best_des_so_far_latency_edge_detection": "red",
+                                  "latency_budget":"white"
+                                  }
+
     axis_font = {'size': '20'}
     fontSize = 20
     x_column_name = "iteration cnt"
-    y_column_name_list = ["power", "area", "latency"]
+    y_column_name_list = ["power", "area_non_dram", "latency", "latency_budget", "power_budget","area_budget"]
 
-    prefix = "best_des_so_far_"
     experiment_column_value = {}
     for file_full_addr in file_full_addr_list:
         experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
         experiment_column_value[experiment_name] = {}
         for y_column_name in y_column_name_list:
+            if "budget"  in y_column_name:
+                prefix = ""
+            else:
+                prefix = "best_des_so_far_"
             y_column_name = prefix+y_column_name
             y_column_number = res_column_name_number[y_column_name]
             x_column_number = res_column_name_number[x_column_name]
@@ -592,16 +757,16 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
                             else:
                                 value_to_add = (float(row[x_column_number]), col_val)
 
-                            if y_column_name in [prefix+"latency"]:
+                            if y_column_name in [prefix+"latency", prefix+"latency_budget"] :
                                 new_tuple = (value_to_add[0], 1000*float(value_to_add[1][1]))
                                 if y_column_name+"_"+value_to_add[1][0] not in experiment_column_value[experiment_name].keys():
                                     experiment_column_value[experiment_name][y_column_name + "_" + value_to_add[1][0]] = []
                                 experiment_column_value[experiment_name][y_column_name+"_"+value_to_add[1][0]].append(new_tuple)
-                            if y_column_name in [prefix+"power"]:
+                            if y_column_name in [prefix+"power", prefix+"power_budget"]:
                                new_tuple = (value_to_add[0], float(value_to_add[1])*1000)
                                experiment_column_value[experiment_name][y_column_name].append(new_tuple)
-                            elif y_column_name in [prefix+"area"]:
-                                new_tuple = (value_to_add[0], float(value_to_add[1]) * 1000)
+                            elif y_column_name in [prefix+"area_non_dram", prefix+"area_budget"]:
+                                new_tuple = (value_to_add[0], float(value_to_add[1]) * 1000000)
                                 experiment_column_value[experiment_name][y_column_name].append(new_tuple)
 
             # prepare for plotting and plot
@@ -611,7 +776,13 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
                 x_values = [el[0] for el in values]
                 y_values = [el[1] for el in values]
                 ax.set_yscale('log')
-                ax.plot(x_values, y_values, label=column)
+                if "budget" in column:
+                    marker = 'x'
+                    alpha_ = .05
+                else:
+                    marker = "_"
+                    alpha_ = 1
+                ax.plot(x_values, y_values, label=column, c=column_name_color_val_dict[column], marker=marker, alpha=alpha_)
 
             #ax.set_title("experiment vs system implicaction")
             ax.set_xlabel(x_column_name)
@@ -1653,11 +1824,11 @@ if __name__ == "__main__":
         column_column_value_experiment_frequency_dict = plot_codesign_nav_breakdown_cross_workload(experiment_full_addr_list, all_res_column_name_number)
         plot_system_implication_analysis(experiment_full_addr_list, summary_res_column_name_number)
         plot_co_design_nav_breakdown_post_processing(experiment_full_addr_list, column_column_value_experiment_frequency_dict)
+        plot_codesign_rate_efficacy_cross_workloads_updated(experiment_full_addr_list, all_res_column_name_number)
 
     if "single_workload" in config_plotting.plot_list:
         # single workload
         plot_codesign_progression_per_workloads(experiment_full_addr_list, all_res_column_name_number)
-        plot_codesign_rate_efficacy_per_workloads(experiment_full_addr_list, all_res_column_name_number)
         _ = plot_codesign_nav_breakdown_per_workload(experiment_full_addr_list, all_res_column_name_number)
         plot_convergence_per_workloads(experiment_full_addr_list, all_res_column_name_number)
 

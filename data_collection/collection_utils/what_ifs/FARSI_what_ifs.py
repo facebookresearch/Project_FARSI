@@ -213,6 +213,8 @@ def write_one_results(sim_dp, dse, reason_to_terminate, case_study, result_dir_s
         output_fh_minimal.write("comm_comp" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("high_level_optimization" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("architectural_principle" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("area_dram" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("area_non_dram" + ",")  # for now only write the latency accuracy as the other
 
     output_fh_minimal.write("\n")
     for metric in config.all_metrics:
@@ -326,8 +328,8 @@ def write_one_results(sim_dp, dse, reason_to_terminate, case_study, result_dir_s
     output_fh_minimal.write(str(comm_comp)+",")
     output_fh_minimal.write(str(high_level_optimization)+",")
     output_fh_minimal.write(str(architectural_variable_to_improve)+",")
-
-
+    output_fh_minimal.write(str(sim_dp.dp_stats.get_system_complex_area_stacked_dram()["dram"]) +",")
+    output_fh_minimal.write(str(sim_dp.dp_stats.get_system_complex_area_stacked_dram()["non_dram"]) +",")
     output_fh_minimal.close()
 
 
