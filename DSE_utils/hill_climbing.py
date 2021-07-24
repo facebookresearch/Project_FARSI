@@ -2329,6 +2329,8 @@ class HillClimbing:
                                                                            mode="eliminate"),
                     "best_des_so_far_area_non_dram": self.so_far_best_sim_dp.dp_stats.get_system_complex_area_stacked_dram()["non_dram"],
                     "best_des_so_far_area_dram": self.so_far_best_sim_dp.dp_stats.get_system_complex_area_stacked_dram()["dram"],
+                    #"area_breakdown_subtype":self.convert_dictionary_to_parsable_csv_with_semi_column(sim_dp.dp_stats.SOC_area_subtype_dict.keys()),
+                    #"best_des_so_far_area_breakdown_subtype":self.so_far_best_sim_dp.dp_stats.convert_dictionary_to_parsable_csv_with_semi_column(sim_dp.dp_stats.SOC_area_subtype_dict.keys()),
                     "system block count" : blk_cnt,
                     "system PE count" : pe_cnt,
                     "system bus count" : bus_cnt,

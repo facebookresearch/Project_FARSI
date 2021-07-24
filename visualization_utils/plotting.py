@@ -778,7 +778,7 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
                 ax.set_yscale('log')
                 if "budget" in column:
                     marker = 'x'
-                    alpha_ = .05
+                    alpha_ = .3
                 else:
                     marker = "_"
                     alpha_ = 1
@@ -866,7 +866,7 @@ def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
         # plt.show()
         plt.close('all')
 
-def plot_system_implication_analysis(input_dir_names, res_column_name_number):
+def plot_system_implication_analysis(input_dir_names, res_column_name_number, case_study):
     # experiment_names
     experiment_names = []
     file_full_addr_list = []
@@ -876,8 +876,9 @@ def plot_system_implication_analysis(input_dir_names, res_column_name_number):
         experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
         experiment_names.append(experiment_name)
 
-    axis_font = {'size': '20'}
-    column_name_list = ["system block count", "routing complexity", "system PE count", "system memory count", "system bus count"]#, "channel_cnt"]
+    axis_font = {'size': '10'}
+
+    column_name_list = list(case_study.values())[0]
 
     column_experiment_value = {}
     #column_name = "move name"
@@ -909,17 +910,18 @@ def plot_system_implication_analysis(input_dir_names, res_column_name_number):
     # plt.figure()
     index = experiment_names
     plotdata = pd.DataFrame(column_experiment_value, index=index)
-    plotdata.plot(kind='bar')
-    plt.xlabel("experiments", **axis_font)
+    plotdata.plot(kind='bar', fontsize=9, rot=5)
+    plt.legend(loc="best", fontsize="9")
+    plt.xlabel("experiments", fontsize="10")
     plt.ylabel("system implication")
-    plt.title("experiment vs system implicaction")
+    #plt.title("experiment vs system implicaction")
     # dump in the top folder
     output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
     output_dir = os.path.join(output_base_dir, "cross_workloads/system_implications")
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir,"system_implication.png"))
+    #plt.tight_layout()
+    plt.savefig(os.path.join(output_dir,list(case_study.keys())[0]+".png"))
     plt.close('all')
 
 
@@ -1032,7 +1034,7 @@ def plot_codesign_nav_breakdown_per_workload(input_dir_names, input_all_res_colu
 
         for col_val, column_name_val in column_column_value_frequency_dict.items():
             for column_name, val in column_name_val.items():
-                column_column_value_frequency_dict[col_val][column_name] /= total_cnt
+                column_column_value_frequency_dict[col_val][column_name] /= max(total_cnt,1)
 
         plotdata = pd.DataFrame(column_column_value_frequency_dict, index=index)
         plotdata.plot(kind='bar', stacked=True, figsize=(10, 10))
@@ -1818,11 +1820,25 @@ if __name__ == "__main__":
     # according to the plot type, plot
     all_res_column_name_number = get_column_name_number(experiment_full_addr_list[0], "all")
     summary_res_column_name_number = get_column_name_number(experiment_full_addr_list[0], "simple")
+    case_studies = {}
+    case_studies["bandwidth_analysis"] = ["local_bus_avg_theoretical_bandwidth", "system_bus_theoretical_bandwidth",
+                                          "local_bus_avg_bandwidth", "system_bus_avg_bandwidth",
+                                          "local_bus_max_bandwidth", "system_bus_max_bandwidth"]
+    case_studies["traffic_analysis"] = ["global_total_traffic", "local_total_traffic"]
+    case_studies["area_analysis"] = ["global_memory_total_area", "local_memory_total_area", "ips_total_area",
+                                     "gpps_total_area"]
+    case_studies["accel_paral_analysis"] = ["avg_accel_parallelism", "max_accel_parallelism", "ip_cnt", "gpp_cnt"]
+    case_studies["system_complexity"] = ["system block count", "routing complexity", "system PE count",
+                                         "system memory count", "system bus count"]  # , "channel_cnt"]
+
     if "cross_workloads" in config_plotting.plot_list:
         # get column orders (assumption is that the column order doesn't change between experiments)
         plot_convergence_cross_workloads(experiment_full_addr_list, all_res_column_name_number)
         column_column_value_experiment_frequency_dict = plot_codesign_nav_breakdown_cross_workload(experiment_full_addr_list, all_res_column_name_number)
-        plot_system_implication_analysis(experiment_full_addr_list, summary_res_column_name_number)
+
+        for key, val in case_studies.items():
+            case_study = {key:val}
+            plot_system_implication_analysis(experiment_full_addr_list, summary_res_column_name_number, case_study)
         plot_co_design_nav_breakdown_post_processing(experiment_full_addr_list, column_column_value_experiment_frequency_dict)
         plot_codesign_rate_efficacy_cross_workloads_updated(experiment_full_addr_list, all_res_column_name_number)
 

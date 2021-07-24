@@ -282,7 +282,7 @@ cacti_min_memory_size_in_bytes =  2048 # bellow this value cacti errors out. We 
 
 transformation_selection_mode = "arch-aware"  # choose from {random, arch-aware}
 
-all_available_transformations = ["migrate", "swap", "split", "split_swap", "transfer", "routing"]
+all_available_transformations = ["migrate", "swap", "split", "split_swap"]#, "transfer", "routing"]
 if RUN_VERIFICATION_AT_ALL:
     all_available_transformations = ["migrate", "swap", "split", "split_swap"]
 

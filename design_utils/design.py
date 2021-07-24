@@ -648,6 +648,275 @@ class DPStatsContainer():
             print("reduction mode "+ self.reduction_mode + ' is not defined')
             exit(0)
 
+
+    def get_number_blocks_of_all_sub_types(self):
+        subtype_cnt = []
+        for block in self.dp_rep.get_blocks():
+            if block.subtype not in subtype_cnt:
+                subtype_cnt[block.subtype] = 0
+            subtype_cnt[block.subtype] += 1
+        return subtype_cnt
+
+    def get_compute_system_attr(self):
+        ips = [el for el in self.dp_rep.get_blocks() if el.subtype == "ip"]
+        gpps = [el for el in self.dp_rep.get_blocks() if el.subtype == "gpp"]
+
+
+        # get frequency data
+        ips_freqs = [mem.get_block_freq() for mem  in ips]
+        gpp_freqs = [mem.get_block_freq() for mem  in gpps]
+        if len(ips_freqs) == 0:
+            ips_avg_freq =  0
+        else:
+            ips_avg_freq=  sum(ips_freqs)/max(len(ips_freqs),1)
+
+        if len(gpp_freqs) == 0:
+            gpps_avg_freq =  0
+        else:
+            gpps_avg_freq=  sum(gpp_freqs)/max(len(gpp_freqs),1)
+
+        # get area data
+        ips_area = [mem.get_area() for mem in ips]
+        gpp_area = [mem.get_area() for mem in gpps]
+        if len(ips_area) == 0:
+            ips_total_area = 0
+        else:
+            ips_total_area = sum(ips_area)
+
+        if len(gpp_area) == 0:
+            gpps_total_area = 0
+        else:
+            gpps_total_area = sum(gpp_area)
+
+
+        phase_accelerator_parallelism = {}
+        for phase, krnls in self.dp_rep.phase_krnl_present.items():
+            accelerators_in_parallel =  []
+            for krnl in krnls:
+                accelerators_in_parallel.extend([blk for blk in krnl.get_blocks() if blk.subtype == "ip"])
+            phase_accelerator_parallelism[phase] = len(accelerators_in_parallel)
+
+        avg_accel_parallelism = sum(list(phase_accelerator_parallelism.values()))/len(list(phase_accelerator_parallelism.values()))
+        max_accel_parallelism = max(list(phase_accelerator_parallelism.values()))
+
+        return {
+                "avg_accel_parallelism": avg_accel_parallelism, "max_accel_parallelism":max_accel_parallelism,
+                "ip_cnt":len(ips), "gpp_cnt": len(gpps),
+                "ips_avg_freq": ips_avg_freq, "gpps_avg_freq":gpps_avg_freq,
+                "ips_total_area": ips_total_area, "gpps_total_area":gpps_total_area,
+                "pe_total_area":ips_total_area+gpps_total_area}
+
+
+    def get_memory_system_attr(self):
+        memory_system_attr = {}
+        local_memories = [el for el in self.dp_rep.get_blocks() if el.subtype == "sram"]
+        global_memories = [el for el in self.dp_rep.get_blocks() if el.subtype == "dram"]
+
+        # get frequency data
+        local_memory_freqs = [mem.get_block_freq() for mem  in local_memories]
+        global_memory_freqs = [mem.get_block_freq() for mem  in global_memories]
+        if len(local_memory_freqs) == 0:
+            local_memory_avg_freq =  0
+        else:
+            local_memory_avg_freq=  sum(local_memory_freqs)/max(len(local_memory_freqs),1)
+
+        if len(global_memory_freqs) == 0:
+            global_memory_avg_freq =  0
+        else:
+            global_memory_avg_freq=  sum(global_memory_freqs)/max(len(global_memory_freqs),1)
+
+
+        # get area data
+        local_memory_area = [mem.get_area() for mem in local_memories]
+        global_memory_area = [mem.get_area() for mem in global_memories]
+        if len(local_memory_area) == 0:
+            local_memory_total_area = 0
+        else:
+            local_memory_total_area = sum(local_memory_area)
+
+        if len(global_memory_area) == 0:
+            global_memory_total_area = 0
+        else:
+            global_memory_total_area = sum(global_memory_area)
+
+        # get traffic data
+        local_traffic = 0
+        for mem in local_memories:
+            block_s_krnels = self.get_krnels_of_block(mem)
+            for krnl in block_s_krnels:
+                local_traffic += krnl.calc_traffic_per_block(mem)
+
+        global_traffic = 0
+        for mem in global_memories:
+            block_s_krnels = self.get_krnels_of_block(mem)
+            for krnl in block_s_krnels:
+                global_traffic += krnl.calc_traffic_per_block(mem)
+
+        return {"local_total_traffic":local_traffic, "global_total_traffic":global_traffic,
+                "global_memory_avg_freq": global_memory_avg_freq, "local_memory_avg_freq":local_memory_avg_freq,
+                "global_memory_total_area": global_memory_total_area, "local_memory_total_area":local_memory_total_area,
+                "memory_total_area":global_memory_total_area+local_memory_total_area}
+
+
+
+    def get_krnels_of_block(self, block):
+        block_s_tasks = block.get_tasks_of_block()
+        block_s_krnels = []
+        # get krnels of block
+        for task in block_s_tasks:
+            for krnl in self.__kernels:
+                if krnl.get_task_name() == task.get_name():
+                    block_s_krnels.append(krnl)
+        return block_s_krnels
+
+    def get_bus_system_attr(self):
+        bus_system_attr = {}
+        # in reality there is only one system bus
+        for el, val in self.infer_system_bus_attr().items():
+            bus_system_attr[el] = val
+        for el, val in self.infer_local_buses_attr().items():
+            bus_system_attr[el] = val
+
+        return bus_system_attr
+
+
+    def infer_system_bus_attr(self):
+        # has to get the max, as for now, system bus is infered and not imposed
+        highest_freq  = 0
+        highest_width = 0
+        system_mems = []
+        for block in self.dp_rep.get_blocks():
+            if block.subtype == "dram":
+                system_mems.append(block)
+
+
+        system_mems_avg_work_rates = []
+        system_mems_max_work_rates = []
+        for mem in system_mems:
+            block_work_phase = {}
+            phase_write_work_rate = {}
+            phase_read_work_rate = {}
+            krnls_of_block = self.get_krnels_of_block(mem)
+            for krnl in krnls_of_block:
+                for  phase, work in krnl.block_phase_write_dict[mem].items():
+                    if phase not in phase_write_work_rate.keys():
+                        phase_write_work_rate[phase] = 0
+
+                    if krnl.stats.phase_latency_dict[phase] == 0:
+                        phase_write_work_rate[phase] += 0
+                    else:
+                        phase_write_work_rate[phase] += (work/krnl.stats.phase_latency_dict[phase])
+
+            for krnl in krnls_of_block:
+                for  phase, work in krnl.block_phase_read_dict[mem].items():
+                    if phase not in phase_read_work_rate.keys():
+                        phase_read_work_rate[phase] = 0
+
+                    if krnl.stats.phase_latency_dict[phase] == 0:
+                        phase_read_work_rate[phase] += 0
+                    else:
+                        phase_read_work_rate[phase] += (work/krnl.stats.phase_latency_dict[phase])
+
+            avg_write_work_rate = sum(list(phase_write_work_rate.values()))/len(list(phase_write_work_rate.values()))
+            avg_read_work_rate = sum(list(phase_read_work_rate.values()))/len(list(phase_read_work_rate.values()))
+            max_write_work_rate = max(list(phase_write_work_rate.values()))
+            max_read_work_rate = max(list(phase_read_work_rate.values()))
+            system_mems_avg_work_rates.append(max(avg_read_work_rate, avg_write_work_rate))
+            system_mems_max_work_rates.append(max(max_write_work_rate, max_read_work_rate))
+
+
+        # there might be no system bus at the moment
+        if len(system_mems) == 0:
+            count = 0
+            system_mem_theoretical_bandwidth = 0
+            highest_width = 0
+            highest_freq= 0
+            system_mem_avg_work_rate = system_mem_max_work_rate = 0
+        else:
+            count = 1
+            highest_width= max([system_mem.get_block_bus_width() for system_mem in system_mems])
+            highest_freq= max([system_mem.get_block_freq() for system_mem in system_mems])
+            system_mem_theoretical_bandwidth = highest_width*highest_freq
+            system_mem_avg_work_rate = sum(system_mems_avg_work_rates)/len(system_mems_avg_work_rates)
+            # averate of max
+            system_mem_max_work_rate = sum(system_mems_max_work_rates)/len(system_mems_max_work_rates)
+
+        return {"system_bus_count":count, "system_bus_avg_freq":highest_freq, "system_bus_avg_bus_width":highest_width,
+                "system_bus_theoretical_bandwidth":system_mem_theoretical_bandwidth,
+                "system_bus_avg_bandwidth": system_mem_avg_work_rate,
+                "system_bus_max_bandwidth": system_mem_max_work_rate
+                }
+
+
+    def infer_if_is_a_local_bus(self, block):
+        if block.type == "ic":
+            block_ic_mem_neighs = [el for el in block.get_neighs() if el.type == "mem"]
+            block_ic_dram_mem_neighs = [el for el in block.get_neighs() if el.subtype == "dram"]
+            if not len(block_ic_mem_neighs) == len(block_ic_dram_mem_neighs):
+                return True
+        return False
+
+    # find the number buses that do not have dram connected to them.
+    # Note that it will be better if we have already set the system bus and not infereing it.
+    # TODO for later
+    def infer_local_buses_attr(self):
+        attr_val = {}
+        # get all the local buses
+        local_buses = []
+        for block in self.dp_rep.get_blocks():
+            if self.infer_if_is_a_local_bus(block):
+                local_buses.append(block)
+
+        # get all the frequenies
+        freq_list = []
+        for bus in local_buses:
+            freq_list.append(bus.get_block_freq())
+
+        # get all the bus widths
+        bus_width_list = []
+        for bus in local_buses:
+            bus_width_list.append(bus.get_block_bus_width())
+
+        bus_bandwidth_list = []
+        for bus in local_buses:
+            bus_bandwidth_list.append(bus.get_block_bus_width()*bus.get_block_freq())
+
+        local_buses_avg_work_rate_list = []
+        local_buses_max_work_rate_list = []
+        for bus in local_buses:
+            work_rate = []
+            for pipe_cluster in bus.get_pipe_clusters():
+                pathlet_phase_work_rate = pipe_cluster.get_pathlet_phase_work_rate()
+                for pathlet, phase_work_rate in pathlet_phase_work_rate.items():
+                    if not pathlet.get_out_pipe().get_slave().subtype == "dram":
+                        work_rate.extend(list(phase_work_rate.values()))
+            local_buses_avg_work_rate_list.append(sum(work_rate)/len(work_rate))
+            local_buses_max_work_rate_list.append(max(work_rate))
+
+
+        attr_val["local_bus_count"] = len(local_buses)
+        if len(local_buses) == 0:
+            attr_val["local_bus_avg_freq"] = 0
+            attr_val["local_bus_avg_bus_width"]  = 0
+            attr_val["local_bus_avg_bus_theoretical_bandwidth"]  = 0
+            attr_val["local_bus_avg_bus_bandwidth"]  = 0
+
+        else:
+            attr_val["avg_freq"] = sum(freq_list) / len(freq_list)
+            attr_val["local_bus_avg_bus_width"]  = sum(bus_width_list)/len(freq_list)
+            attr_val["local_bus_avg_theoretical_bandwidth"]  = sum(bus_bandwidth_list)/len(bus_bandwidth_list)
+            attr_val["local_bus_avg_bandwidth"]  = sum(local_buses_avg_work_rate_list)/len(local_buses_avg_work_rate_list)
+            # getting average of max
+            attr_val["local_bus_max_bandwidth"]  = sum(local_buses_max_work_rate_list)/len(local_buses_max_work_rate_list)
+
+
+        return attr_val
+
+
+
+
+
+
     # iterate through all the design points and
     # collect their stats
     def collect_stats(self):

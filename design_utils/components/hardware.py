@@ -1018,6 +1018,8 @@ class PipeCluster:
                 self.pathlet_phase_work_rate[pathlet][phase_num] = 0
             self.pathlet_phase_work_rate[pathlet][phase_num] += work_rate
 
+
+
     def get_pathlet_phase_work_rate(self):
         return self.pathlet_phase_work_rate
 

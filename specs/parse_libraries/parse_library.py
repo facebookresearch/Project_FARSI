@@ -650,19 +650,23 @@ def collect_budgets(workloads_to_consider, budget_misc_knobs, library_dir, prefi
     budgets_dict["glass"]["latency"] = {}
 
     for metric in config.budgetted_metrics:
-        if metric in ["power", "area"]:
+        if metric in ["power", "area"] and not len(workloads_to_consider) == 1:
             budgets_dict["glass"][metric] = (df.loc[df['Workload'] == "all"])[metric].values[0]
             budgets_dict["glass"][metric] *= float(base_budget_scaling[metric])
             # this is a hack for now. change later.
             # but used for budget sweep for now
             #budgets_dict["glass"][metric] = config.budget_dict["glass"][metric]
-        elif metric in ["latency"]:
+        elif metric in ["latency"] or len(workloads_to_consider)==1:
             for idx in range(0, len(workloads)):
                 workload_name = workloads[idx]
                 if workload_name == "all" or workload_name not in workloads_to_consider:
                     continue
-                budgets_dict["glass"][metric][workload_name] = (df.loc[df['Workload'] == workload_name])[metric].values[0]
-                budgets_dict["glass"][metric][workload_name] *= float(base_budget_scaling[metric])
+                if metric == "latency":
+                    budgets_dict["glass"][metric][workload_name] = (df.loc[df['Workload'] == workload_name])[metric].values[0]
+                    budgets_dict["glass"][metric][workload_name] *= float(base_budget_scaling[metric])
+                else:
+                    budgets_dict["glass"][metric] = (df.loc[df['Workload'] == workload_name])[metric].values[0]
+                    budgets_dict["glass"][metric] *= float(base_budget_scaling[metric])
 
     for metric in config.other_metrics:
         other_values_dict["glass"][metric] = (df.loc[df['Workload'] == "all"])[metric].values[0]
