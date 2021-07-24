@@ -910,7 +910,11 @@ def plot_system_implication_analysis(input_dir_names, res_column_name_number, ca
     # plt.figure()
     index = experiment_names
     plotdata = pd.DataFrame(column_experiment_value, index=index)
-    plotdata.plot(kind='bar', fontsize=9, rot=5)
+    if list(case_study.keys())[0] in ["bandwidth_analysis","traffic_analysis"]:
+        plotdata.plot(kind='bar', fontsize=9, rot=5, log=True)
+    else:
+        plotdata.plot(kind='bar', fontsize=9, rot=5)
+
     plt.legend(loc="best", fontsize="9")
     plt.xlabel("experiments", fontsize="10")
     plt.ylabel("system implication")
@@ -1821,15 +1825,15 @@ if __name__ == "__main__":
     all_res_column_name_number = get_column_name_number(experiment_full_addr_list[0], "all")
     summary_res_column_name_number = get_column_name_number(experiment_full_addr_list[0], "simple")
     case_studies = {}
-    case_studies["bandwidth_analysis"] = ["local_bus_avg_theoretical_bandwidth", "system_bus_theoretical_bandwidth",
-                                          "local_bus_avg_bandwidth", "system_bus_avg_bandwidth",
-                                          "local_bus_max_bandwidth", "system_bus_max_bandwidth"]
+    case_studies["bandwidth_analysis"] = ["local_bus_avg_theoretical_bandwidth", "local_bus_max_actual_bandwidth", "local_bus_avg_actual_bandwidth",
+                                          "system_bus_avg_theoretical_bandwidth", "system_bus_max_actual_bandwidth", "system_bus_avg_actual_bandwidth"]
     case_studies["traffic_analysis"] = ["global_total_traffic", "local_total_traffic"]
     case_studies["area_analysis"] = ["global_memory_total_area", "local_memory_total_area", "ips_total_area",
                                      "gpps_total_area"]
-    case_studies["accel_paral_analysis"] = ["avg_accel_parallelism", "max_accel_parallelism", "ip_cnt", "gpp_cnt"]
+    case_studies["accel_paral_analysis"] = ["ip_cnt","max_accel_parallelism", "avg_accel_parallelism",
+                                            "gpp_cnt", "max_gpp_parallelism", "avg_gpp_parallelism"]
     case_studies["system_complexity"] = ["system block count", "routing complexity", "system PE count",
-                                         "system memory count", "system bus count"]  # , "channel_cnt"]
+                                         "local_mem_cnt", "local_bus_cnt"]  # , "channel_cnt"]
 
     if "cross_workloads" in config_plotting.plot_list:
         # get column orders (assumption is that the column order doesn't change between experiments)
@@ -1847,10 +1851,6 @@ if __name__ == "__main__":
         plot_codesign_progression_per_workloads(experiment_full_addr_list, all_res_column_name_number)
         _ = plot_codesign_nav_breakdown_per_workload(experiment_full_addr_list, all_res_column_name_number)
         plot_convergence_per_workloads(experiment_full_addr_list, all_res_column_name_number)
-
-
-        # post processing
-
 
     # get the the workload_set folder
     # each workload_set has a bunch of experiments underneath it

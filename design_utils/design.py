@@ -694,13 +694,38 @@ class DPStatsContainer():
             accelerators_in_parallel =  []
             for krnl in krnls:
                 accelerators_in_parallel.extend([blk for blk in krnl.get_blocks() if blk.subtype == "ip"])
+            if len(accelerators_in_parallel)  == 0:
+                continue
             phase_accelerator_parallelism[phase] = len(accelerators_in_parallel)
 
-        avg_accel_parallelism = sum(list(phase_accelerator_parallelism.values()))/len(list(phase_accelerator_parallelism.values()))
-        max_accel_parallelism = max(list(phase_accelerator_parallelism.values()))
+        if len(phase_accelerator_parallelism.keys()) == 0:
+            avg_accel_parallelism = 0
+            max_accel_parallelism = 0
+        else:
+            avg_accel_parallelism = sum(list(phase_accelerator_parallelism.values()))/len(list(phase_accelerator_parallelism.values()))
+            max_accel_parallelism = max(list(phase_accelerator_parallelism.values()))
+
+
+        phase_gpp_parallelism = {}
+        for phase, krnls in self.dp_rep.phase_krnl_present.items():
+            gpps_in_parallel =  []
+            for krnl in krnls:
+                gpps_in_parallel.extend([blk for blk in krnl.get_blocks() if blk.subtype == "gpp"])
+            if len(gpps_in_parallel)  == 0:
+                continue
+            phase_gpp_parallelism[phase] = len(gpps_in_parallel)
+
+        if len(phase_gpp_parallelism.keys()) == 0:
+            avg_gpp_parallelism = 0
+            max_gpp_parallelism = 0
+        else:
+            avg_gpp_parallelism = sum(list(phase_gpp_parallelism.values()))/len(list(phase_gpp_parallelism.values()))
+            max_gpp_parallelism = max(list(phase_gpp_parallelism.values()))
+
 
         return {
                 "avg_accel_parallelism": avg_accel_parallelism, "max_accel_parallelism":max_accel_parallelism,
+                "avg_gpp_parallelism": avg_gpp_parallelism, "max_gpp_parallelism": max_gpp_parallelism,
                 "ip_cnt":len(ips), "gpp_cnt": len(gpps),
                 "ips_avg_freq": ips_avg_freq, "gpps_avg_freq":gpps_avg_freq,
                 "ips_total_area": ips_total_area, "gpps_total_area":gpps_total_area,
@@ -755,7 +780,8 @@ class DPStatsContainer():
         return {"local_total_traffic":local_traffic, "global_total_traffic":global_traffic,
                 "global_memory_avg_freq": global_memory_avg_freq, "local_memory_avg_freq":local_memory_avg_freq,
                 "global_memory_total_area": global_memory_total_area, "local_memory_total_area":local_memory_total_area,
-                "memory_total_area":global_memory_total_area+local_memory_total_area}
+                "memory_total_area":global_memory_total_area+local_memory_total_area,
+                "local_mem_cnt":len(local_memory_freqs)}
 
 
 
@@ -842,9 +868,9 @@ class DPStatsContainer():
             system_mem_max_work_rate = sum(system_mems_max_work_rates)/len(system_mems_max_work_rates)
 
         return {"system_bus_count":count, "system_bus_avg_freq":highest_freq, "system_bus_avg_bus_width":highest_width,
-                "system_bus_theoretical_bandwidth":system_mem_theoretical_bandwidth,
-                "system_bus_avg_bandwidth": system_mem_avg_work_rate,
-                "system_bus_max_bandwidth": system_mem_max_work_rate
+                "system_bus_avg_theoretical_bandwidth":system_mem_theoretical_bandwidth,
+                "system_bus_avg_actual_bandwidth": system_mem_avg_work_rate,
+                "system_bus_max_actual_bandwidth": system_mem_max_work_rate
                 }
 
 
@@ -898,17 +924,18 @@ class DPStatsContainer():
         if len(local_buses) == 0:
             attr_val["local_bus_avg_freq"] = 0
             attr_val["local_bus_avg_bus_width"]  = 0
-            attr_val["local_bus_avg_bus_theoretical_bandwidth"]  = 0
-            attr_val["local_bus_avg_bus_bandwidth"]  = 0
+            attr_val["local_bus_avg_theoretical_bandwidth"]  = 0
+            attr_val["local_bus_avg_actual_bandwidth"]  = 0
+            attr_val["local_bus_max_actual_bandwidth"]  = 0
 
         else:
             attr_val["avg_freq"] = sum(freq_list) / len(freq_list)
             attr_val["local_bus_avg_bus_width"]  = sum(bus_width_list)/len(freq_list)
             attr_val["local_bus_avg_theoretical_bandwidth"]  = sum(bus_bandwidth_list)/len(bus_bandwidth_list)
-            attr_val["local_bus_avg_bandwidth"]  = sum(local_buses_avg_work_rate_list)/len(local_buses_avg_work_rate_list)
+            attr_val["local_bus_avg_actual_bandwidth"]  = sum(local_buses_avg_work_rate_list)/len(local_buses_avg_work_rate_list)
             # getting average of max
-            attr_val["local_bus_max_bandwidth"]  = sum(local_buses_max_work_rate_list)/len(local_buses_max_work_rate_list)
-
+            attr_val["local_bus_max_actual_bandwidth"]  = sum(local_buses_max_work_rate_list)/len(local_buses_max_work_rate_list)
+            attr_val["local_bus_cnt"]  = len(bus_width_list)
 
         return attr_val
 
