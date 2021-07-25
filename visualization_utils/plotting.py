@@ -1966,6 +1966,15 @@ def find_the_most_recent_directory(top_dir):
     dirs.sort(key=lambda x: os.path.getmtime(x), reverse=True)
     return dirs
 
+
+def get_experiment_full_file_addr_list(experiment_full_dir_list):
+    file_name = "result_summary/FARSI_simple_run_0_1.csv"
+    results = []
+    for el in experiment_full_dir_list:
+        results.append(os.path.join(el, file_name))
+
+    return results
+
 # the main function. comment out the plots if you do not need them
 if __name__ == "__main__":
     # populate parameters
@@ -1980,6 +1989,7 @@ if __name__ == "__main__":
 
     # according to the plot type, plot
     all_res_column_name_number = get_column_name_number(experiment_full_addr_list[0], "all")
+    all_results_files = get_experiment_full_file_addr_list(experiment_full_addr_list)
     summary_res_column_name_number = get_column_name_number(experiment_full_addr_list[0], "simple")
     case_studies = {}
     case_studies["bandwidth_analysis"] = ["local_bus_avg_theoretical_bandwidth", "local_bus_max_actual_bandwidth", "local_bus_avg_actual_bandwidth",
