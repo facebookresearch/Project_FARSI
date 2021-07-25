@@ -706,7 +706,8 @@ def plot_3d(input_dir_names, res_column_name_number):
     axis_font = {'size': '10'}
     column_value = {}
     # initialize the dictionary
-    column_name_list = ["power_budget", "area_budget","latency_budget"]
+    column_name_list = ["budget_scaling_power", "budget_scaling_area","budget_scaling_latency"]
+
     under_study_vars =["iteration cnt",
                        "local_bus_avg_theoretical_bandwidth", "local_bus_max_actual_bandwidth",
                        "local_bus_avg_actual_bandwidth",
@@ -746,13 +747,13 @@ def plot_3d(input_dir_names, res_column_name_number):
         fig_budget_blkcnt = plt.figure(figsize=(12, 12))
         plt.rc('font', **axis_font)
         ax_blkcnt = fig_budget_blkcnt.add_subplot(projection='3d')
-        img = ax_blkcnt.scatter3D(column_value["power_budget"], column_value["area_budget"], column_value["latency_budget"],
+        img = ax_blkcnt.scatter3D(column_value["budget_scaling_power"], column_value["budget_scaling_area"], column_value["budget_scaling_latency"],
                                   c=column_value[under_study_var], cmap="bwr", s=80)
         for idx,_ in enumerate(column_value[under_study_var]):
             coordinate = column_value[under_study_var][idx]
             coord_in_scientific_notatio = "{:.2e}".format(coordinate)
 
-            ax_blkcnt.text(column_value["power_budget"][idx], column_value["area_budget"][idx], column_value["latency_budget"][idx], '%s' % coord_in_scientific_notatio, size=fontSize)
+            ax_blkcnt.text(column_value["budget_scaling_power"][idx], column_value["budget_scaling_area"][idx], column_value["budget_scaling_latency"][idx], '%s' % coord_in_scientific_notatio, size=fontSize)
 
         ax_blkcnt.set_xlabel("Power Budget")
         ax_blkcnt.set_ylabel("Area Budget")
@@ -972,7 +973,7 @@ def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
 
     axis_font = {'size': '20'}
     x_column_name = "iteration cnt"
-    y_column_name_list = ["best_des_so_far_dist_to_goal_non_cost"]
+    y_column_name_list = ["best_des_so_far_dist_to_goal_non_cost", "dist_to_goal_non_cost"]
 
     column_experiment_value = {}
     #column_name = "move name"
@@ -994,7 +995,7 @@ def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
                     #if row[trueNum] != "True":
                     #    continue
                     if i >= 1:
-                        value_to_add = (float(row[x_column_number]), float(row[y_column_number]))
+                        value_to_add = (float(row[x_column_number]), max(float(row[y_column_number]),.01))
                         column_experiment_value[y_column_name][experiment_name].append(value_to_add)
 
         # prepare for plotting and plot
@@ -1007,7 +1008,8 @@ def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
             ax.scatter(x_values, y_values, label=experiment_name[1:])
 
         #ax.set_title("experiment vs system implicaction")
-        ax.legend(bbox_to_anchor=(1, 1), loc="upper left")
+        ax.set_yscale('log')
+        ax.legend(bbox_to_anchor=(1, 1), loc="best")
         ax.set_xlabel(x_column_name)
         ax.set_ylabel(y_column_name)
         plt.tight_layout()
@@ -1989,6 +1991,11 @@ if __name__ == "__main__":
                                             "gpp_cnt", "max_gpp_parallelism", "avg_gpp_parallelism"]
     case_studies["system_complexity"] = ["system block count", "routing complexity", "system PE count",
                                          "local_mem_cnt", "local_bus_cnt"]  # , "channel_cnt"]
+
+    case_studies["heterogenity"] = ["local_bus_freq_coeff_var", "local_bus_bus_width_coeff_var",
+                                    "local_memory_freq_coeff_var", "local_memory_area_coeff_var",
+                                    "ips_freq_coeff_var", "ips_area_coeff_var",
+                                    "pes_freq_coeff_var", "pes_area_coeff_var"]
 
     if "cross_workloads" in config_plotting.plot_list:
         # get column orders (assumption is that the column order doesn't change between experiments)

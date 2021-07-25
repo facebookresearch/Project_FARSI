@@ -1,5 +1,5 @@
 Name,dhrystone_IPC,Freq,Ref,Type,Subtype,Inst_per_joul,Gpp_area,BitWidth,Byte_per_joul,Byte_per_m
-A53,2,100000000,yes,pe,gpp,47019607843,0.00000065,NA,NA,NA
+A53,2,1000000000,yes,pe,gpp,47019607843,0.00000065,NA,NA,NA
 IP,NA,100000000,yes,pe,ip,,NA,NA,NA,NA
 LMEM_0,NA,100000000,yes,mem,sram,,NA,4,200,1
 LMEM_1,NA,100000000,no,mem,sram,,NA,8,200,1

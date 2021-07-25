@@ -13,7 +13,7 @@ import datetime
 from datetime import datetime
 from error_handling.custom_error import  *
 import gc
-
+import statistics as st
 if config.use_cacti:
     from misc.cacti_hndlr import cact_handlr
 
@@ -681,24 +681,56 @@ class DPStatsContainer():
         else:
             ips_avg_freq=  sum(ips_freqs)/max(len(ips_freqs),1)
 
+
+        if len(ips_freqs) in [0,1]:
+            ips_freq_std = 0
+            ips_freq_coeff_var = 0
+        else:
+            ips_freq_std = st.stdev(ips_freqs)
+            ips_freq_coeff_var = st.stdev(ips_freqs)/st.mean(ips_freqs)
+
         if len(gpp_freqs) == 0:
             gpps_avg_freq =  0
         else:
             gpps_avg_freq=  sum(gpp_freqs)/max(len(gpp_freqs),1)
 
+        if len(gpp_freqs + ips_freqs) in [0,1]:
+            pes_freq_std = 0
+            pes_freq_coeff_var = 0
+        else:
+            pes_freq_std = st.stdev(ips_freqs + gpp_freqs)
+            pes_freq_coeff_var = st.stdev(ips_freqs + gpp_freqs) / st.mean(ips_freqs + gpp_freqs)
+
+
         # get area data
         ips_area = [mem.get_area() for mem in ips]
         gpp_area = [mem.get_area() for mem in gpps]
+
         if len(ips_area) == 0:
             ips_total_area = 0
+
         else:
             ips_total_area = sum(ips_area)
+
+        if len(ips_area) in [0,1]:
+            ips_area_std = 0
+            ips_area_coeff_var = 0
+        else:
+            ips_area_std = st.stdev(ips_area)
+            ips_area_coeff_var = st.stdev(ips_area) / st.mean(ips_area)
 
         if len(gpp_area) == 0:
             gpps_total_area = 0
         else:
             gpps_total_area = sum(gpp_area)
 
+
+        if len(ips_area + gpp_area) in [0,1]:
+            pes_area_std = 0
+            pes_area_coeff_var = 0
+        else:
+            pes_area_std = st.stdev(ips_area+gpp_area)
+            pes_area_coeff_var = st.stdev(ips_area+gpp_area)/st.mean(ips_area+gpp_area)
 
         phase_accelerator_parallelism = {}
         for phase, krnls in self.dp_rep.phase_krnl_present.items():
@@ -739,8 +771,13 @@ class DPStatsContainer():
                 "avg_gpp_parallelism": avg_gpp_parallelism, "max_gpp_parallelism": max_gpp_parallelism,
                 "ip_cnt":len(ips), "gpp_cnt": len(gpps),
                 "ips_avg_freq": ips_avg_freq, "gpps_avg_freq":gpps_avg_freq,
+                "ips_freq_std": ips_freq_std, "pes_freq_std": pes_freq_std,
+                "ips_freq_coeff_var": ips_freq_coeff_var, "pes_freq_coeff_var": pes_freq_coeff_var,
                 "ips_total_area": ips_total_area, "gpps_total_area":gpps_total_area,
-                "pe_total_area":ips_total_area+gpps_total_area}
+                "ips_area_std": ips_area_std, "pes_area_std": pes_area_std,
+                "ips_area_coeff_var": ips_area_coeff_var, "pes_area_coeff_var": pes_area_coeff_var,
+                "pe_total_area":ips_total_area+gpps_total_area,
+        }
 
 
     def get_memory_system_attr(self):
@@ -756,6 +793,13 @@ class DPStatsContainer():
         else:
             local_memory_avg_freq=  sum(local_memory_freqs)/max(len(local_memory_freqs),1)
 
+        if len(local_memory_freqs) in [0, 1]:
+            local_memory_freq_std = 0
+            local_memory_freq_coeff_var = 0
+        else:
+            local_memory_freq_std = st.stdev(local_memory_freqs)
+            local_memory_freq_coeff_var = st.stdev(local_memory_freqs) / st.mean(local_memory_freqs)
+
         if len(global_memory_freqs) == 0:
             global_memory_avg_freq =  0
         else:
@@ -767,8 +811,16 @@ class DPStatsContainer():
         global_memory_area = [mem.get_area() for mem in global_memories]
         if len(local_memory_area) == 0:
             local_memory_total_area = 0
+
         else:
             local_memory_total_area = sum(local_memory_area)
+
+        if len(local_memory_area) in [0,1]:
+            local_memory_area_std = 0
+            local_memory_area_coeff_var = 0
+        else:
+            local_memory_area_std = st.stdev(local_memory_area)
+            local_memory_area_coeff_var = st.stdev(local_memory_area) / st.mean(local_memory_area)
 
         if len(global_memory_area) == 0:
             global_memory_total_area = 0
@@ -792,7 +844,10 @@ class DPStatsContainer():
                 "global_memory_avg_freq": global_memory_avg_freq, "local_memory_avg_freq":local_memory_avg_freq,
                 "global_memory_total_area": global_memory_total_area, "local_memory_total_area":local_memory_total_area,
                 "memory_total_area":global_memory_total_area+local_memory_total_area,
-                "local_mem_cnt":len(local_memory_freqs)}
+                "local_mem_cnt":len(local_memory_freqs),
+                "local_memory_freq_coeff_var": local_memory_freq_coeff_var, "local_memory_freq_std": local_memory_freq_std,
+                "local_memory_area_coeff_var": local_memory_area_coeff_var, "local_memory_area_std": local_memory_area_std
+                }
 
 
 
@@ -939,6 +994,7 @@ class DPStatsContainer():
             attr_val["local_bus_avg_actual_bandwidth"]  = 0
             attr_val["local_bus_max_actual_bandwidth"]  = 0
             attr_val["local_bus_cnt"]  = 0
+
         else:
             attr_val["avg_freq"] = sum(freq_list) / len(freq_list)
             attr_val["local_bus_avg_bus_width"]  = sum(bus_width_list)/len(freq_list)
@@ -947,6 +1003,19 @@ class DPStatsContainer():
             # getting average of max
             attr_val["local_bus_max_actual_bandwidth"]  = sum(local_buses_max_work_rate_list)/len(local_buses_max_work_rate_list)
             attr_val["local_bus_cnt"]  = len(bus_width_list)
+
+        if len(local_buses) in [0,1]:
+            attr_val["local_bus_freq_std"] = 0
+            attr_val["local_bus_freq_coeff_var"] = 0
+            attr_val["local_bus_bus_width_std"] = 0
+            attr_val["local_bus_bus_width_coeff_var"] = 0
+        else:
+            attr_val["local_bus_freq_std"] = st.stdev(freq_list)
+            attr_val["local_bus_freq_coeff_var"] = st.stdev(freq_list)/st.mean(freq_list)
+            attr_val["local_bus_bus_width_std"] = st.stdev(bus_width_list)
+            attr_val["local_bus_bus_width_coeff_var"] = st.stdev(bus_width_list)/st.mean(bus_width_list)
+
+
 
         return attr_val
 
