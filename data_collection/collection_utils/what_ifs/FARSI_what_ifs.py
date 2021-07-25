@@ -166,7 +166,10 @@ def write_one_results(sim_dp, dse, reason_to_terminate, case_study, result_dir_s
     memory_system_attrs = sim_dp.dp_stats.get_memory_system_attr()
 
 
+
     output_file_minimal = os.path.join(result_dir_specific, file_name+ ".csv")
+
+    base_budget_scaling = sim_dp.database.db_input.sw_hw_database_population["misc_knobs"]["base_budget_scaling"]
 
     # minimal output
     if os.path.exists(output_file_minimal):
@@ -222,12 +225,17 @@ def write_one_results(sim_dp, dse, reason_to_terminate, case_study, result_dir_s
         output_fh_minimal.write("architectural_principle" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("area_dram" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("area_non_dram" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("channel_cnt" + ",")  # for now only write the latency accuracy as the other
         for key, val in compute_system_attrs.items():
             output_fh_minimal.write(str(key) + ",")
         for key, val in bus_system_attrs.items():
             output_fh_minimal.write(str(key) + ",")
         for key, val in memory_system_attrs.items():
             output_fh_minimal.write(str(key) + ",")
+
+        for key,val in base_budget_scaling.items():
+            output_fh_minimal.write("budget_scaling_"+str(key) + ",")
+
 
     output_fh_minimal.write("\n")
     for metric in config.all_metrics:
@@ -344,17 +352,15 @@ def write_one_results(sim_dp, dse, reason_to_terminate, case_study, result_dir_s
     output_fh_minimal.write(str(architectural_variable_to_improve)+",")
     output_fh_minimal.write(str(sim_dp.dp_stats.get_system_complex_area_stacked_dram()["dram"]) +",")
     output_fh_minimal.write(str(sim_dp.dp_stats.get_system_complex_area_stacked_dram()["non_dram"]) +",")
+    output_fh_minimal.write(str(sim_dp.dp_rep.get_hardware_graph().get_number_of_channels()) +",")
     for key, val in compute_system_attrs.items():
         output_fh_minimal.write(str(val) + ",")
     for key, val in bus_system_attrs.items():
         output_fh_minimal.write(str(val) + ",")
     for key, val in memory_system_attrs.items():
         output_fh_minimal.write(str(val) + ",")
-
-
-
-
-
+    for key,val in base_budget_scaling.items():
+        output_fh_minimal.write(str(val) + ",")
 
     output_fh_minimal.close()
 
