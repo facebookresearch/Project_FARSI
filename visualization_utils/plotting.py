@@ -748,7 +748,7 @@ def plot_3d(input_dir_names, res_column_name_number):
         plt.rc('font', **axis_font)
         ax_blkcnt = fig_budget_blkcnt.add_subplot(projection='3d')
         img = ax_blkcnt.scatter3D(column_value["budget_scaling_power"], column_value["budget_scaling_area"], column_value["budget_scaling_latency"],
-                                  c=column_value[under_study_var], cmap="bwr", s=80)
+                                  c=column_value[under_study_var], cmap="bwr", s=80, label="System Block Count")
         for idx,_ in enumerate(column_value[under_study_var]):
             coordinate = column_value[under_study_var][idx]
             coord_in_scientific_notatio = "{:.2e}".format(coordinate)
@@ -904,7 +904,7 @@ def plot_convergence_vs_time(input_dir_names, res_column_name_number):
     FARSI_column_experiment_value = {}
 
     #column_name = "move name"
-    for file_full_addr in file_full_addr_list:
+    for k, file_full_addr in enumerate(file_full_addr_list):
         for y_column_name in y_column_name_list:
             # get all possible the values of interest
             y_column_number = res_column_name_number[y_column_name]
@@ -959,8 +959,8 @@ def plot_convergence_vs_time(input_dir_names, res_column_name_number):
                 output_dir = os.path.join(output_base_dir, "single_workload/progression")
                 if not os.path.exists(output_dir):
                     os.makedirs(output_dir)
-                fig.savefig(os.path.join(output_dir,y_column_name+"_vs_"+y_column_name+"_FARSI_vs_PA.png"))
-                # plt.show()
+                fig.savefig(os.path.join(output_dir,str(k)+"_" + y_column_name+"_vs_"+x_column_name+"_FARSI_vs_PA.png"))
+                plt.show()
                 plt.close('all')
 
 
@@ -2004,22 +2004,22 @@ if __name__ == "__main__":
                                     "ips_freq_coeff_var", "ips_area_coeff_var",
                                     "pes_freq_coeff_var", "pes_area_coeff_var"]
 
-    if "cross_workloads" in config_plotting.plot_list:
-        # get column orders (assumption is that the column order doesn't change between experiments)
-        plot_convergence_cross_workloads(experiment_full_addr_list, all_res_column_name_number)
-        column_column_value_experiment_frequency_dict = plot_codesign_nav_breakdown_cross_workload(experiment_full_addr_list, all_res_column_name_number)
-
-        for key, val in case_studies.items():
-            case_study = {key:val}
-            plot_system_implication_analysis(experiment_full_addr_list, summary_res_column_name_number, case_study)
-        plot_co_design_nav_breakdown_post_processing(experiment_full_addr_list, column_column_value_experiment_frequency_dict)
-        plot_codesign_rate_efficacy_cross_workloads_updated(experiment_full_addr_list, all_res_column_name_number)
-
+    # if "cross_workloads" in config_plotting.plot_list:
+    #     # get column orders (assumption is that the column order doesn't change between experiments)
+    #     plot_convergence_cross_workloads(experiment_full_addr_list, all_res_column_name_number)
+    #     column_column_value_experiment_frequency_dict = plot_codesign_nav_breakdown_cross_workload(experiment_full_addr_list, all_res_column_name_number)
+    #
+    #     for key, val in case_studies.items():
+    #         case_study = {key:val}
+    #         plot_system_implication_analysis(experiment_full_addr_list, summary_res_column_name_number, case_study)
+    #     plot_co_design_nav_breakdown_post_processing(experiment_full_addr_list, column_column_value_experiment_frequency_dict)
+    #     plot_codesign_rate_efficacy_cross_workloads_updated(experiment_full_addr_list, all_res_column_name_number)
+    #
     if "single_workload" in config_plotting.plot_list:
-        # single workload
-        plot_codesign_progression_per_workloads(experiment_full_addr_list, all_res_column_name_number)
-        _ = plot_codesign_nav_breakdown_per_workload(experiment_full_addr_list, all_res_column_name_number)
-        plot_convergence_per_workloads(experiment_full_addr_list, all_res_column_name_number)
+    #     # single workload
+    #     plot_codesign_progression_per_workloads(experiment_full_addr_list, all_res_column_name_number)
+    #     _ = plot_codesign_nav_breakdown_per_workload(experiment_full_addr_list, all_res_column_name_number)
+    #     plot_convergence_per_workloads(experiment_full_addr_list, all_res_column_name_number)
         plot_convergence_vs_time(experiment_full_addr_list, all_res_column_name_number)
 
     if "plot_3d" in config_plotting.plot_list:
