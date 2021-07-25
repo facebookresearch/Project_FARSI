@@ -704,6 +704,7 @@ def plot_3d(input_dir_names, res_column_name_number):
         experiment_names.append(experiment_name)
 
     axis_font = {'size': '10'}
+    fontSize = 10
     column_value = {}
     # initialize the dictionary
     column_name_list = ["power_budget", "area_budget","latency_budget"]
@@ -742,21 +743,19 @@ def plot_3d(input_dir_names, res_column_name_number):
 
 
     for idx,under_study_var in enumerate(under_study_vars):
-        fontSize = 20
         fig_budget_blkcnt = plt.figure(figsize=(12, 12))
         plt.rc('font', **axis_font)
         ax_blkcnt = fig_budget_blkcnt.add_subplot(projection='3d')
         img = ax_blkcnt.scatter3D(column_value["power_budget"], column_value["area_budget"], column_value["latency_budget"],
-                                  c=column_value[under_study_var], cmap="bwr", s=80)
+                                  c=column_value[under_study_var], cmap="bwr", s=80, label="System Block Count")
         for idx,_ in enumerate(column_value[under_study_var]):
             coordinate = column_value[under_study_var][idx]
-            coord_in_scientific_notatio = "{:.2e}".format(coordinate)
+            coord_in_scientific_notatio = "{0}".format(coordinate)
+            ax_blkcnt.text(column_value["power_budget"][idx], column_value["area_budget"][idx], column_value["latency_budget"][idx], float(coord_in_scientific_notatio), size=fontSize)
 
-            ax_blkcnt.text(column_value["power_budget"][idx], column_value["area_budget"][idx], column_value["latency_budget"][idx], '%s' % coord_in_scientific_notatio, size=fontSize)
-
-        ax_blkcnt.set_xlabel("Power Budget")
-        ax_blkcnt.set_ylabel("Area Budget")
-        ax_blkcnt.set_zlabel("Latency Budget")
+        ax_blkcnt.set_xlabel("Power Budget", fontsize=fontSize)
+        ax_blkcnt.set_ylabel("Area Budget", fontsize=fontSize)
+        ax_blkcnt.set_zlabel("Latency Budget", fontsize=fontSize)
         ax_blkcnt.legend()
         cbar = fig_budget_blkcnt.colorbar(img, aspect=40)
         cbar.set_label("System Block Count", rotation=270)
@@ -768,7 +767,7 @@ def plot_3d(input_dir_names, res_column_name_number):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
         plt.savefig(os.path.join(output_dir, under_study_var+ ".png"))
-        plt.show()
+        # plt.show()
         plt.close('all')
 
 
@@ -864,9 +863,9 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
                 ax.plot(x_values, y_values, label=column, c=column_name_color_val_dict[column], marker=marker, alpha=alpha_)
 
             #ax.set_title("experiment vs system implicaction")
-            ax.set_xlabel(x_column_name)
+            ax.set_xlabel(x_column_name, fontsize=fontSize)
             y_axis_name = "_".join(list(experiment_column_value[experiment_name].keys()))
-            ax.set_ylabel(y_axis_name)
+            ax.set_ylabel(y_axis_name, fontsize=fontSize)
             ax.legend(bbox_to_anchor=(1, 1), loc='upper left', fontsize=fontSize)
             plt.tight_layout()
 
@@ -876,7 +875,7 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
             if not os.path.exists(output_dir):
                 os.mkdir(output_dir)
             fig.savefig(os.path.join(output_dir,experiment_name+"_convergence.png"))
-            plt.show()
+            # plt.show()
             plt.close('all')
 
 def plot_convergence_vs_time(input_dir_names, res_column_name_number):
@@ -894,7 +893,8 @@ def plot_convergence_vs_time(input_dir_names, res_column_name_number):
         experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
         experiment_names.append(experiment_name)
 
-    axis_font = {'size': '20'}
+    axis_font = {'size': '15'}
+    fontSize = 20
     x_column_name = "exploration_plus_simulation_time"
     y_column_name_list = ["best_des_so_far_dist_to_goal_non_cost"]
 
@@ -927,23 +927,29 @@ def plot_convergence_vs_time(input_dir_names, res_column_name_number):
                         PA_column_experiment_value[y_column_name].append(PA_value_to_add)
 
                 # prepare for plotting and plot
-                fig = plt.figure()
+                fig = plt.figure(figsize=(12, 12))
+                plt.rc('font', **axis_font)
                 ax = fig.add_subplot(111)
+                fontSize = 20
                 #plt.tight_layout()
                 x_values = [el[0] for el in FARSI_column_experiment_value[y_column_name]]
-                y_values = [el[1] for el in FARSI_column_experiment_value[y_column_name]]
+                y_values = [str(float(el[1]) * 100 // 1 / 100.0) for el in FARSI_column_experiment_value[y_column_name]]
+                x_values.reverse()
+                y_values.reverse()
                 ax.scatter(x_values, y_values, label="FARSI time to completion", marker="_")
-                #ax.set_xscale('log')
+                # ax.set_yscale('log')
 
                 x_values = [el[0] for el in PA_column_experiment_value[y_column_name]]
-                y_values = [el[1] for el in PA_column_experiment_value[y_column_name]]
+                y_values = [str(float(el[1]) * 100 // 1 / 100.0) for el in PA_column_experiment_value[y_column_name]]
+                x_values.reverse()
+                y_values.reverse()
                 ax.scatter(x_values, y_values, label="PA time to completion", marker="_")
                 #ax.set_xscale('log')
 
                #ax.set_title("experiment vs system implicaction")
-                ax.legend()#bbox_to_anchor=(1, 1), loc="upper left")
-                ax.set_xlabel(x_column_name)
-                ax.set_ylabel(y_column_name)
+                ax.legend(loc="upper right")#bbox_to_anchor=(1, 1), loc="upper left")
+                ax.set_xlabel(x_column_name, fontsize=fontSize)
+                ax.set_ylabel(y_column_name, fontsize=fontSize)
                 plt.tight_layout()
 
                 # dump in the top folder
