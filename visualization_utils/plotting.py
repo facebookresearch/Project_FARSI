@@ -693,6 +693,85 @@ def plot_codesign_progression_per_workloads(input_dir_names, res_column_name_num
             plt.close('all')
 
 
+def plot_3d(input_dir_names, res_column_name_number):
+    # experiment_names
+    experiment_names = []
+    file_full_addr_list = []
+    for dir_name in input_dir_names:
+        file_full_addr = os.path.join(dir_name, "result_summary/FARSI_simple_run_0_1.csv")
+        file_full_addr_list.append(file_full_addr)
+        experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
+        experiment_names.append(experiment_name)
+
+    axis_font = {'size': '10'}
+    column_value = {}
+    # initialize the dictionary
+    column_name_list = ["power_budget", "area_budget","latency_budget"]
+    under_study_vars =["iteration cnt",
+                       "local_bus_avg_theoretical_bandwidth", "local_bus_max_actual_bandwidth",
+                       "local_bus_avg_actual_bandwidth",
+                       "system_bus_avg_theoretical_bandwidth", "system_bus_max_actual_bandwidth",
+                       "system_bus_avg_actual_bandwidth", "global_total_traffic", "local_total_traffic",
+                       "global_memory_total_area", "local_memory_total_area", "ips_total_area",
+                       "gpps_total_area","ip_cnt", "max_accel_parallelism", "avg_accel_parallelism",
+                       "gpp_cnt", "max_gpp_parallelism", "avg_gpp_parallelism"]
+
+
+
+
+    # get all the data
+    for file_full_addr in file_full_addr_list:
+        with open(file_full_addr, newline='') as csvfile:
+            resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+            experiment_name = get_experiments_name( file_full_addr, res_column_name_number)
+
+            for i, row in enumerate(resultReader):
+                #if row[trueNum] != "True":
+                #    continue
+                if i >= 1:
+                    for column_name in column_name_list + under_study_vars:
+                        if column_name not in column_value.keys() :
+                            column_value[column_name] = []
+                        column_number = res_column_name_number[column_name]
+                        col_value = row[column_number]
+                        col_values = col_value.split(";")
+                        if "=" in col_values[0]:
+                            column_value[column_name].append(float((col_values[0]).split("=")[1]))
+                        else:
+                            column_value[column_name].append(float(col_values[0]))
+
+
+    for idx,under_study_var in enumerate(under_study_vars):
+        fontSize = 20
+        fig_budget_blkcnt = plt.figure(figsize=(12, 12))
+        plt.rc('font', **axis_font)
+        ax_blkcnt = fig_budget_blkcnt.add_subplot(projection='3d')
+        img = ax_blkcnt.scatter3D(column_value["power_budget"], column_value["area_budget"], column_value["latency_budget"],
+                                  c=column_value[under_study_var], cmap="bwr", s=80)
+        for idx,_ in enumerate(column_value[under_study_var]):
+            coordinate = column_value[under_study_var][idx]
+            coord_in_scientific_notatio = "{:.2e}".format(coordinate)
+
+            ax_blkcnt.text(column_value["power_budget"][idx], column_value["area_budget"][idx], column_value["latency_budget"][idx], '%s' % coord_in_scientific_notatio, size=fontSize)
+
+        ax_blkcnt.set_xlabel("Power Budget")
+        ax_blkcnt.set_ylabel("Area Budget")
+        ax_blkcnt.set_zlabel("Latency Budget")
+        ax_blkcnt.legend()
+        cbar = fig_budget_blkcnt.colorbar(img, aspect=40)
+        cbar.set_label("System Block Count", rotation=270)
+        #plt.title("{Power Budget, Area Budget, Latency Budget} VS System Block Count: " + subDirName)
+        plt.tight_layout()
+
+        output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+        output_dir = os.path.join(output_base_dir, "3D/case_studies")
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        plt.savefig(os.path.join(output_dir, under_study_var+ ".png"))
+        plt.show()
+        plt.close('all')
+
+
 def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
     #itrColNum = all_res_column_name_number["iteration cnt"]
     #distColNum = all_res_column_name_number["dist_to_goal_non_cost"]
@@ -799,6 +878,82 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
             fig.savefig(os.path.join(output_dir,experiment_name+"_convergence.png"))
             plt.show()
             plt.close('all')
+
+def plot_convergence_vs_time(input_dir_names, res_column_name_number):
+    PA_time_scaling_factor = 10
+    #itrColNum = all_res_column_name_number["iteration cnt"]
+    #distColNum = all_res_column_name_number["dist_to_goal_non_cost"]
+    trueNum  =  all_res_column_name_number["move validity"]
+
+    # experiment_names
+    experiment_names = []
+    file_full_addr_list = []
+    for dir_name in input_dir_names:
+        file_full_addr = os.path.join(dir_name, "result_summary/FARSI_simple_run_0_1_all_reults.csv")
+        file_full_addr_list.append(file_full_addr)
+        experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
+        experiment_names.append(experiment_name)
+
+    axis_font = {'size': '20'}
+    x_column_name = "exploration_plus_simulation_time"
+    y_column_name_list = ["best_des_so_far_dist_to_goal_non_cost"]
+
+    PA_column_experiment_value = {}
+    FARSI_column_experiment_value = {}
+
+    #column_name = "move name"
+    for file_full_addr in file_full_addr_list:
+        for y_column_name in y_column_name_list:
+            # get all possible the values of interest
+            y_column_number = res_column_name_number[y_column_name]
+            x_column_number = res_column_name_number[x_column_name]
+            PA_column_experiment_value[y_column_name] = []
+            FARSI_column_experiment_value[y_column_name] = []
+            PA_last_time = 0
+            FARSI_last_time = 0
+            with open(file_full_addr, newline='') as csvfile:
+                resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+                experiment_name = get_experiments_name( file_full_addr, res_column_name_number)
+                for i, row in enumerate(resultReader):
+                    #if row[trueNum] != "True":
+                    #    continue
+                    if i >= 1:
+                        FARSI_last_time += float(row[x_column_number])
+                        FARSI_value_to_add = (float(FARSI_last_time), row[y_column_number])
+                        FARSI_column_experiment_value[y_column_name].append(FARSI_value_to_add)
+
+                        PA_last_time = FARSI_last_time*PA_time_scaling_factor
+                        PA_value_to_add = (float(PA_last_time), row[y_column_number])
+                        PA_column_experiment_value[y_column_name].append(PA_value_to_add)
+
+                # prepare for plotting and plot
+                fig = plt.figure()
+                ax = fig.add_subplot(111)
+                #plt.tight_layout()
+                x_values = [el[0] for el in FARSI_column_experiment_value[y_column_name]]
+                y_values = [el[1] for el in FARSI_column_experiment_value[y_column_name]]
+                ax.scatter(x_values, y_values, label="FARSI time to completion", marker="_")
+                #ax.set_xscale('log')
+
+                x_values = [el[0] for el in PA_column_experiment_value[y_column_name]]
+                y_values = [el[1] for el in PA_column_experiment_value[y_column_name]]
+                ax.scatter(x_values, y_values, label="PA time to completion", marker="_")
+                #ax.set_xscale('log')
+
+               #ax.set_title("experiment vs system implicaction")
+                ax.legend()#bbox_to_anchor=(1, 1), loc="upper left")
+                ax.set_xlabel(x_column_name)
+                ax.set_ylabel(y_column_name)
+                plt.tight_layout()
+
+                # dump in the top folder
+                output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+                output_dir = os.path.join(output_base_dir, "single_workload/progression")
+                if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
+                fig.savefig(os.path.join(output_dir,y_column_name+"_vs_"+y_column_name+"_FARSI_vs_PA.png"))
+                # plt.show()
+                plt.close('all')
 
 
 def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
@@ -1851,6 +2006,10 @@ if __name__ == "__main__":
         plot_codesign_progression_per_workloads(experiment_full_addr_list, all_res_column_name_number)
         _ = plot_codesign_nav_breakdown_per_workload(experiment_full_addr_list, all_res_column_name_number)
         plot_convergence_per_workloads(experiment_full_addr_list, all_res_column_name_number)
+        plot_convergence_vs_time(experiment_full_addr_list, all_res_column_name_number)
+
+    if "plot_3d" in config_plotting.plot_list:
+        plot_3d(experiment_full_addr_list, summary_res_column_name_number)
 
     # get the the workload_set folder
     # each workload_set has a bunch of experiments underneath it
@@ -1863,7 +2022,7 @@ if __name__ == "__main__":
             continue
 
         # start plotting
-        plotBudgets3d(run_folder_name, workload_set_folder)
+        #plotBudgets3d(run_folder_name, workload_set_folder)
 
 
         """

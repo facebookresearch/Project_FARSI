@@ -505,6 +505,7 @@ class SimDesignPointContainer:
 
         self.move_applied = None
         self.dummy_tasks = [krnl.get_task() for krnl in self.dp.get_kernels() if (krnl.get_task()).is_task_dummy()]
+        self.exploration_and_simulation_approximate_time = 0
 
     def get_dummy_tasks(self):
         return self.dummy_tasks
@@ -518,6 +519,16 @@ class SimDesignPointContainer:
 
     def get_move_applied(self):
         return self.move_applied
+
+
+    def add_exploration_and_simulation_approximate_time(self, time):
+        # the reason that this is approximte is because we tak
+        # the entire generation time and divide it by the number of iterations per iteration
+        self.exploration_and_simulation_approximate_time += time
+
+    def get_exploration_and_simulation_approximate_time(self):
+        return self.exploration_and_simulation_approximate_time
+
 
 
     def get_dp_stats(self):
@@ -927,7 +938,7 @@ class DPStatsContainer():
             attr_val["local_bus_avg_theoretical_bandwidth"]  = 0
             attr_val["local_bus_avg_actual_bandwidth"]  = 0
             attr_val["local_bus_max_actual_bandwidth"]  = 0
-
+            attr_val["local_bus_cnt"]  = 0
         else:
             attr_val["avg_freq"] = sum(freq_list) / len(freq_list)
             attr_val["local_bus_avg_bus_width"]  = sum(bus_width_list)/len(freq_list)
@@ -1439,6 +1450,8 @@ class SimDesignPoint(ExDesignPoint):
         for block in self.get_blocks():
             self.block_phase_work_dict[block] = {}
             self.block_phase_utilization_dict[block] = {}
+
+
 
     def set_simulation_time(self, simulation_time):
         self.simulation_time= simulation_time
