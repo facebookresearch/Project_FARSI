@@ -2168,11 +2168,13 @@ class HillClimbing:
         des_tup_list =[]
         #config.SA_depth = 3*len(self.so_far_best_ex_dp.get_hardware_graph().get_blocks_by_type("mem"))+ len(self.so_far_best_ex_dp.get_hardware_graph().get_blocks_by_type("ic"))
         self.gen_some_neighs_and_eval((self.so_far_best_ex_dp, self.so_far_best_sim_dp), config.SA_breadth, config.SA_depth, des_tup_list)
+        exploration_and_simulation_approximate_time_per_iteration = (time.time() - strt)/max(len(des_tup_list), 1)
         print("sim time + neighbour generation per design point " + str((time.time() - strt)/max(len(des_tup_list), 1)))
 
         # convert (outputed) list to dictionary of (ex:sim) specified above.
         # Also, run sanity check on the design, making sure everything is alright
         for ex_dp, sim_dp in des_tup_list:
+            sim_dp.add_exploration_and_simulation_approximate_time(exploration_and_simulation_approximate_time_per_iteration)
             this_itr_ex_sim_dp_dict[ex_dp] = sim_dp
             if config.DEBUG_SANITY:
                 ex_dp.sanity_check()
@@ -2225,6 +2227,7 @@ class HillClimbing:
     def log_data(self, this_itr_ex_sim_dp_dict):
         ctr = len(self.log_data_list)
         for sim_dp in this_itr_ex_sim_dp_dict.values():
+            sim_dp.add_exploration_and_simulation_approximate_time(self.neighbour_selection_time/len(list(this_itr_ex_sim_dp_dict.keys())))
             ma = sim_dp.get_move_applied()  # move applied
             if not ma == None:
                 sorted_metrics = self.convert_tuple_list_to_parsable_csv(
@@ -2303,6 +2306,7 @@ class HillClimbing:
             data = {
                     "data_number": ctr,
                     "iteration cnt" : self.total_iteration_cnt,
+                    "exploration_plus_simulation_time" : sim_dp.get_exploration_and_simulation_approximate_time(),
                     "observed population number" : sim_dp.dp_rep.get_population_observed_number(),
                     "SA_total_depth": str(config.SA_depth),
                     "transformation_selection_mode": str(config.transformation_selection_mode),
