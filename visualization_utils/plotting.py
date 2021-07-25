@@ -704,6 +704,7 @@ def plot_3d(input_dir_names, res_column_name_number):
         experiment_names.append(experiment_name)
 
     axis_font = {'size': '10'}
+    fontSize = 10
     column_value = {}
     # initialize the dictionary
     column_name_list = ["budget_scaling_power", "budget_scaling_area","budget_scaling_latency"]
@@ -743,21 +744,20 @@ def plot_3d(input_dir_names, res_column_name_number):
 
 
     for idx,under_study_var in enumerate(under_study_vars):
-        fontSize = 20
         fig_budget_blkcnt = plt.figure(figsize=(12, 12))
         plt.rc('font', **axis_font)
         ax_blkcnt = fig_budget_blkcnt.add_subplot(projection='3d')
         img = ax_blkcnt.scatter3D(column_value["budget_scaling_power"], column_value["budget_scaling_area"], column_value["budget_scaling_latency"],
-                                  c=column_value[under_study_var], cmap="bwr", s=80)
+                                  c=column_value[under_study_var], cmap="bwr", s=80, label="System Block Count")
         for idx,_ in enumerate(column_value[under_study_var]):
             coordinate = column_value[under_study_var][idx]
             coord_in_scientific_notatio = "{:.2e}".format(coordinate)
 
             ax_blkcnt.text(column_value["budget_scaling_power"][idx], column_value["budget_scaling_area"][idx], column_value["budget_scaling_latency"][idx], '%s' % coord_in_scientific_notatio, size=fontSize)
 
-        ax_blkcnt.set_xlabel("Power Budget")
-        ax_blkcnt.set_ylabel("Area Budget")
-        ax_blkcnt.set_zlabel("Latency Budget")
+        ax_blkcnt.set_xlabel("Power Budget", fontsize=fontSize)
+        ax_blkcnt.set_ylabel("Area Budget", fontsize=fontSize)
+        ax_blkcnt.set_zlabel("Latency Budget", fontsize=fontSize)
         ax_blkcnt.legend()
         cbar = fig_budget_blkcnt.colorbar(img, aspect=40)
         cbar.set_label("System Block Count", rotation=270)
@@ -769,7 +769,7 @@ def plot_3d(input_dir_names, res_column_name_number):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
         plt.savefig(os.path.join(output_dir, under_study_var+ ".png"))
-        plt.show()
+        # plt.show()
         plt.close('all')
 
 
@@ -865,9 +865,9 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
                 ax.plot(x_values, y_values, label=column, c=column_name_color_val_dict[column], marker=marker, alpha=alpha_)
 
             #ax.set_title("experiment vs system implicaction")
-            ax.set_xlabel(x_column_name)
+            ax.set_xlabel(x_column_name, fontsize=fontSize)
             y_axis_name = "_".join(list(experiment_column_value[experiment_name].keys()))
-            ax.set_ylabel(y_axis_name)
+            ax.set_ylabel(y_axis_name, fontsize=fontSize)
             ax.legend(bbox_to_anchor=(1, 1), loc='upper left', fontsize=fontSize)
             plt.tight_layout()
 
@@ -877,7 +877,7 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
             if not os.path.exists(output_dir):
                 os.mkdir(output_dir)
             fig.savefig(os.path.join(output_dir,experiment_name+"_convergence.png"))
-            plt.show()
+            # plt.show()
             plt.close('all')
 
 def plot_convergence_vs_time(input_dir_names, res_column_name_number):
@@ -895,7 +895,8 @@ def plot_convergence_vs_time(input_dir_names, res_column_name_number):
         experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
         experiment_names.append(experiment_name)
 
-    axis_font = {'size': '20'}
+    axis_font = {'size': '15'}
+    fontSize = 20
     x_column_name = "exploration_plus_simulation_time"
     y_column_name_list = ["best_des_so_far_dist_to_goal_non_cost"]
 
@@ -903,7 +904,7 @@ def plot_convergence_vs_time(input_dir_names, res_column_name_number):
     FARSI_column_experiment_value = {}
 
     #column_name = "move name"
-    for file_full_addr in file_full_addr_list:
+    for k, file_full_addr in enumerate(file_full_addr_list):
         for y_column_name in y_column_name_list:
             # get all possible the values of interest
             y_column_number = res_column_name_number[y_column_name]
@@ -928,23 +929,29 @@ def plot_convergence_vs_time(input_dir_names, res_column_name_number):
                         PA_column_experiment_value[y_column_name].append(PA_value_to_add)
 
                 # prepare for plotting and plot
-                fig = plt.figure()
+                fig = plt.figure(figsize=(12, 12))
+                plt.rc('font', **axis_font)
                 ax = fig.add_subplot(111)
+                fontSize = 20
                 #plt.tight_layout()
                 x_values = [el[0] for el in FARSI_column_experiment_value[y_column_name]]
-                y_values = [el[1] for el in FARSI_column_experiment_value[y_column_name]]
+                y_values = [str(float(el[1]) * 100 // 1 / 100.0) for el in FARSI_column_experiment_value[y_column_name]]
+                x_values.reverse()
+                y_values.reverse()
                 ax.scatter(x_values, y_values, label="FARSI time to completion", marker="_")
-                #ax.set_xscale('log')
+                # ax.set_yscale('log')
 
                 x_values = [el[0] for el in PA_column_experiment_value[y_column_name]]
-                y_values = [el[1] for el in PA_column_experiment_value[y_column_name]]
+                y_values = [str(float(el[1]) * 100 // 1 / 100.0) for el in PA_column_experiment_value[y_column_name]]
+                x_values.reverse()
+                y_values.reverse()
                 ax.scatter(x_values, y_values, label="PA time to completion", marker="_")
                 #ax.set_xscale('log')
 
                #ax.set_title("experiment vs system implicaction")
-                ax.legend()#bbox_to_anchor=(1, 1), loc="upper left")
-                ax.set_xlabel(x_column_name)
-                ax.set_ylabel(y_column_name)
+                ax.legend(loc="upper right")#bbox_to_anchor=(1, 1), loc="upper left")
+                ax.set_xlabel(x_column_name, fontsize=fontSize)
+                ax.set_ylabel(y_column_name, fontsize=fontSize)
                 plt.tight_layout()
 
                 # dump in the top folder
@@ -952,8 +959,8 @@ def plot_convergence_vs_time(input_dir_names, res_column_name_number):
                 output_dir = os.path.join(output_base_dir, "single_workload/progression")
                 if not os.path.exists(output_dir):
                     os.makedirs(output_dir)
-                fig.savefig(os.path.join(output_dir,y_column_name+"_vs_"+y_column_name+"_FARSI_vs_PA.png"))
-                # plt.show()
+                fig.savefig(os.path.join(output_dir,str(k)+"_" + y_column_name+"_vs_"+x_column_name+"_FARSI_vs_PA.png"))
+                plt.show()
                 plt.close('all')
 
 
@@ -2007,22 +2014,22 @@ if __name__ == "__main__":
                                     "ips_freq_coeff_var", "ips_area_coeff_var",
                                     "pes_freq_coeff_var", "pes_area_coeff_var"]
 
-    if "cross_workloads" in config_plotting.plot_list:
-        # get column orders (assumption is that the column order doesn't change between experiments)
-        plot_convergence_cross_workloads(experiment_full_addr_list, all_res_column_name_number)
-        column_column_value_experiment_frequency_dict = plot_codesign_nav_breakdown_cross_workload(experiment_full_addr_list, all_res_column_name_number)
-
-        for key, val in case_studies.items():
-            case_study = {key:val}
-            plot_system_implication_analysis(experiment_full_addr_list, summary_res_column_name_number, case_study)
-        plot_co_design_nav_breakdown_post_processing(experiment_full_addr_list, column_column_value_experiment_frequency_dict)
-        plot_codesign_rate_efficacy_cross_workloads_updated(experiment_full_addr_list, all_res_column_name_number)
-
+    # if "cross_workloads" in config_plotting.plot_list:
+    #     # get column orders (assumption is that the column order doesn't change between experiments)
+    #     plot_convergence_cross_workloads(experiment_full_addr_list, all_res_column_name_number)
+    #     column_column_value_experiment_frequency_dict = plot_codesign_nav_breakdown_cross_workload(experiment_full_addr_list, all_res_column_name_number)
+    #
+    #     for key, val in case_studies.items():
+    #         case_study = {key:val}
+    #         plot_system_implication_analysis(experiment_full_addr_list, summary_res_column_name_number, case_study)
+    #     plot_co_design_nav_breakdown_post_processing(experiment_full_addr_list, column_column_value_experiment_frequency_dict)
+    #     plot_codesign_rate_efficacy_cross_workloads_updated(experiment_full_addr_list, all_res_column_name_number)
+    #
     if "single_workload" in config_plotting.plot_list:
-        # single workload
-        plot_codesign_progression_per_workloads(experiment_full_addr_list, all_res_column_name_number)
-        _ = plot_codesign_nav_breakdown_per_workload(experiment_full_addr_list, all_res_column_name_number)
-        plot_convergence_per_workloads(experiment_full_addr_list, all_res_column_name_number)
+    #     # single workload
+    #     plot_codesign_progression_per_workloads(experiment_full_addr_list, all_res_column_name_number)
+    #     _ = plot_codesign_nav_breakdown_per_workload(experiment_full_addr_list, all_res_column_name_number)
+    #     plot_convergence_per_workloads(experiment_full_addr_list, all_res_column_name_number)
         plot_convergence_vs_time(experiment_full_addr_list, all_res_column_name_number)
 
     if "plot_3d" in config_plotting.plot_list:
