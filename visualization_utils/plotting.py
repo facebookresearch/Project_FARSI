@@ -1982,6 +1982,107 @@ def get_experiment_full_file_addr_list(experiment_full_dir_list):
 
     return results
 
+######### RADHIKA PANDAS PLOTS ############
+
+def grouped_barplot_varying_x(df, metric, metric_ylabel, varying_x, varying_x_labels, ax):
+    # [[bar heights, errs for varying_x1], [heights, errs for varying_x2]...]
+    grouped_stats_list = []
+    for x in varying_x:
+        grouped_x = df.groupby([x])
+        stats = grouped_x[metric].agg([np.mean, np.std])
+        grouped_stats_list.append(stats)
+
+    start_loc = 0
+    bar_width = 0.15
+    offset = 0.03
+    # [[bar locations for varying_x1], [bar locs for varying_x2]...]
+    grouped_bar_locs_list = []
+    for x in varying_x:
+        n_unique_varying_x = df[x].nunique()
+        bound = n_unique_varying_x * (bar_width+offset)
+        end_loc = start_loc+bound
+        bar_locs = np.linspace(start_loc, end_loc, n_unique_varying_x)
+        grouped_bar_locs_list.append(bar_locs)
+        start_loc = end_loc + 2*bar_width
+
+    print(grouped_bar_locs_list)
+
+    for x_i,x in enumerate(varying_x):
+        ax.bar(
+            grouped_bar_locs_list[x_i],
+            grouped_stats_list[x_i]["mean"],
+            width=bar_width,
+            yerr=grouped_stats_list[x_i]["std"]
+            #label=metric_ylabel
+        )
+
+    cat_xticks = []
+    cat_xticklabels = []
+
+    xticks = []
+    xticklabels = []
+    for x_i,x in enumerate(varying_x):
+        xticklabels.extend(grouped_stats_list[x_i].index.astype(float))
+        xticks.extend(grouped_bar_locs_list[x_i])
+
+        xticks_cat = grouped_bar_locs_list[x_i]
+        xticks_cat_start = xticks_cat[0]
+        xticks_cat_end = xticks_cat[-1]
+        xticks_cat_mid = xticks_cat_start + (xticks_cat_end - xticks_cat_start) / 2
+
+        cat_xticks.append(xticks_cat_mid)
+        cat_xticklabels.append("\n\n" + varying_x_labels[x_i])
+
+    xticks.extend(cat_xticks)
+    xticklabels.extend(cat_xticklabels)
+
+    ax.set_ylabel(metric_ylabel)
+    #ax.set_xlabel(xlabel)
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(xticklabels)
+
+    return ax
+
+
+def pandas_plots(all_results_files):
+    df = pd.concat((pd.read_csv(f) for f in all_results_files))
+
+    #df = raw_df.loc[(raw_df["move validity"] == True)]
+    #df["dist_to_goal_non_cost_delta"] = df["ref_des_dist_to_goal_non_cost"] - df["dist_to_goal_non_cost"]
+    df["local_traffic_ratio"] = np.divide(df["local_total_traffic"], df["local_total_traffic"] + df["global_total_traffic"])
+
+    print(df["local_traffic_ratio"])
+
+    fig, ax = plt.subplots(1)
+
+    #metric = "global_memory_avg_freq"
+    #metric_ylabel = "Global memory avg freq"
+    metric = "local_traffic_ratio"
+    metric_ylabel = "Local traffic ratio"
+    varying_x = [
+            "budget_scaling_latency",
+            "budget_scaling_power",
+            "budget_scaling_area",
+    ]
+    varying_x_labels = [
+            "Budget scaling latency",
+            "Budget scaling power",
+            "Budget scaling area",
+    ]
+
+    grouped_barplot_varying_x(
+            df,
+            metric, metric_ylabel,
+            varying_x, varying_x_labels,
+            ax
+    )
+    fig.tight_layout(rect=[0, 0, 1, 1])
+    fig.savefig("/Users/behzadboro/Project_FARSI_dir/Project_FARSI_with_channels/data_collection/data/simple_run/27_point_coverage_zad/bleh.png")
+    plt.close(fig)
+
+
+###########################################
+
 # the main function. comment out the plots if you do not need them
 if __name__ == "__main__":
     # populate parameters
@@ -2021,7 +2122,7 @@ if __name__ == "__main__":
 
         for key, val in case_studies.items():
             case_study = {key:val}
-            plot_system_implication_analysis(experiment_full_addr_list, summary_res_column_name_number, case_study)
+            #plot_system_implication_analysis(experiment_full_addr_list, summary_res_column_name_number, case_study)
         plot_co_design_nav_breakdown_post_processing(experiment_full_addr_list, column_column_value_experiment_frequency_dict)
         plot_codesign_rate_efficacy_cross_workloads_updated(experiment_full_addr_list, all_res_column_name_number)
 
@@ -2034,6 +2135,9 @@ if __name__ == "__main__":
 
     if "plot_3d" in config_plotting.plot_list:
         plot_3d(experiment_full_addr_list, summary_res_column_name_number)
+
+    if "pandas_plots" in config_plotting.plot_list:
+        pandas_plots(all_results_files)
 
     # get the the workload_set folder
     # each workload_set has a bunch of experiments underneath it
