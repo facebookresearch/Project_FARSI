@@ -37,10 +37,9 @@ else:
 
 
 
-def run_with_params(workloads, SA_depth, freq_range, power_budget, area_budget):
+def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, trans_sel_mode, study_type, workload_folder):
+    config.transformation_selection_mode = trans_sel_mode
     config.SA_depth = SA_depth
-    config.budget_dict["glass"]["power"]= power_budget
-    config.budget_dict["glass"]["area"]= area_budget
     # set the number of workers to be used (parallelism applied)
     current_process_id = 0
     total_process_cnt = 1
@@ -48,31 +47,14 @@ def run_with_params(workloads, SA_depth, freq_range, power_budget, area_budget):
 
     # set the study type
     #study_type = "cost_PPA"
-    study_type = "simple_run"
-    #study_subtype = "plot_3d_distance"
-    study_subtype = "run"
-    assert study_type in ["cost_PPA", "simple_run", "input_error_output_cost_sensitivity", "input_error_input_cost_sensitivity"]
-    assert study_subtype in ["run", "plot_3d_distance"]
+
+
+    workloads_first_letter  = '_'.join(sorted([el[0] for el in workloads]))
+    budget_values = "lat_"+str(base_budget_scaling["latency"])+"__pow_"+str(base_budget_scaling["power"]) + "__area_"+str(base_budget_scaling["area"])
 
     # set result folder
-    result_home_dir_default = os.path.join(os.getcwd(), "data_collection/data/" + study_type)
-    result_home_dir = os.path.join(config.home_dir, "data_collection/data/" + study_type)
-    date_time = datetime.now().strftime('%m-%d_%H-%M_%S')
-    budget_values = "pow_"+str(config.budget_dict["glass"]["power"]) + "__area_"+str(config.budget_dict["glass"]["area"])
-    result_folder = os.path.join(result_home_dir,
-                                 date_time + "____"+ budget_values)
-
-    # set the study parameters
-    # set the workload
-
-    #workloads = {"edge_detection"}
-    #workloads = {"hpvm_cava"}
-    #workloads = {"audio_decoder"}
-    #workloads = {"SLAM"}
-
-    #workloads = {"partial_SOC_example_hard"}
-    #workloads = {"simple_all_parallel"}
-
+    result_folder = os.path.join(workload_folder,
+                                 date_time + "____"+ budget_values +"___workloads_"+workloads_first_letter)
     # set the IP spawning params
     ip_loop_unrolling = {"incr": 2, "max_spawn_ip": 17, "spawn_mode": "geometric"}
     #ip_freq_range = {"incr":3, "upper_bound":8}
@@ -81,12 +63,13 @@ def run_with_params(workloads, SA_depth, freq_range, power_budget, area_budget):
     ip_freq_range = freq_range
     mem_freq_range = freq_range
     ic_freq_range = freq_range
-    tech_node_SF = {"perf":1, "energy":{"non_gpp":.064, "gpp":1}, "area":{"non_mem":.0374 , "mem":.079, "gpp":1}}   # technology node scaling factor
+    tech_node_SF = {"perf":1, "energy":{"non_gpp":.064, "gpp":1}, "area":{"non_mem":.0374 , "mem":.07, "gpp":1}}   # technology node scaling factor
     db_population_misc_knobs = {"ip_freq_correction_ratio": 1, "gpp_freq_correction_ratio": 1,
                                 "ip_spawn": {"ip_loop_unrolling": ip_loop_unrolling, "ip_freq_range": ip_freq_range},
                                 "mem_spawn": {"mem_freq_range":mem_freq_range},
                                 "ic_spawn": {"ic_freq_range":ic_freq_range},
-                                "tech_node_SF":tech_node_SF}
+                                "tech_node_SF":tech_node_SF,
+                                "base_budget_scaling":base_budget_scaling}
 
     # set software hardware database population
     # for SLAM
@@ -121,13 +104,58 @@ def run_with_params(workloads, SA_depth, freq_range, power_budget, area_budget):
         plot_3d_dist(result_dir_addr, full_file_addr, workloads)
 
 if __name__ == "__main__":
-    workloads =[{"edge_detection"}, {"hpvm_cava"}, {"audio_decoder"}, {"edge_detection", "hpvm_cava"}, {"edge_detection", "audio_decoder"}, {"hpvm_cava", "audio_decoder"}, {"audio_decoder", "edge_detection", "hpvm_cava"}]
+
+    study_type = "simple_run"
+    #study_subtype = "plot_3d_distance"
+    study_subtype = "run"
+    assert study_type in ["cost_PPA", "simple_run", "input_error_output_cost_sensitivity", "input_error_input_cost_sensitivity"]
+    assert study_subtype in ["run", "plot_3d_distance"]
     SA_depth = [10]
-    freq_range = [1,4,6,8]
-    power_budget_range = [.2,.1,.05]  #mW
-    area_budget_range = [.0001,.00005,.00003,.00001] # mm2
-    # run_with_params(workloads[0], SA_depth[0], freq_range)
-    for d in SA_depth:
+    freq_range = [1, 4, 6, 8]
+
+    # fast run
+    #workloads = [{"audio_decoder"}]
+    #workloads = [{"hpvm_cava"}]
+    workloads = [{"edge_detection"}]
+
+
+    # each workload in isolation
+    #workloads =[{"audio_decoder"}, {"edge_detection"}, {"hpvm_cava"}]
+
+    # all workloads together
+    #workloads =[{"audio_decoder", "edge_detection", "hpvm_cava"}]
+
+    # entire workload set
+    #workloads = [{"hpvm_cava"}, {"audio_decoder"}, {"edge_detection"}, {"edge_detection", "audio_decoder"}, {"hpvm_cava", "audio_decoder"}, {"hpvm_cava", "edge_detection"} , {"audio_decoder", "edge_detection", "hpvm_cava"}]
+
+    latency_scaling_range  = [.8, 1, 1.2]
+    power_scaling_range  = [.8,1,1.2]
+    area_scaling_range  = [.8,1,1.2]
+
+    # edge detection lower budget
+    latency_scaling_range  = [1]
+    # for audio
+    #power_scaling_range  = [.6,.5,.4,.3]
+    #area_scaling_range  = [.6,.5,.5,.3]
+
+    power_scaling_range  = [2]
+    area_scaling_range  = [1]
+
+    result_home_dir_default = os.path.join(os.getcwd(), "data_collection/data/" + study_type)
+    result_folder = os.path.join(config.home_dir, "data_collection/data/" + study_type)
+    date_time = datetime.now().strftime('%m-%d_%H-%M_%S')
+    run_folder = os.path.join(result_folder, date_time)
+    os.mkdir(run_folder)
+
+    #transformation_selection_mode_list = ["random", "arch-aware"]  # choose from {random, arch-aware}
+    transformation_selection_mode_list = ["arch-aware"]
+
+    for trans_sel_mode in transformation_selection_mode_list:
         for w in workloads:
-            for power_budget, area_budget in itertools.product(power_budget_range, area_budget_range):
-                run_with_params(w, d, freq_range, power_budget, area_budget)
+            workloads_first_letter = '_'.join(sorted([el[0] for el in w])) +"__"+trans_sel_mode[0]
+            workload_folder = os.path.join(run_folder, workloads_first_letter)
+            os.mkdir(workload_folder)
+            for d in SA_depth:
+                for latency_scaling,power_scaling, area_scaling in itertools.product(latency_scaling_range, power_scaling_range, area_scaling_range):
+                    base_budget_scaling = {"latency": latency_scaling, "power": power_scaling, "area": area_scaling}
+                    run_with_params(w, d, freq_range, base_budget_scaling, trans_sel_mode, study_type, workload_folder)

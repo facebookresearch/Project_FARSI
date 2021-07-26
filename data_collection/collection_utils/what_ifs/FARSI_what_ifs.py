@@ -135,7 +135,7 @@ def write_data_log(log_data, reason_to_terminate, case_study, result_dir_specifi
 #      unique_number: a number to differentiate between designs
 #      file_name: output file name
 # ------------------------------
-def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specific, unique_number, file_name):
+def write_one_results(sim_dp, dse, reason_to_terminate, case_study, result_dir_specific, unique_number, file_name):
     """
     def convert_dict_to_parsable_csv(dict_):
         list = []
@@ -149,10 +149,27 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
             result +=str(k) + "=" + str(v) + "___"
         return result
 
+    def convert_dictionary_to_parsable_csv_with_semi_column(dict_):
+        result = ""
+        for k, v in dict_.items():
+            result +=str(k) + "=" + str(v) + ";"
+        return result
+
+
+
     if not os.path.isdir(result_dir_specific):
         os.makedirs(result_dir_specific)
 
+
+    compute_system_attrs = sim_dp.dp_stats.get_compute_system_attr()
+    bus_system_attrs = sim_dp.dp_stats.get_bus_system_attr()
+    memory_system_attrs = sim_dp.dp_stats.get_memory_system_attr()
+
+
+
     output_file_minimal = os.path.join(result_dir_specific, file_name+ ".csv")
+
+    base_budget_scaling = sim_dp.database.db_input.sw_hw_database_population["misc_knobs"]["base_budget_scaling"]
 
     # minimal output
     if os.path.exists(output_file_minimal):
@@ -176,13 +193,16 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
 
         output_fh_minimal.write("SA_total_depth,")
         output_fh_minimal.write("reason_to_terminate" + ",")  # for now only write the latency accuracy as the other
-        output_fh_minimal.write("iteration number" + ",")  # for now only write the latency accuracy as the other
-        output_fh_minimal.write("iterationxdepth number" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("population generation cnt" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("iteration cnt" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("workload_set" + ",")  # for now only write the latency accuracy as the other
+        #output_fh_minimal.write("iterationxdepth number" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("simulation time" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("move generation time" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("kernel selection time" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("block selection time" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("transformation selection time" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("transformation_selection_mode" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("dist_to_goal_all" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("dist_to_goal_non_cost" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("system block count" + ",")  # for now only write the latency accuracy as the other
@@ -190,6 +210,7 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
         output_fh_minimal.write("system bus count" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("system memory count" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("routing complexity" + ",")  # for now only write the latency accuracy as the other
+        #output_fh_minimal.write("area_breakdown_subtype" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("block_impact_sorted" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("kernel_impact_sorted" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("metric_impact_sorted" + ",")  # for now only write the latency accuracy as the other
@@ -201,13 +222,39 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
         output_fh_minimal.write("move_dir" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("comm_comp" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write("high_level_optimization" + ",")  # for now only write the latency accuracy as the other
-        output_fh_minimal.write("architectural_variable_to_improve" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("architectural_principle" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("area_dram" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("area_non_dram" + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write("channel_cnt" + ",")  # for now only write the latency accuracy as the other
+        for key, val in compute_system_attrs.items():
+            output_fh_minimal.write(str(key) + ",")
+        for key, val in bus_system_attrs.items():
+            output_fh_minimal.write(str(key) + ",")
+        for key, val in memory_system_attrs.items():
+            output_fh_minimal.write(str(key) + ",")
+
+        for key,val in base_budget_scaling.items():
+            output_fh_minimal.write("budget_scaling_"+str(key) + ",")
+
 
     output_fh_minimal.write("\n")
     for metric in config.all_metrics:
-        output_fh_minimal.write(str(sim_dp.dp_stats.get_system_complex_metric(metric)) + ",")
+        data_ = sim_dp.dp_stats.get_system_complex_metric(metric)
+        if isinstance(data_, dict):
+            data__ = convert_dictionary_to_parsable_csv_with_semi_column(data_)
+        else:
+            data__ = data_
+
+        output_fh_minimal.write(str(data__) + ",")
+
         if metric in sim_dp.database.db_input.get_budget_dict("glass").keys():
-            output_fh_minimal.write(str(sim_dp.database.db_input.get_budget_dict("glass")[metric]) + ",")
+            data_ = sim_dp.database.db_input.get_budget_dict("glass")[metric]
+            if isinstance(data_, dict):
+                data__ = convert_dictionary_to_parsable_csv_with_semi_column(data_)
+            else:
+                data__ = data_
+            output_fh_minimal.write(str(data__) + ",")
+
     output_fh_minimal.write(sim_dp.database.hw_sampling["mode"] + ",")
     output_fh_minimal.write(sim_dp.database.hw_sampling["reduction"] + ",")
     for metric, accuracy_percentage in sim_dp.database.hw_sampling["accuracy_percentage"]["ip"].items():
@@ -241,7 +288,8 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
 
         comm_comp = (ma.get_system_improvement_log())["comm_comp"]
         high_level_optimization = (ma.get_system_improvement_log())["high_level_optimization"]
-        architectural_variable_to_improve = (ma.get_system_improvement_log())["architectural_variable_to_improve"]
+        exact_optimization = (ma.get_system_improvement_log())["exact_optimization"]
+        architectural_variable_to_improve = (ma.get_system_improvement_log())["architectural_principle"]
         block_selection_time = ma.get_logs("block_selection_time")
         kernel_selection_time = ma.get_logs("kernel_selection_time")
         transformation_selection_time = ma.get_logs("transformation_selection_time")
@@ -270,15 +318,18 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
     bus_cnt = [int(el) for el in simple_topology.split("_")][0]
     mem_cnt = [int(el) for el in simple_topology.split("_")][1]
     pe_cnt = [int(el) for el in simple_topology.split("_")][2]
-    itr_depth_multiplied = sim_dp.dp_rep.get_iteration_number()*config.SA_depth + sim_dp.dp_rep.get_depth_number()
+    #itr_depth_multiplied = sim_dp.dp_rep.get_iteration_number()*config.SA_depth + sim_dp.dp_rep.get_depth_number()
 
-    output_fh_minimal.write(str(sim_dp.dp_rep.get_iteration_number())+ ",")  # for now only write the latency accuracy as the other
-    output_fh_minimal.write(str(itr_depth_multiplied)+ ",")  # for now only write the latency accuracy as the other
+    output_fh_minimal.write(str(sim_dp.dp_rep.get_population_generation_cnt())+ ",")  # for now only write the latency accuracy as the other
+    output_fh_minimal.write(str(dse.get_total_iteration_cnt())+ ",")  # for now only write the latency accuracy as the other
+    output_fh_minimal.write('_'.join(sim_dp.database.db_input.workload_tasks.keys()) +",")
+    #output_fh_minimal.write(str(itr_depth_multiplied)+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(sim_dp.dp_rep.get_simulation_time())+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(generation_time)+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(kernel_selection_time)+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(block_selection_time)+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(transformation_selection_time)+ ",")  # for now only write the latency accuracy as the other
+    output_fh_minimal.write(str(config.transformation_selection_mode)+ ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(sim_dp.dp_stats.dist_to_goal(metrics_to_look_into = ["area", "latency", "power", "cost"], mode = "eliminate")) + ",")
     output_fh_minimal.write(str(sim_dp.dp_stats.dist_to_goal(metrics_to_look_into = ["area", "latency", "power"], mode = "eliminate")) + ",")
     output_fh_minimal.write(str(blk_cnt) + ",")  # for now only write the latency accuracy as the other
@@ -286,6 +337,7 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
     output_fh_minimal.write(str(bus_cnt) + ",")  # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(mem_cnt) + ",") # for now only write the latency accuracy as the other
     output_fh_minimal.write(str(routing_complexity) + ",")  # for now only write the latency accuracy as the other
+    #output_fh_minimal.write(convert_dictionary_to_parsable_csv_with_semi_column(sim_dp.dp_stats.SOC_area_subtype_dict.keys()) + ",")
     output_fh_minimal.write(str(sorted_blocks) + ",")
     output_fh_minimal.write(str(sorted_kernels) + ",")
     output_fh_minimal.write(str(sorted_metrics)+  ",")
@@ -298,7 +350,17 @@ def write_one_results(sim_dp, reason_to_terminate, case_study, result_dir_specif
     output_fh_minimal.write(str(comm_comp)+",")
     output_fh_minimal.write(str(high_level_optimization)+",")
     output_fh_minimal.write(str(architectural_variable_to_improve)+",")
-
+    output_fh_minimal.write(str(sim_dp.dp_stats.get_system_complex_area_stacked_dram()["dram"]) +",")
+    output_fh_minimal.write(str(sim_dp.dp_stats.get_system_complex_area_stacked_dram()["non_dram"]) +",")
+    output_fh_minimal.write(str(sim_dp.dp_rep.get_hardware_graph().get_number_of_channels()) +",")
+    for key, val in compute_system_attrs.items():
+        output_fh_minimal.write(str(val) + ",")
+    for key, val in bus_system_attrs.items():
+        output_fh_minimal.write(str(val) + ",")
+    for key, val in memory_system_attrs.items():
+        output_fh_minimal.write(str(val) + ",")
+    for key,val in base_budget_scaling.items():
+        output_fh_minimal.write(str(val) + ",")
 
     output_fh_minimal.close()
 
@@ -357,7 +419,7 @@ def simple_run(result_folder, sw_hw_database_population, system_workers=(1, 1)):
         run_ctr += 1
         # write the results in the general folder
         result_dir_specific = os.path.join(result_folder, "result_summary")
-        write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse.reason_to_terminate, case_study,
+        write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse, dse_hndlr.dse.reason_to_terminate, case_study,
                           result_dir_specific, unique_suffix,
                           config.FARSI_simple_run_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
         write_data_log(list(dse_hndlr.dse.get_log_data()), dse_hndlr.dse.reason_to_terminate, case_study, result_dir_specific, unique_suffix,
@@ -367,7 +429,7 @@ def simple_run(result_folder, sw_hw_database_population, system_workers=(1, 1)):
         result_folder_modified = result_folder+ "/runs/" + str(ctr) + "/"
         os.system("mkdir -p " + result_folder_modified)
         copy_DSE_data(result_folder_modified)
-        write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse.reason_to_terminate, case_study, result_folder_modified, unique_suffix,
+        write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse, dse_hndlr.dse.reason_to_terminate, case_study, result_folder_modified, unique_suffix,
                       config.FARSI_simple_run_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
 
         os.system("cp " + config.home_dir+"/settings/config.py"+ " "+ result_folder)
@@ -543,14 +605,14 @@ def input_error_output_cost_sensitivity_study(result_folder, sw_hw_database_popu
             run_ctr += 1
             # write the results in the general folder
             result_dir_specific = os.path.join(result_folder, "result_summary")
-            write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse.reason_to_terminate, case_study, result_dir_specific, unique_suffix,
+            write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse, dse_hndlr.dse.reason_to_terminate, case_study, result_dir_specific, unique_suffix,
                           file_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
 
             # write the results in the specific folder
             result_folder_modified = result_folder + "/runs/" + str(run_ctr) + "/"
             os.system("mkdir -p " + result_folder_modified)
             copy_DSE_data(result_folder_modified)
-            write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse.reason_to_terminate, case_study, result_folder_modified, unique_suffix,
+            write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse, dse_hndlr.dse.reason_to_terminate, case_study, result_folder_modified, unique_suffix,
                           file_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
 
 
@@ -560,7 +622,8 @@ if __name__ == "__main__":
     total_process_cnt = 1
     system_workers = (current_process_id, total_process_cnt)
 
-    # set the study type 
+
+    # set the study type
     #study_type = "cost_PPA"
     study_type = "simple_run"
     #study_subtype = "plot_3d_distance"
@@ -568,26 +631,29 @@ if __name__ == "__main__":
     assert study_type in ["cost_PPA", "simple_run", "input_error_output_cost_sensitivity", "input_error_input_cost_sensitivity"]
     assert study_subtype in ["run", "plot_3d_distance"]
 
+
+    # set the study parameters
+    # set the workload
+
+    #workloads = {"edge_detection"}
+    #workloads = {"hpvm_cava"}
+    #workloads = {"audio_decoder"}
+    #workloads = {"SLAM"}
+    #workloads ={"edge_detection","hpvm_cava", "audio_decoder"}
+    workloads ={"edge_detection", "audio_decoder"}
+
+    #workloads = {"partial_SOC_example_hard"}
+    #workloads = {"simple_all_parallel"}
+
+    workloads_first_letter  = '_'.join(sorted([el[0] for el in workloads]))
     # set result folder
     result_home_dir_default = os.path.join(os.getcwd(), "data_collection/data/" + study_type)
     result_home_dir = os.path.join(config.home_dir, "data_collection/data/" + study_type)
     date_time = datetime.now().strftime('%m-%d_%H-%M_%S')
     budget_values = "pow_"+str(config.budget_dict["glass"]["power"]) + "__area_"+str(config.budget_dict["glass"]["area"])
     result_folder = os.path.join(result_home_dir,
-                                 date_time + "____"+ budget_values)
+                                 date_time + "____"+ budget_values+"___workloads_"+workloads_first_letter)
 
-    # set the study parameters
-    # set the workload
-
-    workloads = {"edge_detection"}
-    #workloads = {"hpvm_cava"}
-    #workloads = {"audio_decoder"}
-    #workloads = {"SLAM"}
-    #workloads ={"audio_decoder", "edge_detection", "hpvm_cava"}
-    #workloads ={"audio_decoder", "edge_detection"}
-
-    #workloads = {"partial_SOC_example_hard"}
-    #workloads = {"simple_all_parallel"}
 
     # set the IP spawning params
     ip_loop_unrolling = {"incr": 2, "max_spawn_ip": 17, "spawn_mode": "geometric"}
@@ -598,12 +664,13 @@ if __name__ == "__main__":
     mem_freq_range = [1,4,6]
     ic_freq_range = [1,4,6]
     #tech_node_SF = {"perf":1, "energy":.064, "area":.079}   # technology node scaling factor
-    tech_node_SF = {"perf":1, "energy":{"non_gpp":.064, "gpp":1}, "area":{"non_mem":.0374 , "mem":.079, "gpp":1}}   # technology node scaling factor
+    tech_node_SF = {"perf":1, "energy":{"non_gpp":.064, "gpp":1}, "area":{"non_mem":.0374 , "mem":.07, "gpp":1}}   # technology node scaling factor
     db_population_misc_knobs = {"ip_freq_correction_ratio": 1, "gpp_freq_correction_ratio": 1,
                                 "ip_spawn": {"ip_loop_unrolling": ip_loop_unrolling, "ip_freq_range": ip_freq_range},
                                 "mem_spawn": {"mem_freq_range":mem_freq_range},
                                 "ic_spawn": {"ic_freq_range":ic_freq_range},
-                                "tech_node_SF":tech_node_SF}
+                                "tech_node_SF":tech_node_SF,
+                                "base_budget_scaling":{"latency":.5, "power":1, "area":1}}
 
     # set software hardware database population
     # for SLAM

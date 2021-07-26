@@ -585,6 +585,20 @@ class Kernel:
                 area_dict[my_block] += self.get_total_work()*mem_work_ratio_write/my_block.get_work_over_area()
         return area_dict
 
+    # calculate area per block
+    def calc_traffic_per_block(self, my_block):
+        traffic = 0
+        if my_block.get_block_type_name() in ["mem"]:
+            mem_work_ratio_read = self.__task_to_blocks_map.get_workRatio_by_block_name_and_dir(my_block.instance_name, "read")
+            mem_work_ratio_write = self.__task_to_blocks_map.get_workRatio_by_block_name_and_dir(my_block.instance_name, "write")
+            traffic += self.get_total_work()*mem_work_ratio_write
+            traffic += self.get_total_work()*mem_work_ratio_read
+
+        return traffic
+
+
+
+
     # calculate the cost per block
     def calc_cost_per_block(self):
         cost_dict = {}

@@ -23,8 +23,12 @@ import _pickle as cPickle
 # set
 class move:
     def __init__(self, transformation_name, transformation_sub_name, batch_mode, dir, metric, blck, krnel, krnl_prob_dict_sorted):
+        self.workload = ""
         self.transformation_name = transformation_name
+        self.parallelism_type = []
+        self.locality_type = []
         self.transformation_sub_name = transformation_sub_name
+        self.customization_type = ""
         self.metric = metric
         self.batch_mode = batch_mode
         self.dir = dir
@@ -50,14 +54,23 @@ class move:
         self.krnel_prob_dict_sorted = krnl_prob_dict_sorted
         self.generation_time = 0
         self.system_improvement_dict = {}
-        self.populate_system_improvement_log()
+        #self.populate_system_improvement_log()
 
         self.transformation_selection_time = 0
         self.block_selection_time = 0
         self.kernel_selection_time = 0
         self.pickling_time = 0
 
+        self.design_space_size = {"pe_mapping": 0 , "ic_mapping":0, "mem_mapping":0,
+                                  "pe_allocation": 0, "ic_allocation": 0, "mem_allocation": 0,
+                                  "transfer":0, "routing":0, "hardening":0, "softening":0,
+                                    "bus_width_modulation":0, "mem_frequency_modulation":0, "ic_frequency_modulation":0, "pe_frequency_modulation":0, "identity":0,
+                                  "loop_iteration_modulation":0
+                                  }
 
+
+    def get_design_space_size(self):
+        return self.design_space_size
 
     def get_system_improvement_log(self):
         return self.system_improvement_dict
@@ -69,9 +82,36 @@ class move:
         else:
             comm_comp = "comp"
 
-        # which high level optimization targgeted: topology/mapping/tunning
+        # which exact optimization targgeted: topology/mapping/tunning
         if self.get_transformation_name() in ["swap"]:
-            high_level_optimization = "tunning"
+            exact_optimization = self.get_customization_type(self.get_block_ref(), self.get_des_block())
+        elif self.get_transformation_name() in ["split_swap"]:
+            if self.get_block_ref() == "pe":
+                exact_optimization = self.get_customization_type(self.get_block_ref(), self.get_des_block()) +";" +self.get_block_ref().type +"_"+"allocation"
+            else:
+                exact_optimization = self.get_customization_type(self.get_block_ref(), self.get_des_block())
+        elif self.get_transformation_name() in ["migrate"]:
+            exact_optimization = self.get_block_ref().type +"_"+"mapping"
+        elif self.get_transformation_name() in ["split_swap", "split", "transfer", "routing"]:
+            exact_optimization = self.get_block_ref().type +"_"+"allocation"
+        elif self.get_transformation_name() in ["transfer", "routing"]:
+            exact_optimization = self.get_block_ref().type +"_"+self.get_transformation_name()
+        elif self.get_transformation_name() in ["cost"]:
+            exact_optimization = "cost"
+        elif self.get_transformation_name() in ["dram_fix"]:
+            exact_optimization = "dram_fix"
+        elif self.get_transformation_name() in ["identity"]:
+            exact_optimization = "identity"
+        else:
+            print(self.get_transformation_name() + " high level optimization is not specified")
+            exit(0)
+
+
+        # which high level optimization targgeted: topology/mapping/tunning
+        if self.get_transformation_name() in ["swap", "split_swap"]:
+            high_level_optimization = "hardware_tunning"
+        elif self.get_transformation_name() in ["split_swap"]:
+            high_level_optimization = "hardware_tunning;topology"
         elif self.get_transformation_name() in ["migrate"]:
             high_level_optimization = "mapping"
         elif self.get_transformation_name() in ["split_swap", "split", "transfer","routing"]:
@@ -88,26 +128,46 @@ class move:
 
         # which architectural variable targgeted: topology/mapping/tunning
         if self.get_transformation_name() in ["split"]:
-            architectural_variable_to_improve = "parallelization"
+            architectural_principle = ""
+            for el in self.parallelism_type:
+                architectural_principle +=  el+";"
+            architectural_principle = architectural_principle[:-1]
         elif self.get_transformation_name() in ["migrate"]:
-            architectural_variable_to_improve = "parallelization"
+            architectural_principle = ""
+            for el in self.parallelism_type:
+                architectural_principle +=  el+";"
+            for el in self.locality_type:
+                architectural_principle +=  el+";"
+            architectural_principle = architectural_principle[:-1]
         elif self.get_transformation_name() in ["split_swap", "swap"]:
-            architectural_variable_to_improve = "customization"
+            if "loop_iteration_modulation" in  exact_optimization:
+                architectural_principle = "loop_level_parallelism"
+            else:
+                architectural_principle = "customization"
         elif self.get_transformation_name() in ["transfer","routing"]:
-            architectural_variable_to_improve = "locality"
+            architectural_principle = "spatial_locality"
         elif self.get_transformation_name() in ["cost"]:
-            architectural_variable_to_improve = "cost"
+            architectural_principle = "cost"
         elif self.get_transformation_name() in ["dram_fix"]:
-            architectural_variable_to_improve = "dram_fix"
+            architectural_principle = "dram_fix"
         elif self.get_transformation_name() in ["identity"]:
-            architectural_variable_to_improve = "identity"
+            architectural_principle = "identity"
         else:
             print(self.get_transformation_name() + " high level optimization is not specified")
             exit(0)
 
         self.system_improvement_dict["comm_comp"] = comm_comp
         self.system_improvement_dict["high_level_optimization"] = high_level_optimization
-        self.system_improvement_dict["architectural_variable_to_improve"] = architectural_variable_to_improve
+        self.system_improvement_dict["exact_optimization"] = exact_optimization
+        self.system_improvement_dict["architectural_principle"] = architectural_principle
+
+
+    def set_parallelism_type(self, parallelism_type):
+        self.parallelism_type = parallelism_type
+
+    def set_locality_type(self, locality_type):
+        self.locality_type = locality_type
+
 
     def get_transformation_sub_name(self):
         return self.transformation_sub_name
@@ -125,6 +185,8 @@ class move:
     def set_logs(self, data, type_):
         if type_ == "cost":
             self.cost = data
+        if type_ == "workload":
+            self.workload = data
         if type_ == "pickling_time":
             self.pickling_time = data
         if type_ == "metric_selection_time":
@@ -154,7 +216,8 @@ class move:
         return self.batch_mode
 
     def get_logs(self, type_):
-
+        if type_ == "workload":
+            return self.workload
         if type_ == "cost":
             return self.cost
         if type_ == "kernels":
@@ -230,6 +293,55 @@ class move:
     # set the block that we will change the ref_block to.
     def set_dest_block(self, block_):
         self.dest_block = block_
+
+
+    def get_customization_type(self, ref_block, imm_block):
+        return self.customization_type
+
+    # set the block that we will change the ref_block to.
+    def set_customization_type(self, ref_block, imm_block):
+        if not ref_block.subtype  == imm_block.subtype:
+            # type difference
+            if ref_block.type == "pe":
+                if ref_block.subtype == "gpp" and imm_block.subtype =="ip":
+                    self.customization_type = "hardening"
+                elif ref_block.subtype == "ip" and imm_block.subtype =="gpp":
+                    self.customization_type = "softening"
+                else:
+                    self.customization_type = "unknown"
+                    #print("we should have coverred all the customizations. what is missing then (1)")
+                    #exit(0)
+            elif ref_block.type == "mem":
+                #self.customization_type = "memory_cell_ref_block.subtype +"_to_"  + imm_block.subtype
+                self.customization_type = "mem_allocation"
+            else:
+                self.customization_type = "unknown"
+                # print("we should have coverred all the customizations. what is missing then (1)")
+                # exit(0)
+        else:
+            if not ref_block.get_loop_itr_cnt() == imm_block.get_loop_itr_cnt():
+                self.customization_type = "loop_iteration_modulation"
+            elif not ref_block.get_block_freq() == imm_block.get_block_freq():
+                self.customization_type = ref_block.type+"_"+"frequency_modulation"
+            elif not ref_block.get_block_bus_width() == imm_block.get_block_bus_width():
+                self.customization_type = "bus_width_modulation"
+            else:
+                self.customization_type = "unknown"
+                # print("we should have coverred all the customizations. what is missing then (1)")
+                # exit(0)
+
+
+    def get_block_attr(self, selected_metric):
+        if selected_metric == "latency":
+            selected_metric_to_sort = 'peak_work_rate'
+        elif selected_metric == "power":
+            #selected_metric_to_sort = 'work_over_energy'
+            selected_metric_to_sort = 'one_over_power'
+        elif selected_metric == "area":
+            selected_metric_to_sort = 'one_over_area'
+        else:
+            print("selected_selected_metric: " + selected_metric + " is not defined")
+        return selected_metric_to_sort
 
 
     # --------------------------------------
@@ -1122,6 +1234,40 @@ class DesignHandler:
 
         return block
 
+    def get_all_compatible_blocks_of_certain_char(self, ex_dp, block, metric, metric_dir, tasks, mode):
+        metric_dir = -1
+        imm_blcks_non_unique_1 = [el for el in self.database.equal_sample_up_sample_down_sample_block_fast(block, metric, metric_dir,
+                                                                                           tasks) if not isinstance(el,str)]  # get the first value
+
+
+        metric_dir = 1
+        imm_blcks_non_unique_2 = [el for el in self.database.equal_sample_up_sample_down_sample_block_fast(block, metric, metric_dir,
+                                                                                           tasks) if not isinstance(el,str)]  # get the first value
+
+        results = []
+        if mode =="frequency_modulation":
+            for blk in imm_blcks_non_unique_1 + imm_blcks_non_unique_2:
+                if not blk.get_block_freq() == block.get_block_freq() and (blk.subtype == block.subtype) and (blk.get_block_bus_width() == block.get_block_bus_width()) and blk.get_loop_itr_cnt() == block.get_loop_itr_cnt():
+                    results.append(blk)
+        elif mode =="allocation":
+            for blk in imm_blcks_non_unique_1 + imm_blcks_non_unique_2:
+                if not blk.subtype == block.subtype and blk.get_block_freq() == block.get_block_freq() and (blk.get_block_bus_width() == block.get_block_bus_width()) and blk.get_loop_itr_cnt() == block.get_loop_itr_cnt():
+                    results.append(blk)
+        elif mode == "bus_width_modulation":
+            for blk in imm_blcks_non_unique_1 + imm_blcks_non_unique_2:
+                if not (blk.get_block_bus_width() == block.get_block_bus_width() and blk.subtype == block.subtype and blk.get_block_freq() == block.get_block_freq()  and blk.get_loop_itr_cnt() == block.get_loop_itr_cnt()):
+                    results.append(blk)
+        elif mode == "loop_iteration_modulation":
+            for blk in imm_blcks_non_unique_1 + imm_blcks_non_unique_2:
+                if not blk.get_loop_itr_cnt() == block.get_loop_itr_cnt() and blk.subtype == block.subtype and blk.get_block_freq() == block.get_block_freq() and (blk.get_block_bus_width() == block.get_block_bus_width()):
+                    results.append(blk)
+        else:
+            print("this mode:" + mode + "not supported")
+            exit(0)
+
+        return results
+
+
     def get_equal_immediate_blocks_present_fast(self, ex_dp, block, metric, metric_dir, tasks):
         imm_blcks_non_unique = self.database.equal_sample_up_sample_down_sample_block_fast(block, metric, metric_dir,
                                                                            tasks)  # get the first value
@@ -1787,15 +1933,11 @@ class DesignHandler:
     def migrant_selection(self, ex_dp, sim_dp, block_after_unload, block_before_unload, selected_kernel, selection_mode):
         if config.DEBUG_FIX: random.seed(0)
         else: time.sleep(.00001), random.seed(datetime.now().microsecond)
-        clustered_tasks = self.cluster_tasks(ex_dp,sim_dp, block_after_unload, selected_kernel, selection_mode)
-        """ 
-        clusters_tasks_0_names = [tsk.get_name() for tsk in clustered_tasks[0]]
-        result = []
-        for task in block_after_unload.get_tasks_of_block():
-            if task.get_name() in clusters_tasks_0_names:
-                result.append(task)
-        return  result
-        """
+        try:
+            clustered_tasks = self.cluster_tasks(ex_dp,sim_dp, block_after_unload, selected_kernel, selection_mode)
+        except:
+            print("migrant selection went wrong. This needs to be fixed. Most likely occurs with random (As opposed to arch-aware) transformation_selection_mode")
+            return []
         return clustered_tasks[0]
 
     # ------------------------------

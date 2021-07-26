@@ -64,7 +64,7 @@ sel_next_dp = "all_metrics"  # how to select the next desigh, ["all_metrics", "o
 # selection algorithm (picking the best neighbour)
 neigh_sel_algorithm = "annealing"
 SA_breadth = 1 # breath of the neighbour search
-SA_depth = 10 # depth of the neighbour search
+SA_depth = 15 # depth of the neighbour search
 annealing_max_temp = 500
 annealing_temp_dec = 50
 annealing_dampening_coef = 10  # how much to dampen the metric that has  met the design objectives
@@ -90,10 +90,10 @@ all_metrics = ["latency",  "power", "area", "energy", "cost"]    # all the metri
 budgetted_metrics = ["latency",  "power", "area"]
 other_metrics = ["cost"]
 
-budget_dict = {}
-budget_dict["glass"] = {}
-budget_dict["glass"]["power"] = .05
-budget_dict["glass"]["area"] = .000005
+#budget_dict = {}
+#budget_dict["glass"] = {}
+#budget_dict["glass"]["power"] = .05
+#budget_dict["glass"]["area"] = .000005
 
 home_dir = home_settings.home_dir
 #home_dir = os.getcwd()+"/../../"
@@ -203,6 +203,7 @@ statistical_reduction_mode = "avg"
 hw_sampling = {"mode":"exact", "population_size":1, "reduction":"avg"}   # mode:["error_integration", "exact"]  # error integration means that our IP library has an error and needs to be taken into account
                                                # exact, means that (even if IP library has an error), treat the (most likely) value as accurate value
 
+check_pointing_allowed = False
 use_slack_management_estimation = False and not (RUN_VERIFICATION_PER_GEN or RUN_VERIFICATION_PER_IMPROVMENT or RUN_VERIFICATION_PER_NEW_CONFIG)# if run verification, we can apply slack, otherwise we get the wrong numbers
 jitter_population_size= 1  # not statistical evaluation
 if hw_sampling["mode"] == "exact":
@@ -282,7 +283,7 @@ cacti_min_memory_size_in_bytes =  2048 # bellow this value cacti errors out. We 
 
 transformation_selection_mode = "arch-aware"  # choose from {random, arch-aware}
 
-all_available_transformations = ["migrate", "swap", "split", "split_swap", "transfer", "routing"]
+all_available_transformations = ["migrate", "swap", "split", "split_swap"]#, "transfer", "routing"]
 if RUN_VERIFICATION_AT_ALL:
     all_available_transformations = ["migrate", "swap", "split", "split_swap"]
 

@@ -242,6 +242,10 @@ class DSEHandler:
     #       using the best of the last iteration design.
     # ---------------
     def check_point_best_design(self, unique_number):
+        # deactivate check point to prevent running out of memory
+        if not config.check_pointing_allowed:
+            return
+
         #  pickle the results for (out of run) verifications.
         # make a directory according to the data/time
         date_time = datetime.now().strftime('%m-%d_%H-%M_%S')

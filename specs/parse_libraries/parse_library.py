@@ -168,6 +168,11 @@ def gen_task_graph(library_dir, prefix, misc_knobs):
 
     # collect number of instructions for each tasks
     work_dict = gen_task_graph_work_dict(library_dir, IP_perf_file_name, Block_char_file_name, misc_knobs)
+    """ 
+    for task_name, work in work_dict.items():
+        print(task_name+","+str(work))
+    exit(0)
+    """
 
     for task_name_, values in task_graph_dict.items():
         task_ = TaskL(task_name=task_name_, work=work_dict[task_name_])
@@ -568,6 +573,7 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
                 hardware_library_dict[IP_name]["sub_type"] = "gpp"
                 hardware_library_dict[IP_name]["clock_freq"] = gpps[IP_name]["Freq"]
                 hardware_library_dict[IP_name]["BitWidth"] = gpps[IP_name]["BitWidth"]
+                hardware_library_dict[IP_name]["loop_itr_cnt"] = 0
                 #print("taskname: " + str(task_name) + ", subtype: gpp, power is"+ str(hardware_library_dict[IP_name]["work_rate"]/hardware_library_dict[IP_name]["work_over_energy"] ))
             else:
                 loop_itr_range_ = gen_loop_itr_range(task_name, task_itr_cnt, misc_knobs)
@@ -584,6 +590,7 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
                     hardware_library_dict[IP_name_refined]["sub_type"] = "ip"
                     hardware_library_dict[IP_name_refined]["clock_freq"] = ip_template["IP"]["Freq"]*ip_freq
                     hardware_library_dict[IP_name_refined]["BitWidth"] = ip_template["IP"]["BitWidth"]
+                    hardware_library_dict[IP_name_refined]["loop_itr_cnt"] = loop_itr_cnt
                     #print("taskname: " + str(task_name) + ", subtype: ip, power is"+ str(hardware_library_dict[IP_name]["work_rate"]/hardware_library_dict[IP_name]["work_over_energy"] ))
 
     for blck_name, blck_value in mems.items():
@@ -601,6 +608,7 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
             hardware_library_dict[IP_name_refined]["sub_type"] = blck_value['Subtype']
             hardware_library_dict[IP_name_refined]["clock_freq"] = freq*blck_value["Freq"]
             hardware_library_dict[IP_name_refined]["BitWidth"] = blck_value["BitWidth"]
+            hardware_library_dict[IP_name_refined]["loop_itr_cnt"] = 0
     for blck_name, blck_value in ics.items():
         ic_freq_range = gen_freq_range(misc_knobs, "ic")
         for freq in ic_freq_range:
@@ -615,11 +623,17 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
             hardware_library_dict[IP_name_refined]["sub_type"] = "ic"
             hardware_library_dict[IP_name_refined]["clock_freq"] = freq*blck_value["Freq"]
             hardware_library_dict[IP_name_refined]["BitWidth"] = blck_value["BitWidth"]
+            hardware_library_dict[IP_name_refined]["loop_itr_cnt"] = 0
 
     return hardware_library_dict
 
 # collect budget values for each workload
-def collect_budgets(workloads_to_consider, library_dir, prefix=""):
+def collect_budgets(workloads_to_consider, budget_misc_knobs, library_dir, prefix=""):
+    if "base_budget_scaling" not in budget_misc_knobs.keys():
+        base_budget_scaling = {"latency":1, "power":1, "area":1}
+    else:
+        base_budget_scaling = budget_misc_knobs["base_budget_scaling"]
+
     # get files
     file_list = [f for f in os.listdir(library_dir) if os.path.isfile(os.path.join(library_dir, f))]
     misc_file_name = get_full_file_name(prefix + "Budget.csv", file_list)
@@ -636,17 +650,23 @@ def collect_budgets(workloads_to_consider, library_dir, prefix=""):
     budgets_dict["glass"]["latency"] = {}
 
     for metric in config.budgetted_metrics:
-        if metric in ["power", "area"]:
+        if metric in ["power", "area"] and not len(workloads_to_consider) == 1:
             budgets_dict["glass"][metric] = (df.loc[df['Workload'] == "all"])[metric].values[0]
+            budgets_dict["glass"][metric] *= float(base_budget_scaling[metric])
             # this is a hack for now. change later.
             # but used for budget sweep for now
-            budgets_dict["glass"][metric] = config.budget_dict["glass"][metric]
-        elif metric in ["latency"]:
+            #budgets_dict["glass"][metric] = config.budget_dict["glass"][metric]
+        elif metric in ["latency"] or len(workloads_to_consider)==1:
             for idx in range(0, len(workloads)):
                 workload_name = workloads[idx]
                 if workload_name == "all" or workload_name not in workloads_to_consider:
                     continue
-                budgets_dict["glass"][metric][workload_name] = (df.loc[df['Workload'] == workload_name])[metric].values[0]
+                if metric == "latency":
+                    budgets_dict["glass"][metric][workload_name] = (df.loc[df['Workload'] == workload_name])[metric].values[0]
+                    budgets_dict["glass"][metric][workload_name] *= float(base_budget_scaling[metric])
+                else:
+                    budgets_dict["glass"][metric] = (df.loc[df['Workload'] == workload_name])[metric].values[0]
+                    budgets_dict["glass"][metric] *= float(base_budget_scaling[metric])
 
     for metric in config.other_metrics:
         other_values_dict["glass"][metric] = (df.loc[df['Workload'] == "all"])[metric].values[0]
@@ -750,7 +770,8 @@ def gen_hardware_library(library_dir, prefix, workload, misc_knobs={}):
                    work_over_energy_distribution = {hardware_library_dict[IP_name]["work_over_energy"]:1},
                    work_over_area_distribution = {hardware_library_dict[IP_name]["work_over_area"]:1},
                    one_over_area_distribution = {hardware_library_dict[IP_name]["one_over_area"]:1},
-                   clock_freq=hardware_library_dict[IP_name]["clock_freq"], bus_width=hardware_library_dict[IP_name]["BitWidth"]))
+                   clock_freq=hardware_library_dict[IP_name]["clock_freq"], bus_width=hardware_library_dict[IP_name]["BitWidth"],
+                   loop_itr_cnt=hardware_library_dict[IP_name]["loop_itr_cnt"]))
 
         if block_type == "pe":
             for mappable_tasks in hardware_library_dict[IP_name]["mappable_tasks"]:

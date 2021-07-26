@@ -141,7 +141,7 @@ class database_input_class():
                 #self.souurce_memory_work += sum([sum(list(data_movement[task].values())) for task in data_movement.keys() if task == "souurce"])
 
             self.workloads_last_task = collect_last_task(sw_hw_database_population["workloads"], os.path.join(config.database_data_dir, "parsing"), "misc_database - ")
-            self.budgets_dict, self.other_values_dict = collect_budgets(sw_hw_database_population["workloads"], os.path.join(config.database_data_dir, "parsing"),  "misc_database - ")
+            self.budgets_dict, self.other_values_dict = collect_budgets(sw_hw_database_population["workloads"], sw_hw_database_population["misc_knobs"], os.path.join(config.database_data_dir, "parsing"),  "misc_database - ")
             self.misc_data["same_ip_tasks_list"] = []
         elif sw_hw_database_population["db_mode"] == "generate":
             if len(imported_databases) > 1:
