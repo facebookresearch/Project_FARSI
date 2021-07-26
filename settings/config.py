@@ -64,7 +64,7 @@ sel_next_dp = "all_metrics"  # how to select the next desigh, ["all_metrics", "o
 # selection algorithm (picking the best neighbour)
 neigh_sel_algorithm = "annealing"
 SA_breadth = 1 # breath of the neighbour search
-SA_depth = 10 # depth of the neighbour search
+SA_depth = 15 # depth of the neighbour search
 annealing_max_temp = 500
 annealing_temp_dec = 50
 annealing_dampening_coef = 10  # how much to dampen the metric that has  met the design objectives

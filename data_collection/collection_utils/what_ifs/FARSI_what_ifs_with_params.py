@@ -63,7 +63,7 @@ def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, trans_
     ip_freq_range = freq_range
     mem_freq_range = freq_range
     ic_freq_range = freq_range
-    tech_node_SF = {"perf":1, "energy":{"non_gpp":.064, "gpp":1}, "area":{"non_mem":.0374 , "mem":.079, "gpp":1}}   # technology node scaling factor
+    tech_node_SF = {"perf":1, "energy":{"non_gpp":.064, "gpp":1}, "area":{"non_mem":.0374 , "mem":.07, "gpp":1}}   # technology node scaling factor
     db_population_misc_knobs = {"ip_freq_correction_ratio": 1, "gpp_freq_correction_ratio": 1,
                                 "ip_spawn": {"ip_loop_unrolling": ip_loop_unrolling, "ip_freq_range": ip_freq_range},
                                 "mem_spawn": {"mem_freq_range":mem_freq_range},
@@ -114,7 +114,10 @@ if __name__ == "__main__":
     freq_range = [1, 4, 6, 8]
 
     # fast run
+    #workloads = [{"audio_decoder"}]
+    #workloads = [{"hpvm_cava"}]
     workloads = [{"edge_detection"}]
+
 
     # each workload in isolation
     #workloads =[{"audio_decoder"}, {"edge_detection"}, {"hpvm_cava"}]
@@ -129,10 +132,14 @@ if __name__ == "__main__":
     power_scaling_range  = [.8,1,1.2]
     area_scaling_range  = [.8,1,1.2]
 
+    # edge detection lower budget
     latency_scaling_range  = [1]
-    power_scaling_range  = [1]
-    area_scaling_range  = [1]
+    # for audio
+    #power_scaling_range  = [.6,.5,.4,.3]
+    #area_scaling_range  = [.6,.5,.5,.3]
 
+    power_scaling_range  = [2]
+    area_scaling_range  = [1]
 
     result_home_dir_default = os.path.join(os.getcwd(), "data_collection/data/" + study_type)
     result_folder = os.path.join(config.home_dir, "data_collection/data/" + study_type)
@@ -140,7 +147,7 @@ if __name__ == "__main__":
     run_folder = os.path.join(result_folder, date_time)
     os.mkdir(run_folder)
 
-    #transformation_selection_mode_list = ["arch-aware","random"]  # choose from {random, arch-aware}
+    #transformation_selection_mode_list = ["random", "arch-aware"]  # choose from {random, arch-aware}
     transformation_selection_mode_list = ["arch-aware"]
 
     for trans_sel_mode in transformation_selection_mode_list:
