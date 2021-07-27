@@ -1,6 +1,7 @@
 #Copyright (c) Facebook, Inc. and its affiliates.
 #This source code is licensed under the MIT license found in the
 #LICENSE file in the root directory of this source tree.
+import itertools
 import copy
 import csv
 import os
@@ -2080,6 +2081,116 @@ def pandas_plots(all_results_files):
     fig.savefig("/Users/behzadboro/Project_FARSI_dir/Project_FARSI_with_channels/data_collection/data/simple_run/27_point_coverage_zad/bleh.png")
     plt.close(fig)
 
+def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_name_number):
+    workload_results = {}
+    for file in all_result_files:
+        with open(file, newline='') as csvfile:
+            resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+            for i, row in enumerate(resultReader):
+                if i == 1:
+                    blah = summary_res_column_name_number["workload_set"]
+                    workload_set_name = row[summary_res_column_name_number["workload_set"]]
+                    if workload_set_name not in workload_results.keys():
+                        workload_results[workload_set_name] = []
+                    latency = ((row[summary_res_column_name_number["latency"]].split(";"))[0].split("="))[1]
+                    latency_budget = ((row[summary_res_column_name_number["latency_budget"]].split(";"))[0].split("="))[1]
+                    if float(latency)  > float(latency_budget):
+                        continue
+
+                    power = row[summary_res_column_name_number["power"]]
+                    area = row[summary_res_column_name_number["area"]]
+                    workload_results[workload_set_name].append((float(power),float(area)))
+
+    workload_pareto_points = {}
+    for workload, points in workload_results.items():
+        workload_pareto_points[workload] = find_pareto_points(list(set(points)))
+
+    """" 
+    # combine the results
+    combined_area_power = []
+    for results_combined in itertools.product(*list(workload_pareto_points.values())):
+        combined_power_area_tuple = [0,0]
+        for el in results_combined:
+            combined_power_area_tuple[0] += el[0]
+            combined_power_area_tuple[1] += el[1]
+        combined_area_power.append(combined_power_area_tuple[:])
+    """
+
+
+    all_points = []
+    for workload, points in workload_results.items():
+        for point in points:
+            all_points.append(point)
+
+
+    combined_area_power = []
+    for results_combined in itertools.product(all_points):
+        combined_power_area_tuple = [0,0]
+        for el in results_combined:
+            combined_power_area_tuple[0] += el[0]
+            combined_power_area_tuple[1] += el[1]
+        combined_area_power.append((combined_power_area_tuple[0],combined_power_area_tuple[1]))
+
+    combined_area_power_pareto = find_pareto_points(list(set(combined_area_power)))
+
+    # prepare for plotting and plot
+    fig = plt.figure(figsize=(12, 12))
+    #plt.rc('font', **axis_font)
+    ax = fig.add_subplot(111)
+    fontSize = 20
+    # plt.tight_layout()
+    x_values = [el[0] for el in combined_area_power_pareto]
+    y_values = [el[1] for el in combined_area_power_pareto]
+    x_values.reverse()
+    y_values.reverse()
+    ax.scatter(x_values, y_values, label="pareto front of sweep",marker="x")
+
+
+    x_values = [el[0] for el in all_points]
+    y_values = [el[1] for el in all_points]
+    x_values.reverse()
+    y_values.reverse()
+    ax.scatter(x_values, y_values, label="all points",marker="_")
+
+    # ax.set_title("experiment vs system implicaction")
+    ax.legend(loc="upper right")  # bbox_to_anchor=(1, 1), loc="upper left")
+    ax.set_xlabel("power", fontsize=fontSize)
+    ax.set_ylabel("area", fontsize=fontSize)
+    plt.tight_layout()
+
+    # dump in the top folder
+    output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+    output_dir = os.path.join(output_base_dir, "budget_optimality/")
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    fig.savefig(os.path.join(output_dir, "budget_optimality.png"))
+    plt.show()
+    plt.close('all')
+
+
+def find_pareto_points(points):
+    efficients = is_pareto_efficient_dumb(np.array(points))
+    pareto_points_array = [points[idx] for idx, el in enumerate(efficients) if el]
+
+    return pareto_points_array
+
+    pareto_points = []
+    for el in pareto_points_array:
+        list_ = []
+        for el_ in el:
+            list.append(el)
+        pareto_points.append(list_)
+
+    return pareto_points
+
+
+def is_pareto_efficient_dumb(costs):
+    is_efficient = np.ones(costs.shape[0], dtype = bool)
+    for i, c in enumerate(costs):
+        is_efficient[i] = np.all(np.any(costs[:i]>c, axis=1)) and np.all(np.any(costs[i+1:]>c, axis=1))
+    return is_efficient
+
+
 
 ###########################################
 
@@ -2115,6 +2226,9 @@ if __name__ == "__main__":
                                     "ips_freq_coeff_var", "ips_area_coeff_var",
                                     "pes_freq_coeff_var", "pes_area_coeff_var"]
 
+    if "budget_optimality":
+        get_budget_optimality(experiment_full_addr_list, all_results_files, summary_res_column_name_number)
+
     if "cross_workloads" in config_plotting.plot_list:
         # get column orders (assumption is that the column order doesn't change between experiments)
         plot_convergence_cross_workloads(experiment_full_addr_list, all_res_column_name_number)
@@ -2122,7 +2236,7 @@ if __name__ == "__main__":
 
         for key, val in case_studies.items():
             case_study = {key:val}
-            #plot_system_implication_analysis(experiment_full_addr_list, summary_res_column_name_number, case_study)
+            plot_system_implication_analysis(experiment_full_addr_list, summary_res_column_name_number, case_study)
         plot_co_design_nav_breakdown_post_processing(experiment_full_addr_list, column_column_value_experiment_frequency_dict)
         plot_codesign_rate_efficacy_cross_workloads_updated(experiment_full_addr_list, all_res_column_name_number)
 
