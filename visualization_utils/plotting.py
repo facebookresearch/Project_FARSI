@@ -2045,21 +2045,19 @@ def grouped_barplot_varying_x(df, metric, metric_ylabel, varying_x, varying_x_la
     return ax
 
 
-def pandas_plots(all_results_files):
+def pandas_plots(input_dir_names, all_results_files, metric):
     df = pd.concat((pd.read_csv(f) for f in all_results_files))
 
     #df = raw_df.loc[(raw_df["move validity"] == True)]
     #df["dist_to_goal_non_cost_delta"] = df["ref_des_dist_to_goal_non_cost"] - df["dist_to_goal_non_cost"]
-    df["local_traffic_ratio"] = np.divide(df["local_total_traffic"], df["local_total_traffic"] + df["global_total_traffic"])
-
-    print(df["local_traffic_ratio"])
-
-    fig, ax = plt.subplots(1)
-
+    #df["local_traffic_ratio"] = np.divide(df["local_total_traffic"], df["local_total_traffic"] + df["global_total_traffic"])
     #metric = "global_memory_avg_freq"
     #metric_ylabel = "Global memory avg freq"
-    metric = "local_traffic_ratio"
-    metric_ylabel = "Local traffic ratio"
+    #metric = "local_traffic_ratio"
+
+    metric_ylabel = metric #"Local traffic ratio"
+
+
     varying_x = [
             "budget_scaling_latency",
             "budget_scaling_power",
@@ -2071,15 +2069,27 @@ def pandas_plots(all_results_files):
             "Budget scaling area",
     ]
 
+
+    fig, ax = plt.subplots(1)
     grouped_barplot_varying_x(
             df,
             metric, metric_ylabel,
             varying_x, varying_x_labels,
             ax
     )
-    fig.tight_layout(rect=[0, 0, 1, 1])
-    fig.savefig("/Users/behzadboro/Project_FARSI_dir/Project_FARSI_with_channels/data_collection/data/simple_run/27_point_coverage_zad/bleh.png")
-    plt.close(fig)
+    output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+    output_dir = os.path.join(output_base_dir, "panda_study/")
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    fig.savefig(os.path.join(output_dir, metric+".png"))
+    #plt.show()
+    plt.close('all')
+
+
+
+    #fig.tight_layout(rect=[0, 0, 1, 1])
+    #fig.savefig("/Users/behzadboro/Project_FARSI_dir/Project_FARSI_with_channels/data_collection/data/simple_run/27_point_coverage_zad/bleh.png")
+    #plt.close(fig)
 
 def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_name_number):
     workload_results = {}
@@ -2099,7 +2109,8 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
 
                     power = row[summary_res_column_name_number["power"]]
                     area = row[summary_res_column_name_number["area"]]
-                    workload_results[workload_set_name].append((float(power),float(area)))
+                    system_complexity = row[summary_res_column_name_number["ip_cnt"]] # + row[summary_res_column_name_number["gpp_cnt"]]
+                    workload_results[workload_set_name].append((float(power),float(area), float(system_complexity)))
 
     workload_pareto_points = {}
     for workload, points in workload_results.items():
@@ -2117,21 +2128,33 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
     """
 
 
-    all_points = []
+    all_points_in_isolation = []
+    all_points_cross_workloads = []
+
+    workload_in_isolation = {}
     for workload, points in workload_results.items():
-        for point in points:
-            all_points.append(point)
+        if "cava" in workload and "audio" in workload and "edge_detection" in workload:
+            for point in points:
+                all_points_cross_workloads.append(point)
+        else:
+            workload_in_isolation[workload] = points
 
 
-    combined_area_power = []
-    for results_combined in itertools.product(all_points):
-        combined_power_area_tuple = [0,0]
+    workload_in_isolation_pareto = {}
+    for workload, points in workload_in_isolation.items():
+        optimal_points = find_pareto_points(list(set(points)))
+        workload_in_isolation_pareto[workload] = optimal_points
+
+    combined_area_power_in_isolation= []
+    for results_combined in itertools.product(*list(workload_in_isolation_pareto.values())):
+        combined_power_area_tuple = [0,0,0]
         for el in results_combined:
             combined_power_area_tuple[0] += el[0]
             combined_power_area_tuple[1] += el[1]
-        combined_area_power.append((combined_power_area_tuple[0],combined_power_area_tuple[1]))
+            combined_power_area_tuple[2] += el[2]
+        combined_area_power_in_isolation.append((combined_power_area_tuple[0],combined_power_area_tuple[1], combined_power_area_tuple[2]))
 
-    combined_area_power_pareto = find_pareto_points(list(set(combined_area_power)))
+    combined_area_power_pareto = find_pareto_points(list(set(combined_area_power_in_isolation)))
 
     # prepare for plotting and plot
     fig = plt.figure(figsize=(12, 12))
@@ -2146,17 +2169,25 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
     ax.scatter(x_values, y_values, label="pareto front of sweep",marker="x")
 
 
-    x_values = [el[0] for el in all_points]
-    y_values = [el[1] for el in all_points]
+    x_values = [el[0] for el in combined_area_power_in_isolation]
+    y_values = [el[1] for el in combined_area_power_in_isolation]
     x_values.reverse()
     y_values.reverse()
     ax.scatter(x_values, y_values, label="all points",marker="_")
 
     # ax.set_title("experiment vs system implicaction")
-    ax.legend(loc="upper right")  # bbox_to_anchor=(1, 1), loc="upper left")
     ax.set_xlabel("power", fontsize=fontSize)
     ax.set_ylabel("area", fontsize=fontSize)
     plt.tight_layout()
+
+
+    x_values = [el[0] for el in all_points_cross_workloads]
+    y_values = [el[1] for el in all_points_cross_workloads]
+    x_values.reverse()
+    y_values.reverse()
+    ax.scatter(x_values, y_values, label="cross workload",marker="o")
+    ax.legend(loc="upper right")  # bbox_to_anchor=(1, 1), loc="upper left")
+
 
     # dump in the top folder
     output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
@@ -2164,7 +2195,7 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     fig.savefig(os.path.join(output_dir, "budget_optimality.png"))
-    plt.show()
+    #plt.show()
     plt.close('all')
 
 
@@ -2251,7 +2282,40 @@ if __name__ == "__main__":
         plot_3d(experiment_full_addr_list, summary_res_column_name_number)
 
     if "pandas_plots" in config_plotting.plot_list:
-        pandas_plots(all_results_files)
+        pandas_case_studies = {}
+        pandas_case_studies["system_complexity"] = ["system block count", "routing complexity", "system PE count",
+                                             "local_mem_cnt", "local_bus_cnt" , "channel_cnt", "ip_cnt", "gpp_cnt"]
+
+        pandas_case_studies["pe_parallelism"] = ["max_accel_parallelism", "avg_accel_parallelism", "avg_gpp_parallelism", "max_gpp_parallelism"]
+
+        pandas_case_studies["ip_frequency"] = ["ips_avg_freq", "gpps_avg_freq", "ips_freq_std", "pes_freq_std",
+                                            "ips_freq_coeff_var", "pes_freq_coeff_var"]
+
+        pandas_case_studies["pe_area"] = ["ips_total_area", "gpps_total_area", "ips_area_std", "pes_area_std",
+                                            "ips_area_coeff_var", "pes_area_coeff_var"]
+
+        pandas_case_studies["mem_frequency"] = ["local_memory_avg_freq", "global_memory_avg_freq",
+                                                "local_memory_freq_std","local_memory_freq_coeff_var"]
+
+        pandas_case_studies["mem_area"] = ["local_memory_total_area", "global_memory_total_area", "local_memory_area_std",
+                                           "local_memory_area_coeff_var"]
+
+        pandas_case_studies["traffic"] = ["local_total_traffic", "global_total_traffic"]
+
+
+        pandas_case_studies["bus_width"] = ["local_bus_avg_bus_width",
+                                            "system_bus_avg_bus_width"]
+
+
+        pandas_case_studies["bus_bandwidth"] = ["local_bus_avg_actual_bandwidth",  "system_bus_avg_actual_bandwidth",
+                                                "local_bus_avg_theoretical_bandwidth", "system_bus_avg_theoretical_bandwidth",
+                                                "local_bus_max_actual_bandwidth", "system_bus_max_actual_bandwidth"]
+
+
+
+        for case_study_name, metrics in pandas_case_studies.items():
+            for metric in metrics:
+                pandas_plots(experiment_full_addr_list, all_results_files, metric)
 
     # get the the workload_set folder
     # each workload_set has a bunch of experiments underneath it
