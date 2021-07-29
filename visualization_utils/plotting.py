@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 import shutil
 from settings import config_plotting
+import time
 
 def get_column_name_number(dir_addr, mode):
     column_name_number_dic = {}
@@ -2091,14 +2092,41 @@ def pandas_plots(input_dir_names, all_results_files, metric):
     #fig.savefig("/Users/behzadboro/Project_FARSI_dir/Project_FARSI_with_channels/data_collection/data/simple_run/27_point_coverage_zad/bleh.png")
     #plt.close(fig)
 
-def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_name_number):
+def get_budget_optimality_advanced(input_dir_names,all_result_files, summary_res_column_name_number):
+    def points_exceed_one_of_the_budgets(point, base_budget, budget_scaling_to_consider):
+        power = point[0]
+        area = point[1]
+        if power > base_budgets["power"] * budget_scale_to_consider and area > base_budgets[
+            "area"] * budget_scale_to_consider:
+            return True
+        return False
+
     workload_results = {}
+
+    system_char_to_keep_track_of = {"memory_total_area", "local_memory_total_area","pe_total_area", "ip_cnt", "ips_total_area"}
+
+    # budget scaling to consider
+    budget_scale_to_consider = .5
+    # get budget first
+    base_budgets = {}
     for file in all_result_files:
         with open(file, newline='') as csvfile:
             resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
             for i, row in enumerate(resultReader):
                 if i == 1:
-                    blah = summary_res_column_name_number["workload_set"]
+                    if float(row[summary_res_column_name_number["budget_scaling_latency"]]) == 1 and\
+                            float(row[summary_res_column_name_number["budget_scaling_power"]]) == 1 and \
+                            float(row[summary_res_column_name_number["budget_scaling_area"]]) == 1:
+                        base_budgets["power"] = float(row[summary_res_column_name_number["power_budget"]])
+                        base_budgets["area"] = float(row[summary_res_column_name_number["area_budget"]])
+                        break
+
+
+    for file in all_result_files:
+        with open(file, newline='') as csvfile:
+            resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+            for i, row in enumerate(resultReader):
+                if i == 1:
                     workload_set_name = row[summary_res_column_name_number["workload_set"]]
                     if workload_set_name not in workload_results.keys():
                         workload_results[workload_set_name] = []
@@ -2107,10 +2135,235 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
                     if float(latency)  > float(latency_budget):
                         continue
 
-                    power = row[summary_res_column_name_number["power"]]
-                    area = row[summary_res_column_name_number["area"]]
+                    #workload_results[workload_set_name].append((float(power),float(area), float(system_complexity)))
+
+                    area= float(row[summary_res_column_name_number["area"]])
+                    power = float(row[summary_res_column_name_number["power"]])
+                    system_char = {}
+                    for el in system_char_to_keep_track_of:
+                        system_char[el] = float(row[summary_res_column_name_number[el]])
+                    point_system_char = {(power, area): system_char}
+                    workload_results[workload_set_name].append(point_system_char)
+
+    workload_pareto_points = {}
+    for workload, points_ in workload_results.items():
+        points = [list(el.keys())[0] for el in points_]
+        pareto_points= find_pareto_points(list(set(points)))
+        workload_pareto_points[workload] = []
+        for point in pareto_points:
+            keys = [list(el.keys())[0] for el in workload_results[workload]]
+            idx = keys.index(point)
+            workload_pareto_points[workload].append({point:(workload_results[workload])[idx]})
+
+
+    """" 
+    # combine the results
+    combined_area_power = []
+    for results_combined in itertools.product(*list(workload_pareto_points.values())):
+        combined_power_area_tuple = [0,0]
+        for el in results_combined:
+            combined_power_area_tuple[0] += el[0]
+            combined_power_area_tuple[1] += el[1]
+        combined_area_power.append(combined_power_area_tuple[:])
+    """
+
+
+    all_points_in_isolation = []
+    all_points_cross_workloads = []
+
+    workload_in_isolation = {}
+    for workload, points in workload_results.items():
+        #points = [list(el.keys())[0] for el in points_]
+        if "cava" in workload and "audio" in workload and "edge_detection" in workload:
+            for point in points:
+                all_points_cross_workloads.append(point)
+        else:
+            workload_in_isolation[workload] = points
+
+
+    ctr = 0
+    workload_in_isolation_pareto = {}
+    for workload, points_ in workload_in_isolation.items():
+        workload_in_isolation_pareto[workload] = []
+        points = [list(el.keys())[0] for el in points_]
+        pareto_points = find_pareto_points(list(set(points)))
+        for point in pareto_points:
+            keys = [list(el.keys())[0] for el in workload_in_isolation[workload]]
+            idx = keys.index(point)
+            workload_in_isolation_pareto[workload].append({point:(workload_in_isolation[workload])[idx]})
+
+
+
+    combined_area_power_in_isolation= []
+    s = time.time()
+
+    workload_in_isolation_pareto_only_area_power = {}
+    for key, val in workload_in_isolation_pareto.items():
+        workload_in_isolation_pareto_only_area_power[key] = []
+        for el in val:
+            for k,v in el.items():
+                workload_in_isolation_pareto_only_area_power[key].append(k)
+
+
+    for results_combined in itertools.product(*list(workload_in_isolation_pareto_only_area_power.values())):
+        # add up all the charactersitics
+        system_chars = {}
+        for el in system_char_to_keep_track_of:
+            system_chars[el] = 0
+
+        # add up area,power
+        combined_power_area_tuple = [0,0]
+        for el in results_combined:
+            combined_power_area_tuple[0] += el[0]
+            combined_power_area_tuple[1] += el[1]
+
+        for point in results_combined:
+            keys = [list(point_.keys())[0] for point_ in workload_in_isolation_pareto[workload]]
+            idx = keys.index(point)
+            for el in system_char.keys():
+                system_char[el] += workload_in_isolation
+
+            system_chars[workload].append({point: (workload_in_isolation[workload])[idx]})
+
+
+        #combined_area_power_in_isolation.append((combined_power_area_tuple[0],combined_power_area_tuple[1], combined_power_area_tuple[2]))
+        combined_area_power_in_isolation.append((combined_power_area_tuple[0],combined_power_area_tuple[1]))
+
+    combined_area_power_in_isolation_filtered = []
+    for point in combined_area_power_in_isolation:
+        if not points_exceed_one_of_the_budgets(point, base_budgets, budget_scale_to_consider):
+            combined_area_power_in_isolation_filtered.append(point)
+    combined_area_power_pareto = find_pareto_points(list(set(combined_area_power_in_isolation_filtered)))
+
+
+    all_points_cross_workloads_filtered = []
+    for point in all_points_cross_workloads:
+        if not points_exceed_one_of_the_budgets(point, base_budgets, budget_scale_to_consider):
+            all_points_cross_workloads_filtered.append(point)
+    all_points_cross_workloads_area_power_pareto = find_pareto_points(list(set(all_points_cross_workloads_filtered)))
+
+
+    # prepare for plotting and plot
+    fig = plt.figure(figsize=(12, 12))
+    #plt.rc('font', **axis_font)
+    ax = fig.add_subplot(111)
+    fontSize = 20
+
+    x_values = [el[0] for el in combined_area_power_in_isolation_filtered]
+    y_values = [el[1] for el in combined_area_power_in_isolation_filtered]
+    x_values.reverse()
+    y_values.reverse()
+    ax.scatter(x_values, y_values, label="isolated design methodology",marker=".")
+
+
+    # plt.tight_layout()
+    x_values = [el[0] for el in combined_area_power_pareto]
+    y_values = [el[1] for el in combined_area_power_pareto]
+    x_values.reverse()
+    y_values.reverse()
+    ax.scatter(x_values, y_values, label="isolated design methodology pareto front",marker="x")
+
+
+    x_values = [el[0] for el in all_points_cross_workloads_filtered]
+    y_values = [el[1] for el in all_points_cross_workloads_filtered]
+    x_values.reverse()
+    y_values.reverse()
+    ax.scatter(x_values, y_values, label="cross workload methodology",marker="8")
+    ax.legend(loc="upper right")  # bbox_to_anchor=(1, 1), loc="upper left")
+
+    x_values = [el[0] for el in all_points_cross_workloads_area_power_pareto]
+    y_values = [el[1] for el in all_points_cross_workloads_area_power_pareto]
+    x_values.reverse()
+    y_values.reverse()
+    ax.scatter(x_values, y_values, label="cross workload pareto front",marker="o")
+    #for idx,_ in  enumeate(x_values):
+    #    plt.text(x_values[idx], y_values[idx], s=)
+
+    #plt.text([ for el in x)
+    ax.legend(loc="upper right")  # bbox_to_anchor=(1, 1), loc="upper left")
+
+
+    ax.set_xlabel("power", fontsize=fontSize)
+    ax.set_ylabel("area", fontsize=fontSize)
+    plt.tight_layout()
+
+    # dump in the top folder
+    output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+    output_dir = os.path.join(output_base_dir, "budget_optimality/")
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    fig.savefig(os.path.join(output_dir, "budget_optimality.png"))
+    #plt.show()
+    plt.close('all')
+
+
+def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_name_number):
+
+    def find_sys_char(power,area, results_with_sys_char):
+        for vals in results_with_sys_char:
+            for power_area , sys_chars in vals.items():
+                power_ = power_area[0]
+                area_ = power_area[1]
+                if power == power_ and area_ == area:
+                    return sys_chars
+
+    def points_exceed_one_of_the_budgets(point, base_budget, budget_scaling_to_consider):
+        power = point[0]
+        area = point[1]
+        if power > base_budgets["power"] * budget_scale_to_consider and area > base_budgets[
+            "area"] * budget_scale_to_consider:
+            return True
+        return False
+
+    workload_results = {}
+    results_with_sys_char = []
+
+    system_char_to_keep_track_of = {"memory_total_area", "local_memory_total_area","pe_total_area", "ip_cnt","ips_total_area"}
+    system_char_to_show = ["ips_total_area", "local_memory_total_area"]
+
+    # budget scaling to consider
+    budget_scale_to_consider = .5
+    # get budget first
+    base_budgets = {}
+    for file in all_result_files:
+        with open(file, newline='') as csvfile:
+            resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+            for i, row in enumerate(resultReader):
+                if i == 1:
+                    if float(row[summary_res_column_name_number["budget_scaling_latency"]]) == 1 and\
+                            float(row[summary_res_column_name_number["budget_scaling_power"]]) == 1 and \
+                            float(row[summary_res_column_name_number["budget_scaling_area"]]) == 1:
+                        base_budgets["power"] = float(row[summary_res_column_name_number["power_budget"]])
+                        base_budgets["area"] = float(row[summary_res_column_name_number["area_budget"]])
+                        break
+
+
+    for file in all_result_files:
+        with open(file, newline='') as csvfile:
+            resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+            for i, row in enumerate(resultReader):
+                if i == 1:
+                    workload_set_name = row[summary_res_column_name_number["workload_set"]]
+                    if workload_set_name not in workload_results.keys():
+                        workload_results[workload_set_name] = []
+                    latency = ((row[summary_res_column_name_number["latency"]].split(";"))[0].split("="))[1]
+                    latency_budget = ((row[summary_res_column_name_number["latency_budget"]].split(";"))[0].split("="))[1]
+                    if float(latency)  > float(latency_budget):
+                        continue
+
+                    power = float(row[summary_res_column_name_number["power"]])
+                    area = float(row[summary_res_column_name_number["area"]])
+
                     system_complexity = row[summary_res_column_name_number["ip_cnt"]] # + row[summary_res_column_name_number["gpp_cnt"]]
-                    workload_results[workload_set_name].append((float(power),float(area), float(system_complexity)))
+                    #workload_results[workload_set_name].append((float(power),float(area), float(system_complexity)))
+                    workload_results[workload_set_name].append((power,area))
+                    system_char = {}
+                    for el in system_char_to_keep_track_of:
+                        system_char[el] = float(row[summary_res_column_name_number[el]])
+                    point_system_char = {(power, area): system_char}
+                    results_with_sys_char.append(point_system_char)
+
+
 
     workload_pareto_points = {}
     for workload, points in workload_results.items():
@@ -2140,54 +2393,106 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
             workload_in_isolation[workload] = points
 
 
+    ctr = 0
     workload_in_isolation_pareto = {}
     for workload, points in workload_in_isolation.items():
         optimal_points = find_pareto_points(list(set(points)))
         workload_in_isolation_pareto[workload] = optimal_points
 
+
     combined_area_power_in_isolation= []
+    combined_area_power_in_isolation_with_sys_char = []
+
+    s = time.time()
     for results_combined in itertools.product(*list(workload_in_isolation_pareto.values())):
-        combined_power_area_tuple = [0,0,0]
+        # add up all the charactersitics
+        combined_sys_chars = {}
+        for el in system_char_to_keep_track_of:
+            combined_sys_chars[el] = 0
+
+        # add up area,power
+        combined_power_area_tuple = [0,0]
         for el in results_combined:
             combined_power_area_tuple[0] += el[0]
             combined_power_area_tuple[1] += el[1]
-            combined_power_area_tuple[2] += el[2]
-        combined_area_power_in_isolation.append((combined_power_area_tuple[0],combined_power_area_tuple[1], combined_power_area_tuple[2]))
 
-    combined_area_power_pareto = find_pareto_points(list(set(combined_area_power_in_isolation)))
+            sys_char = find_sys_char(el[0], el[1], results_with_sys_char)
+            for el_,val_ in sys_char.items():
+                combined_sys_chars[el_] += float(val_)
+
+        #combined_area_power_in_isolation.append((combined_power_area_tuple[0],combined_power_area_tuple[1], combined_power_area_tuple[2]))
+        combined_area_power_in_isolation.append((combined_power_area_tuple[0],combined_power_area_tuple[1]))
+        combined_area_power_in_isolation_with_sys_char.append({(combined_power_area_tuple[0],combined_power_area_tuple[1]): combined_sys_chars})
+
+        #if len(combined_area_power_in_isolation)%100000 == 0:
+        #    print("time passed is" + str(time.time()-s))
+
+    combined_area_power_in_isolation_filtered = []
+    for point in combined_area_power_in_isolation:
+        if not points_exceed_one_of_the_budgets(point, base_budgets, budget_scale_to_consider):
+            combined_area_power_in_isolation_filtered.append(point)
+    combined_area_power_pareto = find_pareto_points(list(set(combined_area_power_in_isolation_filtered)))
+
+
+    all_points_cross_workloads_filtered = []
+    for point in all_points_cross_workloads:
+        if not points_exceed_one_of_the_budgets(point, base_budgets, budget_scale_to_consider):
+            all_points_cross_workloads_filtered.append(point)
+    all_points_cross_workloads_area_power_pareto = find_pareto_points(list(set(all_points_cross_workloads_filtered)))
+
 
     # prepare for plotting and plot
     fig = plt.figure(figsize=(12, 12))
     #plt.rc('font', **axis_font)
     ax = fig.add_subplot(111)
     fontSize = 20
+
+    x_values = [el[0] for el in combined_area_power_in_isolation_filtered]
+    y_values = [el[1] for el in combined_area_power_in_isolation_filtered]
+    x_values.reverse()
+    y_values.reverse()
+    ax.scatter(x_values, y_values, label="isolated design methodology",marker=".")
+
+
     # plt.tight_layout()
     x_values = [el[0] for el in combined_area_power_pareto]
     y_values = [el[1] for el in combined_area_power_pareto]
     x_values.reverse()
     y_values.reverse()
-    ax.scatter(x_values, y_values, label="pareto front of sweep",marker="x")
+    ax.scatter(x_values, y_values, label="isolated design methodology pareto front",marker="x")
+    for idx, _ in enumerate(x_values) :
+        power= x_values[idx]
+        area = y_values[idx]
+        sys_char = find_sys_char(power, area, combined_area_power_in_isolation_with_sys_char)
+        value_to_show = 0
+        for el in system_char_to_show:
+            value_to_show += sys_char[el]
+        plt.text(power,area, value_to_show)
 
 
-    x_values = [el[0] for el in combined_area_power_in_isolation]
-    y_values = [el[1] for el in combined_area_power_in_isolation]
+    x_values = [el[0] for el in all_points_cross_workloads_filtered]
+    y_values = [el[1] for el in all_points_cross_workloads_filtered]
     x_values.reverse()
     y_values.reverse()
-    ax.scatter(x_values, y_values, label="all points",marker="_")
+    ax.scatter(x_values, y_values, label="cross workload methodology",marker="8")
+    ax.legend(loc="upper right")  # bbox_to_anchor=(1, 1), loc="upper left")
 
-    # ax.set_title("experiment vs system implicaction")
+    x_values = [el[0] for el in all_points_cross_workloads_area_power_pareto]
+    y_values = [el[1] for el in all_points_cross_workloads_area_power_pareto]
+    x_values.reverse()
+    y_values.reverse()
+    ax.scatter(x_values, y_values, label="cross workload pareto front",marker="o")
+    ax.legend(loc="upper right")  # bbox_to_anchor=(1, 1), loc="upper left")
+
+    for idx, _ in enumerate(x_values) :
+        power= x_values[idx]
+        area = y_values[idx]
+        sys_char = find_sys_char(power, area, results_with_sys_char)
+        plt.text(power,area, sys_char[system_char_to_show[0]])
+
     ax.set_xlabel("power", fontsize=fontSize)
     ax.set_ylabel("area", fontsize=fontSize)
     plt.tight_layout()
-
-
-    x_values = [el[0] for el in all_points_cross_workloads]
-    y_values = [el[1] for el in all_points_cross_workloads]
-    x_values.reverse()
-    y_values.reverse()
-    ax.scatter(x_values, y_values, label="cross workload",marker="o")
-    ax.legend(loc="upper right")  # bbox_to_anchor=(1, 1), loc="upper left")
-
 
     # dump in the top folder
     output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
@@ -2258,6 +2563,7 @@ if __name__ == "__main__":
                                     "pes_freq_coeff_var", "pes_area_coeff_var"]
 
     if "budget_optimality":
+        #get_budget_optimality_advanced(experiment_full_addr_list, all_results_files, summary_res_column_name_number)
         get_budget_optimality(experiment_full_addr_list, all_results_files, summary_res_column_name_number)
 
     if "cross_workloads" in config_plotting.plot_list:
