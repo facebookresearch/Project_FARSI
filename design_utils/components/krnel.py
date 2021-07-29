@@ -167,7 +167,8 @@ class KernelStats:
     # get the block bottleneck from power perspective
     # phase: Simulation phases
     def get_block_power_bottleneck(self, phase):
-        index =  random.choice([-3,-2,-1])
+        #index =  random.choice([-3,-2,-1])
+        index =  random.choice([-1])
         return (sorted(self.blck_pwr.items(), key=operator.itemgetter(1))[index])[0]
 
     def get_block_area(self):
@@ -177,6 +178,7 @@ class KernelStats:
     # phase: Simulation phases
     def get_block_area_bottleneck(self, phase):
         index =  random.choice([-3,-2,-1])
+        index =  random.choice([-1])
         return (sorted(self.blck_area.items(), key=operator.itemgetter(1))[index])[0]
 
     # get the block bottleneck from energy perspective
