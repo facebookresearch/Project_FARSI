@@ -2299,6 +2299,18 @@ def get_budget_optimality_advanced(input_dir_names,all_result_files, summary_res
 
 def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_name_number):
 
+    def get_equivalent_total(charac):
+        if charac == "ips_avg_freq":
+            return "ip_cnt"
+        elif charac == "avg_accel_parallelism":
+            return "ip_cnt"
+        elif charac in ["local_memory_avg_freq"]:
+            return "local_mem_cnt"
+        elif charac in ["local_bus_avg_actual_bandwidth", "local_bus_avg_theoretical_bandwidth", "local_bus_avg_bus_width", "avg_freq"]:
+            return "local_bus_count"
+        else:
+            return charac
+
     def find_sys_char(power,area, results_with_sys_char):
         for vals in results_with_sys_char:
             for power_area , sys_chars in vals.items():
@@ -2318,8 +2330,27 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
     workload_results = {}
     results_with_sys_char = []
 
-    system_char_to_keep_track_of = {"memory_total_area", "local_memory_total_area","pe_total_area", "ip_cnt","ips_total_area"}
-    system_char_to_show = ["ips_total_area", "local_memory_total_area"]
+    system_char_to_keep_track_of = {"memory_total_area", "local_memory_total_area","pe_total_area", "ip_cnt","ips_total_area", "ips_avg_freq",  "local_mem_cnt",
+                                    "local_bus_avg_actual_bandwidth", "local_bus_avg_theoretical_bandwidth", "local_memory_avg_freq", "local_bus_count", "local_bus_avg_bus_width", "avg_freq", "local_total_traffic",
+                                    "global_total_traffic","local_memory_avg_freq", "global_memory_avg_freq", "gpps_total_area", "avg_gpp_parallelism", "avg_accel_parallelism"}
+    #system_char_to_show = ["local_memory_total_area"]
+    #system_char_to_show = ["avg_accel_parallelism"]
+    #system_char_to_show = ["avg_gpp_parallelism"]
+    #system_char_to_show = ["local_bus_avg_actual_bandwidth"]
+    #system_char_to_show = ["avg_freq"]  # really is buses avg freq
+    #system_char_to_show = ["local_memory_avg_freq"]  # really is buses avg freq
+    #system_char_to_show = ["ips_avg_freq"]
+    #system_char_to_show = ["gpps_total_area"]
+    #system_char_to_show = ["local_bus_avg_bus_width"]
+    system_char_to_show = ["local_memory_avg_freq"]
+    #system_char_to_show = ["ips_total_area"]
+    #system_char_to_show = ["ip_cnt"]
+    #system_char_to_show = ["local_mem_cnt"]
+    #system_char_to_show = ["global_memory_avg_freq"]
+    #system_char_to_show = ["local_bus_avg_theoretical_bandwidth"]
+    #system_char_to_show = ["local_memory_avg_freq"]
+    #system_char_to_show = ["local_total_traffic"]
+    #system_char_to_show = ["global_total_traffic"]
 
     # budget scaling to consider
     budget_scale_to_consider = .5
@@ -2359,6 +2390,9 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
                     workload_results[workload_set_name].append((power,area))
                     system_char = {}
                     for el in system_char_to_keep_track_of:
+                        #if "latency" == el:
+                        #    system_char[el] = row[summary_res_column_name_number[el]]
+                        #else:
                         system_char[el] = float(row[summary_res_column_name_number[el]])
                     point_system_char = {(power, area): system_char}
                     results_with_sys_char.append(point_system_char)
@@ -2408,7 +2442,7 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
         # add up all the charactersitics
         combined_sys_chars = {}
         for el in system_char_to_keep_track_of:
-            combined_sys_chars[el] = 0
+            combined_sys_chars[el] = (0,0)
 
         # add up area,power
         combined_power_area_tuple = [0,0]
@@ -2418,7 +2452,21 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
 
             sys_char = find_sys_char(el[0], el[1], results_with_sys_char)
             for el_,val_ in sys_char.items():
-                combined_sys_chars[el_] += float(val_)
+                if "avg" in el_:
+                    total = sys_char[get_equivalent_total(el_)]
+                    coeff = total
+                else:
+                    coeff = 1
+                #if "latency" in el_:
+                #    combined_sys_chars[el_] = (combined_sys_chars[el_][0]+coeff, str(combined_sys_chars[el_][1])+"_"+val_)
+                #else:
+                combined_sys_chars[el_] = (combined_sys_chars[el_][0]+coeff, combined_sys_chars[el_][1]+coeff*float(val_))
+
+        for key, values in combined_sys_chars.items():
+            if "avg" in key:
+                combined_sys_chars[key] = values[1] /max(values[0],.00000000000000000000000000000001)
+            else:
+                combined_sys_chars[key] = values[1]
 
         #combined_area_power_in_isolation.append((combined_power_area_tuple[0],combined_power_area_tuple[1], combined_power_area_tuple[2]))
         combined_area_power_in_isolation.append((combined_power_area_tuple[0],combined_power_area_tuple[1]))
@@ -2465,9 +2513,17 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
         area = y_values[idx]
         sys_char = find_sys_char(power, area, combined_area_power_in_isolation_with_sys_char)
         value_to_show = 0
-        for el in system_char_to_show:
-            value_to_show += sys_char[el]
-        plt.text(power,area, value_to_show)
+        value_to_show  = sys_char[system_char_to_show[0]]
+        #for el in system_char_to_show:
+        #    value_to_show += sys_char[el]
+
+        #if system_char_to_show[0] == "latency":
+        #    value_in_scientific_notation = value_to_show
+        #else:
+        #value_to_show = sys_char["local_total_traffic"]/(sys_char["local_memory_total_area"]*4*10**12)
+        value_in_scientific_notation = "{:.2e}".format(value_to_show)
+        #if idx ==0:
+        plt.text(power,area, value_in_scientific_notation)
 
 
     x_values = [el[0] for el in all_points_cross_workloads_filtered]
@@ -2476,6 +2532,25 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
     y_values.reverse()
     ax.scatter(x_values, y_values, label="cross workload methodology",marker="8")
     ax.legend(loc="upper right")  # bbox_to_anchor=(1, 1), loc="upper left")
+    for idx, _ in enumerate(x_values) :
+        power= x_values[idx]
+        area = y_values[idx]
+        sys_char = find_sys_char(power, area, results_with_sys_char)
+
+        value_to_show = 0
+        value_to_show  = sys_char[system_char_to_show[0]]
+        #for el in system_char_to_show:
+        #    value_to_show += sys_char[el]
+
+        #if system_char_to_show[0] == "latency":
+        #    value_in_scientific_notation = value_to_show
+        #else:
+        #value_to_show = sys_char["local_total_traffic"]/(sys_char["local_memory_total_area"]*4*10**12)
+        value_in_scientific_notation = "{:.2e}".format(value_to_show)
+        plt.text(power,area, value_in_scientific_notation)
+        plt.text(power,area, value_in_scientific_notation)
+
+
 
     x_values = [el[0] for el in all_points_cross_workloads_area_power_pareto]
     y_values = [el[1] for el in all_points_cross_workloads_area_power_pareto]
@@ -2488,7 +2563,17 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
         power= x_values[idx]
         area = y_values[idx]
         sys_char = find_sys_char(power, area, results_with_sys_char)
-        plt.text(power,area, sys_char[system_char_to_show[0]])
+
+        value_to_show = sys_char[system_char_to_show[0]]
+
+        #if system_char_to_show[0] == "latency":
+        #    value_in_scientific_notation = value_to_show
+        #else:
+        #value_to_show = sys_char["local_total_traffic"]/sys_char["local_memory_total_area"]
+        #value_to_show = sys_char["local_total_traffic"]/(sys_char["local_memory_total_area"]*4*10**12)
+        value_in_scientific_notation = "{:.2e}".format(value_to_show)
+        plt.text(power,area, value_in_scientific_notation)
+        #plt.text(power,area, sys_char[system_char_to_show[0]])
 
     ax.set_xlabel("power", fontsize=fontSize)
     ax.set_ylabel("area", fontsize=fontSize)
@@ -2499,7 +2584,11 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
     output_dir = os.path.join(output_base_dir, "budget_optimality/")
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    fig.savefig(os.path.join(output_dir, "budget_optimality.png"))
+
+    ax.set_title(system_char_to_show[0] +" for FARSI vs in isolation")
+    #ax.set_title("memory_reuse for FARSI vs in isolation")
+    fig.savefig(os.path.join(output_dir, system_char_to_show[0] + "_budget_optimality.png"))
+
     #plt.show()
     plt.close('all')
 
@@ -2562,7 +2651,7 @@ if __name__ == "__main__":
                                     "ips_freq_coeff_var", "ips_area_coeff_var",
                                     "pes_freq_coeff_var", "pes_area_coeff_var"]
 
-    if "budget_optimality":
+    if "budget_optimality" in config_plotting.plot_list:
         #get_budget_optimality_advanced(experiment_full_addr_list, all_results_files, summary_res_column_name_number)
         get_budget_optimality(experiment_full_addr_list, all_results_files, summary_res_column_name_number)
 
