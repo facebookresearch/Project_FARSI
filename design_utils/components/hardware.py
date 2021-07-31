@@ -72,7 +72,7 @@ class Block:
     block_numbers_seen = []
     def __init__(self, db_input, hw_sampling, instance_name, type, subtype,
                  peak_work_rate_distribution, work_over_energy_distribution, work_over_area_distribution,
-                 one_over_area_distribution, clock_freq, bus_width, loop_itr_cnt, leakage_power="", power_knobs="",
+                 one_over_area_distribution, clock_freq, bus_width, loop_itr_cnt, loop_max_possible_itr_cnt, leakage_power="", power_knobs="",
                  SOC_type="", SOC_id=""):
         self.db_input = db_input  # data base input
         self.__instance_name = instance_name  # name of the block instance
@@ -87,6 +87,7 @@ class Block:
         self.clock_freq = clock_freq
         self.bus_width = bus_width
         self.loop_itr_cnt = loop_itr_cnt
+        self.loop_max_possible_itr_cnt = loop_max_possible_itr_cnt
         self.work_over_energy_distribution = work_over_energy_distribution  # work over energy
         self.work_over_area_distribution = work_over_area_distribution  # work over area
         self.one_over_area_distribution = one_over_area_distribution
@@ -142,6 +143,10 @@ class Block:
 
     def get_loop_itr_cnt(self):
         return self.loop_itr_cnt
+
+    def get_loop_max_possible_itr_cnt(self):
+        return self.loop_max_possible_itr_cnt
+
 
     def get_block_freq(self):
         return self.clock_freq

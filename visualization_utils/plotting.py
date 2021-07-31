@@ -1091,6 +1091,8 @@ def plot_system_implication_analysis(input_dir_names, res_column_name_number, ca
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     #plt.tight_layout()
+    if "re_use" in list(case_study.keys())[0]:
+        plt.yscale('log')
     plt.savefig(os.path.join(output_dir,list(case_study.keys())[0]+".png"))
     plt.close('all')
 
@@ -2636,20 +2638,152 @@ if __name__ == "__main__":
     all_results_files = get_experiment_full_file_addr_list(experiment_full_addr_list)
     summary_res_column_name_number = get_column_name_number(experiment_full_addr_list[0], "simple")
     case_studies = {}
-    case_studies["bandwidth_analysis"] = ["local_bus_avg_theoretical_bandwidth", "local_bus_max_actual_bandwidth", "local_bus_avg_actual_bandwidth",
-                                          "system_bus_avg_theoretical_bandwidth", "system_bus_max_actual_bandwidth", "system_bus_avg_actual_bandwidth"]
-    case_studies["traffic_analysis"] = ["global_total_traffic", "local_total_traffic"]
+    case_studies["bandwidth_analysis"] = ["local_bus_avg_theoretical_bandwidth",
+                                          "local_bus_max_actual_bandwidth",
+                                          "local_bus_avg_actual_bandwidth",
+                                          "system_bus_avg_theoretical_bandwidth",
+                                          "system_bus_max_actual_bandwidth",
+                                          "system_bus_avg_actual_bandwidth",
+                                          "local_channel_avg_actual_bandwidth",
+                                          "local_channel_max_actual_bandwidth"
+                                          ]
+
+
+    case_studies["freq_analysis"] = [
+        "global_memory_avg_freq", "local_memory_avg_freq", "local_bus_avg_freq",]
+
+    case_studies["bus_width_analysis"] = [
+        "global_memory_avg_bus_width","local_memory_avg_bus_width","local_bus_avg_bus_width"]
+
+    case_studies["traffic_analysis"] = ["global_total_traffic", "local_total_traffic",
+                                        "local_memory_traffic_per_mem_avg",
+                                        "locality_in_bytes",
+                                        "local_memory_traffic_per_mem_avg",
+                                        "local_bus_traffic_avg",
+                                        ]
+
+
+    case_studies["local_mem_re_use"] =[
+        "local_total_traffic_reuse_no_read_ratio",
+        "local_total_traffic_reuse_no_read_in_bytes",
+        "local_total_traffic_reuse_no_read_in_size",
+        "local_total_traffic_reuse_with_read_ratio",
+        "local_total_traffic_reuse_with_read_in_bytes",
+        "local_total_traffic_reuse_with_read_in_size",
+        "local_total_traffic_reuse_no_read_in_bytes_per_cluster_avg",
+        "local_total_traffic_reuse_no_read_in_size_per_cluster_avg",
+        "local_total_traffic_reuse_with_read_in_bytes_per_cluster_avg",
+        "local_total_traffic_reuse_with_read_in_size_per_cluster_avg"
+    ]
+
+    case_studies["global_mem_re_use"] =[
+        "global_total_traffic_reuse_no_read_ratio",
+        "global_total_traffic_reuse_with_read_ratio",
+        "global_total_traffic_reuse_with_read_in_bytes",
+        "global_total_traffic_reuse_with_read_in_size",
+        "global_total_traffic_reuse_no_read_in_bytes",
+        "global_total_traffic_reuse_no_read_in_size",
+    ]
+
+
     case_studies["area_analysis"] = ["global_memory_total_area", "local_memory_total_area", "ips_total_area",
-                                     "gpps_total_area"]
+                                     "gpps_total_area",
+                                     ]
+    case_studies["area_in_bytes_analysis"] = ["global_memory_total_bytes", "local_memory_total_bytes", "local_memory_bytes_avg"
+                                     ]
+
     case_studies["accel_paral_analysis"] = ["ip_cnt","max_accel_parallelism", "avg_accel_parallelism",
                                             "gpp_cnt", "max_gpp_parallelism", "avg_gpp_parallelism"]
     case_studies["system_complexity"] = ["system block count", "routing complexity", "system PE count",
-                                         "local_mem_cnt", "local_bus_cnt"]  # , "channel_cnt"]
+                                         "local_mem_cnt", "local_bus_cnt","local_channel_count_per_bus_avg",
+                                         "loop_itr_ratio_avg",
+                                         ]  # , "channel_cnt"]
 
-    case_studies["heterogenity"] = ["local_bus_freq_coeff_var", "local_bus_bus_width_coeff_var",
-                                    "local_memory_freq_coeff_var", "local_memory_area_coeff_var",
-                                    "ips_freq_coeff_var", "ips_area_coeff_var",
-                                    "pes_freq_coeff_var", "pes_area_coeff_var"]
+    case_studies["heterogeneity_var_system_compleixty"] = [
+        "local_channel_count_per_bus_coeff_var",
+        "loop_itr_ratio_var"
+    ]
+    case_studies["heterogeneity_std_system_compleixty"] = [
+        "local_channel_count_per_bus_std",
+        "loop_itr_ratio_std",
+    ]
+
+
+
+
+    case_studies["heterogenity_area"] = [
+                                     "local_memory_area_coeff_var",
+                                     "ips_area_coeff_var",
+                                     "pes_area_coeff_var",
+
+    ]
+
+
+    case_studies["heterogenity_std_re_use"] = [
+        "local_total_traffic_reuse_no_read_in_bytes_per_cluster_std",
+        "local_total_traffic_reuse_no_read_in_size_per_cluster_std",
+        "local_total_traffic_reuse_with_read_in_bytes_per_cluster_std",
+        "local_total_traffic_reuse_with_read_in_size_per_cluster_std",
+    ]
+
+    case_studies["heterogenity_var_re_use"] = [
+    "local_total_traffic_reuse_no_read_in_bytes_per_cluster_var",
+    "local_total_traffic_reuse_no_read_in_size_per_cluster_var",
+    "local_total_traffic_reuse_with_read_in_bytes_per_cluster_var",
+    "local_total_traffic_reuse_with_read_in_size_per_cluster_var",
+    ]
+
+    case_studies["heterogenity_var_freq"] =[
+        "local_bus_freq_coeff_var",
+        "local_memory_freq_coeff_var",
+        "ips_freq_coeff_var",
+        "pes_freq_coeff_var"]
+
+    case_studies["heterogenity_std_freq"] =[
+        "local_memory_freq_std",
+        "local_bus_freq_std",
+]
+
+
+
+    case_studies["heterogenity_std_bus_width"] =[
+        "local_memory_bus_width_std",
+        "local_bus_bus_width_std",
+    ]
+
+    case_studies["heterogenity_var_bus_width"] =[
+        "local_memory_bus_width_coeff_var",
+        "local_bus_bus_width_coeff_var",
+    ]
+
+
+
+
+    case_studies["heterogenity_std_bandwidth"]=[
+    "local_bus_actual_bandwidth_std",
+    "local_channel_actual_bandwidth_std"]
+
+    case_studies["heterogenity_var_bandwidth"]=[
+    "local_bus_actual_bandwidth_coeff_var",
+    "local_channel_actual_bandwidth_coeff_var"]
+
+
+
+    case_studies["heterogenity_std_traffic"] =[
+                                    "local_memory_bytes_std",
+                                    "local_memory_traffic_per_mem_coeff_var",
+                                    "local_bus_traffic_per_mem_coeff_var",
+                                    ]
+
+
+    case_studies["heterogenity_var_traffic"] =[
+                                    "local_memory_bytes_coeff_var",
+                                    "local_memory_traffic_per_mem_coeff_var",
+                                    "local_bus_traffic_per_mem_coeff_var",
+                                    ]
+
+
+
 
     if "budget_optimality" in config_plotting.plot_list:
         #get_budget_optimality_advanced(experiment_full_addr_list, all_results_files, summary_res_column_name_number)

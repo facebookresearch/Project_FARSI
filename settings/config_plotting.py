@@ -5,4 +5,4 @@ run_folder_name = ""
 top_result_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_4/data_collection/data/simple_run"
 ignore_file_names = ["README.md", "figures", "cross_workloads", "single_workload", "3D", "budget_optimality", "panda_study"]
 #plot_list = ["cross_workloads", "single_workload","plot_3d", "pandas_plots", "budget_optimality"]
-plot_list = ["pandas_plots"]#"cross_workloads", "single_workload"]
+plot_list = ["cross_workloads"]#"cross_workloads", "single_workload"]

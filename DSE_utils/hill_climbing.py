@@ -129,7 +129,8 @@ class HillClimbing:
         elif mode == "generated_from_check_point":
             pickled_file_addr = self.check_point_folder + "/" + "ex_dp_pickled.txt"
             database_file_addr = self.check_point_folder + "/" + "database_pickled.txt"
-            self.database = self.get_pickeld_file(database_file_addr)
+            if "db" in config.check_point_list:
+                self.database = self.get_pickeld_file(database_file_addr)
             self.init_ex_dp = self.get_pickeld_file(pickled_file_addr)
         elif mode == "hardcoded":
             self.init_ex_dp = self.dh.gen_specific_hardcoded_ex_dp(self.dh.database)

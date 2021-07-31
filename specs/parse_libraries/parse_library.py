@@ -574,6 +574,7 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
                 hardware_library_dict[IP_name]["clock_freq"] = gpps[IP_name]["Freq"]
                 hardware_library_dict[IP_name]["BitWidth"] = gpps[IP_name]["BitWidth"]
                 hardware_library_dict[IP_name]["loop_itr_cnt"] = 0
+                hardware_library_dict[IP_name]["loop_max_possible_itr_cnt"] = 0
                 #print("taskname: " + str(task_name) + ", subtype: gpp, power is"+ str(hardware_library_dict[IP_name]["work_rate"]/hardware_library_dict[IP_name]["work_over_energy"] ))
             else:
                 loop_itr_range_ = gen_loop_itr_range(task_name, task_itr_cnt, misc_knobs)
@@ -591,6 +592,7 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
                     hardware_library_dict[IP_name_refined]["clock_freq"] = ip_template["IP"]["Freq"]*ip_freq
                     hardware_library_dict[IP_name_refined]["BitWidth"] = ip_template["IP"]["BitWidth"]
                     hardware_library_dict[IP_name_refined]["loop_itr_cnt"] = loop_itr_cnt
+                    hardware_library_dict[IP_name_refined]["loop_max_possible_itr_cnt"] = task_itr_cnt[task_name]
                     #print("taskname: " + str(task_name) + ", subtype: ip, power is"+ str(hardware_library_dict[IP_name]["work_rate"]/hardware_library_dict[IP_name]["work_over_energy"] ))
 
     for blck_name, blck_value in mems.items():
@@ -609,6 +611,8 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
             hardware_library_dict[IP_name_refined]["clock_freq"] = freq*blck_value["Freq"]
             hardware_library_dict[IP_name_refined]["BitWidth"] = blck_value["BitWidth"]
             hardware_library_dict[IP_name_refined]["loop_itr_cnt"] = 0
+            hardware_library_dict[IP_name_refined]["loop_max_possible_itr_cnt"] = 0
+
     for blck_name, blck_value in ics.items():
         ic_freq_range = gen_freq_range(misc_knobs, "ic")
         for freq in ic_freq_range:
@@ -624,6 +628,7 @@ def parse_hardware_library(library_dir, IP_perf_file_name,
             hardware_library_dict[IP_name_refined]["clock_freq"] = freq*blck_value["Freq"]
             hardware_library_dict[IP_name_refined]["BitWidth"] = blck_value["BitWidth"]
             hardware_library_dict[IP_name_refined]["loop_itr_cnt"] = 0
+            hardware_library_dict[IP_name_refined]["loop_max_possible_itr_cnt"] = 0
 
     return hardware_library_dict
 
@@ -771,7 +776,7 @@ def gen_hardware_library(library_dir, prefix, workload, misc_knobs={}):
                    work_over_area_distribution = {hardware_library_dict[IP_name]["work_over_area"]:1},
                    one_over_area_distribution = {hardware_library_dict[IP_name]["one_over_area"]:1},
                    clock_freq=hardware_library_dict[IP_name]["clock_freq"], bus_width=hardware_library_dict[IP_name]["BitWidth"],
-                   loop_itr_cnt=hardware_library_dict[IP_name]["loop_itr_cnt"]))
+                   loop_itr_cnt=hardware_library_dict[IP_name]["loop_itr_cnt"], loop_max_possible_itr_cnt=hardware_library_dict[IP_name]["loop_max_possible_itr_cnt"],))
 
         if block_type == "pe":
             for mappable_tasks in hardware_library_dict[IP_name]["mappable_tasks"]:
