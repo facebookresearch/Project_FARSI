@@ -278,9 +278,29 @@ class DSEHandler:
             os.remove(pickle_file_addr)
 
         if "db" in config.check_point_list:
-            database_pickled_file = open(os.path.join(result_folder, "database_pickled"+".txt"), "wb")
-            dill.dump(self.database, database_pickled_file)
-            database_pickled_file.close()
+            #database_pickled_file = open(os.path.join(result_folder, "database_pickled"+".txt"), "wb")
+            #dill.dump(self.database, database_pickled_file)
+            #database_pickled_file.close()
+            zip_file_name = 'database_pickled.zip'
+            zip_file_addr = os.path.join(result_folder, zip_file_name)
+            pickle_file_name = "database_pickled"+".txt"
+            pickle_file_addr = os.path.join(result_folder,pickle_file_name)
+            ex_dp_pickled_file = open(pickle_file_addr, "wb")
+            dill.dump(self.dse.so_far_best_ex_dp, ex_dp_pickled_file)
+            ex_dp_pickled_file.close()
+
+            # remove the old zip file
+            if os.path.isfile(zip_file_addr):
+                os.remove(zip_file_addr)
+
+            zipObj = ZipFile(zip_file_addr, 'w')
+            # Add multiple files to the zip
+            zipObj.write(pickle_file_addr, basename(pickle_file_addr))
+            # close the Zip File
+            zipObj.close()
+
+            # remove the pickle file
+            os.remove(pickle_file_addr)
 
         if "sim" in config.check_point_list:
             sim_dp_pickled_file = open(os.path.join(result_folder, "sim_dp_pickled"+".txt"), "wb")

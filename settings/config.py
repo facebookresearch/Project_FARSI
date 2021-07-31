@@ -204,7 +204,7 @@ hw_sampling = {"mode":"exact", "population_size":1, "reduction":"avg"}   # mode:
                                                # exact, means that (even if IP library has an error), treat the (most likely) value as accurate value
 
 check_pointing_allowed = True
-check_point_list = ["ex"] #choose from ["sim","ex", "db"]
+check_point_list = ["ex", "db"] #choose from ["sim","ex", "db"]
 
 
 use_slack_management_estimation = False and not (RUN_VERIFICATION_PER_GEN or RUN_VERIFICATION_PER_IMPROVMENT or RUN_VERIFICATION_PER_NEW_CONFIG)# if run verification, we can apply slack, otherwise we get the wrong numbers
