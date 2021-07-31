@@ -796,6 +796,71 @@ class DPStatsContainer():
             }
 
 
+
+    def get_speedup_analysis(self,dse):
+        # lower the design
+        workload_speed_up = {}
+        customization_first_speed_up_list =[]
+        customization_second_speed_up_list = []
+        parallelism_first_speed_up_list = []
+        parallelism_second_speed_up_list = []
+        interference_degradation_list = []
+
+        for workload in self.database.get_workloads_last_task().keys():
+            # single out workload in the current best
+            cur_best_ex_singled_out_workload,database = dse.single_out_workload(dse.so_far_best_ex_dp, self.database, workload, self.database.db_input.workload_tasks[workload])
+            cur_best_sim_dp_singled_out_workload = dse.eval_design(cur_best_ex_singled_out_workload, database)
+
+            # lower the cur best with single out
+            most_infer_ex_dp = dse.transform_to_most_inferior_design(dse.so_far_best_ex_dp)
+            most_infer_ex_dp_singled_out_workload, database = dse.single_out_workload(most_infer_ex_dp, self.database, workload, self.database.db_input.workload_tasks[workload])
+            most_infer_sim_dp_singled_out_workload = dse.eval_design(most_infer_ex_dp_singled_out_workload,database)
+
+            # speed ups
+            customization_first_speed_up = most_infer_sim_dp_singled_out_workload.dp.get_serial_design_time()/cur_best_sim_dp_singled_out_workload.dp.get_serial_design_time()
+            parallelism_second_speed_up = cur_best_sim_dp_singled_out_workload.dp.get_par_speedup()
+
+            parallelism_first_speed_up = most_infer_sim_dp_singled_out_workload.dp.get_par_speedup()
+            customization_second_speed_up = most_infer_sim_dp_singled_out_workload.dp_stats.get_system_complex_metric("latency")[workload]/cur_best_sim_dp_singled_out_workload.dp.get_serial_design_time()
+
+            interference_degradation = dse.so_far_best_sim_dp.dp_stats.get_system_complex_metric("latency")[workload]/cur_best_sim_dp_singled_out_workload.dp_stats.get_system_complex_metric("latency")[workload]
+
+
+            workload_speed_up[workload] = {"customization_first_speed_up":customization_first_speed_up,
+                "parallelism_second_speed_up":parallelism_second_speed_up,
+                "customization_second_speed_up": customization_second_speed_up,
+                "parallelism_first_speed_up": parallelism_first_speed_up,
+            "interference_degradation":interference_degradation}
+            customization_first_speed_up_list.append(customization_first_speed_up)
+            customization_second_speed_up_list.append(customization_second_speed_up)
+            parallelism_first_speed_up_list.append(parallelism_first_speed_up)
+            parallelism_second_speed_up_list.append(parallelism_second_speed_up)
+            interference_degradation_list.append(interference_degradation)
+
+
+        # for the entire design
+        most_infer_ex_dp = dse.transform_to_most_inferior_design(dse.so_far_best_ex_dp)
+        most_infer_sim_dp = dse.eval_design(most_infer_ex_dp, self.database)
+
+        customization_first_speed_up_full_system = most_infer_sim_dp.dp.get_serial_design_time()/dse.so_far_best_sim_dp.dp.get_serial_design_time()
+        parallelism_second_speed_up_full_system = dse.so_far_best_sim_dp.dp.get_par_speedup()
+
+        parallelism_first_speed_up_full_system = most_infer_sim_dp.dp.get_par_speedup()
+        customization_second_speed_up_full_system = max(list((most_infer_sim_dp.dp_stats.get_system_complex_metric("latency")).values()))/max(list((dse.so_far_best_sim_dp.dp_stats.get_system_complex_metric("latency")).values()))
+
+        speedup_avg = {"customization_first_speed_up_avg": st.mean(customization_first_speed_up_list),
+                                         "parallelism_second_speed_up_avg": st.mean(parallelism_second_speed_up_list),
+                                         "customization_second_speed_up_avg": st.mean(customization_second_speed_up_list),
+                                         "parallelism_first_speed_up_avg": st.mean(parallelism_first_speed_up_list),
+                                         "interference_degradation_avg": st.mean(interference_degradation_list),
+                       "customization_first_speed_up_full_system": customization_first_speed_up_full_system,
+                       "parallelism_second_speed_up_full_system": parallelism_second_speed_up_full_system,
+                       "customization_second_speed_up_full_system": customization_second_speed_up_full_system,
+                       "parallelism_first_speed_up_full_system": parallelism_first_speed_up_full_system
+                       }
+
+        return workload_speed_up,speedup_avg
+
     def get_memory_system_attr(self):
         memory_system_attr = {}
         local_memories = [el for el in self.dp_rep.get_blocks() if el.subtype == "sram"]
@@ -1594,6 +1659,7 @@ class DPStatsContainer():
                 self.SOC_area_subtype_dict[block_subtype][SOC_type][SOC_id] = self.calc_SOC_area_base_on_subtype(block_subtype, SOC_type, SOC_id)
         self.SOC_metric_dict[metric_type][SOC_type][SOC_id] =  self.calc_SOC_metric_value(metric_type, SOC_type, SOC_id)
 
+
     def set_system_complex_metric(self, metric_type):
         type_id_list = self.dp_rep.get_designs_SOCs()
         # only corner case is for area as
@@ -1886,6 +1952,8 @@ class SimDesignPoint(ExDesignPoint):
         self.population_generated_number = 0
         self.depth_number = 0  # the depth (within on iteration) which the simulation is done
         self.simulation_time = 0  # how long did it take to do the simulation
+        self.serial_design_time = 0
+        self.par_speedup_time = 0
         if config.use_cacti:
             self.cacti_hndlr = cact_handlr.CactiHndlr(config.cact_bin_addr, config.cacti_param_addr,
                                                       config.cacti_data_log_file, config.cacti_input_col_order,
@@ -1896,6 +1964,18 @@ class SimDesignPoint(ExDesignPoint):
             self.block_phase_utilization_dict[block] = {}
 
 
+
+    def set_serial_design_time(self, serial_design_time):
+        self.serial_design_time = serial_design_time
+
+    def get_serial_design_time(self):
+        return self.serial_design_time
+
+    def set_par_speedup(self, speedup):
+        self.par_speedup_time = speedup
+
+    def get_par_speedup(self):
+        return self.par_speedup_time
 
     def set_simulation_time(self, simulation_time):
         self.simulation_time= simulation_time

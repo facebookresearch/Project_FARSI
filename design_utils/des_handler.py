@@ -1133,6 +1133,10 @@ class DesignHandler:
         self.load_tasks_to_read_mem_and_ic(ex_dp)
         return ex_dp
 
+    def get_most_inferior_block(self, block, tasks):
+        return self.database.sample_most_inferior_blocks_by_type(block_type=block.type, tasks=self.__tasks)
+
+
     # ------------------------------
     # Functionality:
     #       generate initial design. Used to boot strap the exploration

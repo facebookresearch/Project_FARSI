@@ -207,9 +207,17 @@ class Task:
             other_child.remove_sibling(child)
             child.remove_sibling(other_child)
         self.__children.remove(child)
-        self.__task_to_family_task_work.remove(child)
+        del self.__task_to_family_task_work[child]
         child.__parents.remove(self)
-        child.__task_to_family_task_work.remove(self)
+        del child.__task_to_family_task_work[self]
+
+
+    def remove_parent(self, parent):
+        self.__parents.remove(parent)
+        del self.__task_to_family_task_work[parent]
+        parent.__children.remove(self)
+        del parent.__task_to_family_task_work[self]
+
 
     # ---------------
     # Functionality:

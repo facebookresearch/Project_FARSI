@@ -1090,8 +1090,8 @@ def plot_system_implication_analysis(input_dir_names, res_column_name_number, ca
     output_dir = os.path.join(output_base_dir, "cross_workloads/system_implications")
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    #plt.tight_layout()
-    if "re_use" in list(case_study.keys())[0]:
+    #plt.tight_layout()list(case_study.keys())[0]
+    if "re_use" in list(case_study.keys())[0] or "speedup" in list(case_study.keys())[0]:
         plt.yscale('log')
     plt.savefig(os.path.join(output_dir,list(case_study.keys())[0]+".png"))
     plt.close('all')
@@ -2695,7 +2695,7 @@ if __name__ == "__main__":
     case_studies["accel_paral_analysis"] = ["ip_cnt","max_accel_parallelism", "avg_accel_parallelism",
                                             "gpp_cnt", "max_gpp_parallelism", "avg_gpp_parallelism"]
     case_studies["system_complexity"] = ["system block count", "routing complexity", "system PE count",
-                                         "local_mem_cnt", "local_bus_cnt","local_channel_count_per_bus_avg",
+                                         "local_mem_cnt", "local_bus_cnt","local_channel_count_per_bus_avg", "channel_cnt",
                                          "loop_itr_ratio_avg",
                                          ]  # , "channel_cnt"]
 
@@ -2706,6 +2706,19 @@ if __name__ == "__main__":
     case_studies["heterogeneity_std_system_compleixty"] = [
         "local_channel_count_per_bus_std",
         "loop_itr_ratio_std",
+    ]
+
+
+    case_studies["speedup"] = [
+        "customization_first_speed_up_avg",
+        "customization_second_speed_up_avg",
+        "parallelism_first_speed_up_avg",
+        "parallelism_second_speed_up_avg",
+        "interference_degradation_avg",
+        "customization_first_speed_up_full_system",
+        "customization_second_speed_up_full_system",
+        "parallelism_first_speed_up_full_system",
+        "parallelism_second_speed_up_full_system",
     ]
 
 
@@ -2772,14 +2785,14 @@ if __name__ == "__main__":
     case_studies["heterogenity_std_traffic"] =[
                                     "local_memory_bytes_std",
                                     "local_memory_traffic_per_mem_coeff_var",
-                                    "local_bus_traffic_per_mem_coeff_var",
+                                    "local_bus_traffic_coeff_var",
                                     ]
 
 
     case_studies["heterogenity_var_traffic"] =[
                                     "local_memory_bytes_coeff_var",
                                     "local_memory_traffic_per_mem_coeff_var",
-                                    "local_bus_traffic_per_mem_coeff_var",
+                                    "local_bus_traffic_coeff_var",
                                     ]
 
 
