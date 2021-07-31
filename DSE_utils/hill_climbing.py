@@ -1,6 +1,7 @@
 #Copyright (c) Facebook, Inc. and its affiliates.
 #This source code is licensed under the MIT license found in the
 #LICENSE file in the root directory of this source tree.
+import zipfile
 import _pickle as cPickle
 #import ujson
 from design_utils.components.hardware import *
@@ -109,8 +110,21 @@ class HillClimbing:
 
     # retrieving the pickled check pointed file
     def get_pickeld_file(self, file_addr):
-        with open(file_addr, 'rb') as f:  # will close() when we leave this block
-            obj = pickle.load(f)
+        if not os.path.exists(file_addr):
+            file_name = os.path.basename(file_addr)
+            file_name_modified = file_name.split(".")[0]+".zip"
+            dir_name = os.path.dirname(file_addr)
+            zip_file_addr = os.path.join(dir_name, file_name_modified)
+            if os.path.exists(zip_file_addr):
+                with zipfile.ZipFile(zip_file_addr) as thezip:
+                    with thezip.open(file_name, mode='r') as f:
+                        obj = pickle.load(f)
+            else:
+                print(file_addr +" does not exist for unpickling")
+                exit(0)
+        else:
+            with open(file_addr, 'rb') as f:  # will close() when we leave this block
+                obj = pickle.load(f)
         return obj
 
     # ------------------------------

@@ -285,9 +285,10 @@ class DSEHandler:
             zip_file_addr = os.path.join(result_folder, zip_file_name)
             pickle_file_name = "database_pickled"+".txt"
             pickle_file_addr = os.path.join(result_folder,pickle_file_name)
-            ex_dp_pickled_file = open(pickle_file_addr, "wb")
-            dill.dump(self.dse.so_far_best_ex_dp, ex_dp_pickled_file)
-            ex_dp_pickled_file.close()
+            database_pickled_file = open(pickle_file_addr, "wb")
+            dill.dump(self.database, database_pickled_file)
+            #dill.dump(self.dse.so_far_best_ex_dp, ex_dp_pickled_file)
+            database_pickled_file.close()
 
             # remove the old zip file
             if os.path.isfile(zip_file_addr):
