@@ -26,6 +26,9 @@ import matplotlib.colors as mcolors
 import pandas as pd
 import argparse, sys
 from FARSI_what_ifs import *
+import os.path
+
+
 
 #  selecting the database based on the simulation method (power or performance)
 if config.simulation_method == "power_knobs":
@@ -37,7 +40,7 @@ else:
 
 
 
-def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, trans_sel_mode, study_type, workload_folder):
+def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, trans_sel_mode, study_type, workload_folder, check_points):
     config.transformation_selection_mode = trans_sel_mode
     config.SA_depth = SA_depth
     # set the number of workers to be used (parallelism applied)
@@ -79,8 +82,14 @@ def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, trans_
     sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_scratch",
                                  "workloads": workloads, "misc_knobs": db_population_misc_knobs}
     # for check pointed
-    #sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_check_point",
-    #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
+    if check_points["start"]:
+        config.check_point_folder = check_points["folder"]
+        if not os.path.exists(config.check_point_folder) :
+            print("check point folder to start from doesn't exist")
+            print("either start from scratch or fix the folder address")
+            exit(0)
+        sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_check_point",
+                                     "workloads": workloads, "misc_knobs": db_population_misc_knobs}
 
 
     # depending on the study/substudy type, invoke the appropriate function
@@ -113,16 +122,22 @@ if __name__ == "__main__":
     SA_depth = [10]
     freq_range = [1, 4, 6, 8]
 
+
+    # check pointing information
+    check_points_start = False
+    check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_4/data_collection/data/simple_run/check_this"
+
     # fast run
     #workloads = [{"audio_decoder"}]
     #workloads = [{"hpvm_cava"}]
     workloads = [{"edge_detection"}]
 
 
+    #workloads =[{"audio_decoder", "hpvm_cava"}]
     # each workload in isolation
     #workloads =[{"audio_decoder"}, {"edge_detection"}, {"hpvm_cava"}]
 
-    # all workloads together
+    # all workloads togethe
     #workloads =[{"audio_decoder", "edge_detection", "hpvm_cava"}]
 
     # entire workload set
@@ -133,13 +148,13 @@ if __name__ == "__main__":
     area_scaling_range  = [.8,1,1.2]
 
     # edge detection lower budget
-    latency_scaling_range  = [1]
+    latency_scaling_range  = [4]
     # for audio
     #power_scaling_range  = [.6,.5,.4,.3]
     #area_scaling_range  = [.6,.5,.5,.3]
 
-    power_scaling_range  = [2]
-    area_scaling_range  = [1]
+    power_scaling_range  = [4]
+    area_scaling_range  = [4]
 
     result_home_dir_default = os.path.join(os.getcwd(), "data_collection/data/" + study_type)
     result_folder = os.path.join(config.home_dir, "data_collection/data/" + study_type)
@@ -150,12 +165,29 @@ if __name__ == "__main__":
     #transformation_selection_mode_list = ["random", "arch-aware"]  # choose from {random, arch-aware}
     transformation_selection_mode_list = ["arch-aware"]
 
-    for trans_sel_mode in transformation_selection_mode_list:
-        for w in workloads:
-            workloads_first_letter = '_'.join(sorted([el[0] for el in w])) +"__"+trans_sel_mode[0]
-            workload_folder = os.path.join(run_folder, workloads_first_letter)
-            os.mkdir(workload_folder)
-            for d in SA_depth:
-                for latency_scaling,power_scaling, area_scaling in itertools.product(latency_scaling_range, power_scaling_range, area_scaling_range):
-                    base_budget_scaling = {"latency": latency_scaling, "power": power_scaling, "area": area_scaling}
-                    run_with_params(w, d, freq_range, base_budget_scaling, trans_sel_mode, study_type, workload_folder)
+    check_points_values = []
+    if check_points_start:
+        if not os.path.exists(check_points_top_folder) :
+            print("check point folder to start from doesn't exist")
+            print("either start from scratch or fix the folder address")
+            exit(0)
+
+        all_dirs = [x[0] for x in os.walk(check_points_top_folder)]
+        check_point_folders = [dir for dir in all_dirs if  "check_points" in dir]
+
+        for folder in check_point_folders:
+            check_points_values.append((True, folder))
+    else:
+        check_points_values.append((False, ""))
+
+    for check_point_el in check_points_values:
+        check_point = {"start":check_point_el[0], "folder":check_point_el[1]}
+        for trans_sel_mode in transformation_selection_mode_list:
+            for w in workloads:
+                workloads_first_letter = '_'.join(sorted([el[0] for el in w])) +"__"+trans_sel_mode[0]
+                workload_folder = os.path.join(run_folder, workloads_first_letter)
+                os.mkdir(workload_folder)
+                for d in SA_depth:
+                    for latency_scaling,power_scaling, area_scaling in itertools.product(latency_scaling_range, power_scaling_range, area_scaling_range):
+                        base_budget_scaling = {"latency": latency_scaling, "power": power_scaling, "area": area_scaling}
+                        run_with_params(w, d, freq_range, base_budget_scaling, trans_sel_mode, study_type, workload_folder, check_point)

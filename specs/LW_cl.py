@@ -16,7 +16,7 @@ from collections import defaultdict
 # This is later used by the Block class which is a much more involved
 class BlockL:  # block light weight
     def __init__(self, block_instance_name: str, block_type: str, block_subtype, peak_work_rate_distribution,
-                 work_over_energy_distribution, work_over_area_distribution, one_over_area_distribution, clock_freq, bus_width, loop_itr_cnt, leakage_power = "", power_knobs = ""):
+                 work_over_energy_distribution, work_over_area_distribution, one_over_area_distribution, clock_freq, bus_width, loop_itr_cnt, loop_max_possible_itr_cnt, leakage_power = "", power_knobs = ""):
         self.block_instance_name = block_instance_name+"_"+block_type  # block instance name
         self.block_instance_name_without_type = block_instance_name  # without type
         self.block_type = block_type  # type of the block (pe, mem, ic)
@@ -32,6 +32,7 @@ class BlockL:  # block light weight
         self.bus_width =  bus_width
         self.clock_freq = clock_freq
         self.loop_itr_cnt = loop_itr_cnt
+        self.loop_max_possible_itr_cnt = loop_max_possible_itr_cnt
 
 # This class emulates the software tasks (e.g., glint detection) within an entire workload. Note that TaskL is a
 # light weight class that directory talks to the database. This is later used by the Task class which is much more

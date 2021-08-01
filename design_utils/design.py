@@ -681,13 +681,26 @@ class DPStatsContainer():
         else:
             ips_avg_freq=  sum(ips_freqs)/max(len(ips_freqs),1)
 
+        loop_itr_ratio = []
+        for ip in ips:
+            loop_itr_ratio.append(ip.get_loop_itr_cnt()/ip.get_loop_max_possible_itr_cnt())
+
+        if len(ips) == 0:
+            loop_itr_ratio_avg = 0
+        else:
+            loop_itr_ratio_avg = st.mean(loop_itr_ratio)
+
 
         if len(ips_freqs) in [0,1]:
             ips_freq_std = 0
             ips_freq_coeff_var = 0
+            loop_itr_ratio_std = 0
+            loop_itr_ratio_var = 0
         else:
             ips_freq_std = st.stdev(ips_freqs)
             ips_freq_coeff_var = st.stdev(ips_freqs)/st.mean(ips_freqs)
+            loop_itr_ratio_std = st.stdev(loop_itr_ratio)
+            loop_itr_ratio_var = st.stdev(loop_itr_ratio)/st.mean(loop_itr_ratio)
 
         if len(gpp_freqs) == 0:
             gpps_avg_freq =  0
@@ -777,13 +790,82 @@ class DPStatsContainer():
                 "ips_area_std": ips_area_std, "pes_area_std": pes_area_std,
                 "ips_area_coeff_var": ips_area_coeff_var, "pes_area_coeff_var": pes_area_coeff_var,
                 "pe_total_area":ips_total_area+gpps_total_area,
-        }
+                "loop_itr_ratio_avg":loop_itr_ratio_avg,
+                "loop_itr_ratio_std":loop_itr_ratio_std,
+                "loop_itr_ratio_var":loop_itr_ratio_var,
+            }
 
+
+
+    def get_speedup_analysis(self,dse):
+        # lower the design
+        workload_speed_up = {}
+        customization_first_speed_up_list =[]
+        customization_second_speed_up_list = []
+        parallelism_first_speed_up_list = []
+        parallelism_second_speed_up_list = []
+        interference_degradation_list = []
+
+        for workload in self.database.get_workloads_last_task().keys():
+            # single out workload in the current best
+            cur_best_ex_singled_out_workload,database = dse.single_out_workload(dse.so_far_best_ex_dp, self.database, workload, self.database.db_input.workload_tasks[workload])
+            cur_best_sim_dp_singled_out_workload = dse.eval_design(cur_best_ex_singled_out_workload, database)
+
+            # lower the cur best with single out
+            most_infer_ex_dp = dse.transform_to_most_inferior_design(dse.so_far_best_ex_dp)
+            most_infer_ex_dp_singled_out_workload, database = dse.single_out_workload(most_infer_ex_dp, self.database, workload, self.database.db_input.workload_tasks[workload])
+            most_infer_sim_dp_singled_out_workload = dse.eval_design(most_infer_ex_dp_singled_out_workload,database)
+
+            # speed ups
+            customization_first_speed_up = most_infer_sim_dp_singled_out_workload.dp.get_serial_design_time()/cur_best_sim_dp_singled_out_workload.dp.get_serial_design_time()
+            parallelism_second_speed_up = cur_best_sim_dp_singled_out_workload.dp.get_par_speedup()
+
+            parallelism_first_speed_up = most_infer_sim_dp_singled_out_workload.dp.get_par_speedup()
+            customization_second_speed_up = most_infer_sim_dp_singled_out_workload.dp_stats.get_system_complex_metric("latency")[workload]/cur_best_sim_dp_singled_out_workload.dp.get_serial_design_time()
+
+            interference_degradation = dse.so_far_best_sim_dp.dp_stats.get_system_complex_metric("latency")[workload]/cur_best_sim_dp_singled_out_workload.dp_stats.get_system_complex_metric("latency")[workload]
+
+
+            workload_speed_up[workload] = {"customization_first_speed_up":customization_first_speed_up,
+                "parallelism_second_speed_up":parallelism_second_speed_up,
+                "customization_second_speed_up": customization_second_speed_up,
+                "parallelism_first_speed_up": parallelism_first_speed_up,
+            "interference_degradation":interference_degradation}
+            customization_first_speed_up_list.append(customization_first_speed_up)
+            customization_second_speed_up_list.append(customization_second_speed_up)
+            parallelism_first_speed_up_list.append(parallelism_first_speed_up)
+            parallelism_second_speed_up_list.append(parallelism_second_speed_up)
+            interference_degradation_list.append(interference_degradation)
+
+
+        # for the entire design
+        most_infer_ex_dp = dse.transform_to_most_inferior_design(dse.so_far_best_ex_dp)
+        most_infer_sim_dp = dse.eval_design(most_infer_ex_dp, self.database)
+
+        customization_first_speed_up_full_system = most_infer_sim_dp.dp.get_serial_design_time()/dse.so_far_best_sim_dp.dp.get_serial_design_time()
+        parallelism_second_speed_up_full_system = dse.so_far_best_sim_dp.dp.get_par_speedup()
+
+        parallelism_first_speed_up_full_system = most_infer_sim_dp.dp.get_par_speedup()
+        customization_second_speed_up_full_system = max(list((most_infer_sim_dp.dp_stats.get_system_complex_metric("latency")).values()))/max(list((dse.so_far_best_sim_dp.dp_stats.get_system_complex_metric("latency")).values()))
+
+        speedup_avg = {"customization_first_speed_up_avg": st.mean(customization_first_speed_up_list),
+                                         "parallelism_second_speed_up_avg": st.mean(parallelism_second_speed_up_list),
+                                         "customization_second_speed_up_avg": st.mean(customization_second_speed_up_list),
+                                         "parallelism_first_speed_up_avg": st.mean(parallelism_first_speed_up_list),
+                                         "interference_degradation_avg": st.mean(interference_degradation_list),
+                       "customization_first_speed_up_full_system": customization_first_speed_up_full_system,
+                       "parallelism_second_speed_up_full_system": parallelism_second_speed_up_full_system,
+                       "customization_second_speed_up_full_system": customization_second_speed_up_full_system,
+                       "parallelism_first_speed_up_full_system": parallelism_first_speed_up_full_system
+                       }
+
+        return workload_speed_up,speedup_avg
 
     def get_memory_system_attr(self):
         memory_system_attr = {}
         local_memories = [el for el in self.dp_rep.get_blocks() if el.subtype == "sram"]
         global_memories = [el for el in self.dp_rep.get_blocks() if el.subtype == "dram"]
+        buses = [el for el in self.dp_rep.get_blocks() if el.subtype == "ic"]
 
         # get frequency data
         local_memory_freqs = [mem.get_block_freq() for mem  in local_memories]
@@ -806,12 +888,68 @@ class DPStatsContainer():
             global_memory_avg_freq=  sum(global_memory_freqs)/max(len(global_memory_freqs),1)
 
 
+        # get bus width data
+        local_memory_bus_widths = [mem.get_block_bus_width() for mem  in local_memories]
+        global_memory_bus_widths = [mem.get_block_bus_width() for mem  in global_memories]
+        if len(local_memory_bus_widths) == 0:
+            local_memory_avg_bus_width =  0
+        else:
+            local_memory_avg_bus_width=  sum(local_memory_bus_widths)/max(len(local_memory_bus_widths),1)
+
+        if len(local_memory_bus_widths) in [0, 1]:
+            local_memory_bus_width_std = 0
+            local_memory_bus_width_coeff_var = 0
+        else:
+            local_memory_bus_width_std = st.stdev(local_memory_bus_widths)
+            local_memory_bus_width_coeff_var = st.stdev(local_memory_bus_widths) / st.mean(local_memory_bus_widths)
+
+        if len(global_memory_bus_widths) == 0:
+            global_memory_avg_bus_width =  0
+        else:
+            global_memory_avg_bus_width=  sum(global_memory_bus_widths)/max(len(global_memory_bus_widths),1)
+
+
+        #get bytes data
+        local_memory_bytes = []
+        for mem in local_memories:
+            mem_bytes = max(mem.get_area_in_bytes(), config.cacti_min_memory_size_in_bytes)  # to make sure we don't go smaller than cacti's minimum size
+            local_memory_bytes.append((math.ceil(mem_bytes / config.min_mem_size[mem.subtype])) * config.min_mem_size[mem.subtype])  # modulo calculation
+        if len(local_memory_bytes) == 0:
+            local_memory_total_bytes = 0
+            local_memory_bytes_avg = 0
+        else:
+            local_memory_total_bytes = sum(local_memory_bytes)
+            local_memory_bytes_avg = st.mean(local_memory_bytes)
+
+        if len(local_memory_bytes) in [0,1]:
+            local_memory_bytes_std = 0
+            local_memory_bytes_coeff_var = 0
+        else:
+            local_memory_bytes_std = st.stdev(local_memory_bytes)
+            local_memory_bytes_coeff_var = st.stdev(local_memory_bytes)/max(st.mean(local_memory_bytes),.0000000001)
+
+        global_memory_bytes = []
+        for mem in global_memories:
+            mem_bytes = max(mem.get_area_in_bytes(), config.cacti_min_memory_size_in_bytes)  # to make sure we don't go smaller than cacti's minimum size
+            global_memory_bytes.append((math.ceil(mem_bytes / config.min_mem_size[mem.subtype])) * config.min_mem_size[mem.subtype])  # modulo calculation
+        if len(global_memory_bytes) == 0:
+            global_memory_total_bytes = 0
+        else:
+            global_memory_total_bytes = sum(global_memory_bytes)
+
+        if len(global_memory_bytes) in [0,1]:
+            global_memory_bytes_std = 0
+            global_memory_bytes_coeff_var = 0
+        else:
+            global_memory_bytes_std = st.stdev(global_memory_bytes)
+            global_memory_bytes_coeff_var = st.stdev(global_memory_bytes) / max(st.mean(global_memory_bytes),.00000001)
+
+
         # get area data
         local_memory_area = [mem.get_area() for mem in local_memories]
         global_memory_area = [mem.get_area() for mem in global_memories]
         if len(local_memory_area) == 0:
             local_memory_total_area = 0
-
         else:
             local_memory_total_area = sum(local_memory_area)
 
@@ -828,25 +966,270 @@ class DPStatsContainer():
             global_memory_total_area = sum(global_memory_area)
 
         # get traffic data
-        local_traffic = 0
+        local_total_traffic = 0
         for mem in local_memories:
             block_s_krnels = self.get_krnels_of_block(mem)
             for krnl in block_s_krnels:
-                local_traffic += krnl.calc_traffic_per_block(mem)
+                local_total_traffic += krnl.calc_traffic_per_block(mem)
 
-        global_traffic = 0
+
+        local_traffic_per_mem = {}
+        for mem in local_memories:
+            local_traffic_per_mem[mem] =0
+            block_s_krnels = self.get_krnels_of_block(mem)
+            for krnl in block_s_krnels:
+                local_traffic_per_mem[mem] += krnl.calc_traffic_per_block(mem)
+
+
+        global_total_traffic = 0
         for mem in global_memories:
             block_s_krnels = self.get_krnels_of_block(mem)
             for krnl in block_s_krnels:
-                global_traffic += krnl.calc_traffic_per_block(mem)
+                global_total_traffic += krnl.calc_traffic_per_block(mem)
 
-        return {"local_total_traffic":local_traffic, "global_total_traffic":global_traffic,
-                "global_memory_avg_freq": global_memory_avg_freq, "local_memory_avg_freq":local_memory_avg_freq,
-                "global_memory_total_area": global_memory_total_area, "local_memory_total_area":local_memory_total_area,
+        local_bus_traffic = {}
+        for mem in local_memories:
+            local_traffic = 0
+            block_s_krnels = self.get_krnels_of_block(mem)
+            for krnl in block_s_krnels:
+                local_traffic += krnl.calc_traffic_per_block(mem)
+            for bus in buses:
+                if mem in bus.get_neighs():
+                    if bus not in local_bus_traffic.keys():
+                        local_bus_traffic[bus] = 0
+                    local_bus_traffic[bus] += local_traffic
+                    break
+
+        # get traffic reuse
+        local_traffic_reuse_no_read_ratio = []
+        local_traffic_reuse_no_read_in_bytes = []
+        local_traffic_reuse_no_read_in_size = []
+        local_traffic_reuse_with_read_ratio= []
+        local_traffic_reuse_with_read_in_bytes = []
+        local_traffic_reuse_with_read_in_size = []
+        mem_local_traffic = {}
+        for mem in local_memories:
+            local_traffic = 0
+            block_s_krnels = self.get_krnels_of_block(mem)
+            for krnl in block_s_krnels:
+                local_traffic += krnl.calc_traffic_per_block(mem)
+            mem_local_traffic[mem] = local_traffic
+            mem_bytes = max(mem.get_area_in_bytes(), config.cacti_min_memory_size_in_bytes)  # to make sure we don't go smaller than cacti's minimum size
+            #mem_bytes_modulo = (math.ceil(mem_bytes/config.min_mem_size[mem.subtype]))*config.min_mem_size[mem.subtype]  # modulo calculation
+            mem_size = mem.get_area()
+            reuse_ratio_no_read = max((local_traffic/mem_bytes)-2, 0)
+            local_traffic_reuse_no_read_ratio.append(reuse_ratio_no_read)
+            local_traffic_reuse_no_read_in_bytes.append(reuse_ratio_no_read*mem_bytes)
+            local_traffic_reuse_no_read_in_size.append(reuse_ratio_no_read*mem_size)
+            reuse_ratio_with_read = max((local_traffic/mem_bytes)-1, 0)
+            local_traffic_reuse_with_read_ratio.append(reuse_ratio_with_read)
+            local_traffic_reuse_with_read_in_bytes.append(reuse_ratio_with_read*mem_bytes)
+            local_traffic_reuse_with_read_in_size.append(reuse_ratio_with_read*mem_size)
+
+        if len(local_memories) == 0:
+            local_total_traffic_reuse_no_read_ratio = 0
+            local_total_traffic_reuse_no_read_in_bytes =  0
+            local_total_traffic_reuse_no_read_in_size = 0
+            local_total_traffic_reuse_with_read_ratio = 0
+            local_total_traffic_reuse_with_read_in_bytes = 0
+            local_total_traffic_reuse_with_read_in_size = 0
+            local_traffic_per_mem_avg = 0
+        else:
+            local_total_traffic_reuse_no_read_ratio = max((local_total_traffic/local_memory_total_bytes)-2, 0)
+            local_total_traffic_reuse_no_read_in_bytes = sum(local_traffic_reuse_no_read_in_bytes)
+            local_total_traffic_reuse_no_read_in_size = sum(local_traffic_reuse_no_read_in_size)
+            local_total_traffic_reuse_with_read_ratio = max((local_total_traffic/local_memory_total_bytes)-1, 0)
+            local_total_traffic_reuse_with_read_in_bytes = sum(local_traffic_reuse_with_read_in_bytes)
+            local_total_traffic_reuse_with_read_in_size = sum(local_traffic_reuse_with_read_in_size)
+            local_traffic_per_mem_avg = st.mean(list(local_traffic_per_mem.values()))
+
+
+        if len(local_bus_traffic) == 0:
+            local_bus_traffic_avg = 0
+        else:
+            local_bus_traffic_avg = st.mean(list(local_bus_traffic.values()))
+
+        if len(local_memories) in [0,1]:
+            local_traffic_per_mem_std = 0
+            local_traffic_per_mem_coeff_var = 0
+
+        else:
+            local_traffic_per_mem_std = st.stdev(list(local_traffic_per_mem.values()))
+            local_traffic_per_mem_coeff_var = st.stdev(list(local_traffic_per_mem.values()))/st.mean(list(local_traffic_per_mem.values()))
+
+
+        if len(local_bus_traffic) in [0,1]:
+            local_bus_traffic_std = 0
+            local_bus_traffic_coeff_var = 0
+        else:
+            local_bus_traffic_std = st.stdev(list(local_bus_traffic.values()))
+            local_bus_traffic_coeff_var = st.stdev(list(local_bus_traffic.values()))/st.mean(list(local_bus_traffic.values()))
+
+        # get traffic reuse
+        global_traffic_reuse_no_read_ratio= []
+        global_traffic_reuse_no_read_in_bytes = []
+        global_traffic_reuse_no_read_in_size = []
+        global_traffic_reuse_with_read_ratio= []
+        global_traffic_reuse_with_read_in_bytes = []
+        global_traffic_reuse_with_read_in_size = []
+        for mem in global_memories:
+            global_traffic = 0
+            block_s_krnels = self.get_krnels_of_block(mem)
+            for krnl in block_s_krnels:
+                global_traffic += krnl.calc_traffic_per_block(mem)
+            mem_bytes = max(mem.get_area_in_bytes(), config.cacti_min_memory_size_in_bytes)  # to make sure we don't go smaller than cacti's minimum size
+            #mem_bytes_modulo = (math.ceil(mem_bytes/config.min_mem_size[mem.subtype]))*config.min_mem_size[mem.subtype]  # modulo calculation
+            mem_size = mem.get_area()
+            reuse_ratio_no_read = max((global_traffic/mem_bytes)-2, 0)
+            global_traffic_reuse_no_read_ratio.append(reuse_ratio_no_read)
+            global_traffic_reuse_no_read_in_bytes.append(reuse_ratio_no_read*mem_bytes)
+            global_traffic_reuse_no_read_in_size.append(reuse_ratio_no_read*mem_size)
+            reuse_ratio_with_read = max((global_traffic/mem_bytes)-1, 0)
+            global_traffic_reuse_with_read_ratio.append(reuse_ratio_with_read)
+            global_traffic_reuse_with_read_in_bytes.append(reuse_ratio_with_read*mem_bytes)
+            global_traffic_reuse_with_read_in_size.append(reuse_ratio_with_read*mem_size)
+
+        if len(global_memories) == 0:
+            global_total_traffic_reuse_no_read_ratio = 0
+            global_total_traffic_reuse_no_read_in_bytes =  0
+            global_total_traffic_reuse_no_read_in_size = 0
+            global_total_traffic_reuse_with_read_ratio = 0
+            global_total_traffic_reuse_with_read_in_bytes = 0
+            global_total_traffic_reuse_with_read_in_size = 0
+        else:
+            global_total_traffic_reuse_no_read_ratio = max((global_total_traffic/global_memory_total_bytes)-2, 0)
+            global_total_traffic_reuse_no_read_in_bytes = sum(global_traffic_reuse_no_read_in_bytes)
+            global_total_traffic_reuse_no_read_in_size = sum(global_traffic_reuse_no_read_in_size)
+            global_total_traffic_reuse_with_read_ratio = max((global_total_traffic/global_memory_total_bytes)-1, 0)
+            global_total_traffic_reuse_with_read_in_bytes = sum(global_traffic_reuse_with_read_in_bytes)
+            global_total_traffic_reuse_with_read_in_size = sum(global_traffic_reuse_with_read_in_size)
+
+
+
+        # per cluster start
+        # get traffic reuse
+        local_traffic_reuse_no_read_in_bytes_per_cluster = {}
+        local_traffic_reuse_no_read_in_size_per_cluster = {}
+        local_traffic_reuse_with_read_ratio_per_cluster = {}
+        local_traffic_reuse_with_read_in_bytes_per_cluster = {}
+        local_traffic_reuse_with_read_in_size_per_cluster = {}
+
+        for bus in buses:
+            mems = [blk for blk in bus.get_neighs() if blk.subtype == "sram"]
+            local_traffic_reuse_no_read_in_bytes_per_cluster[bus] = 0
+            local_traffic_reuse_no_read_in_size_per_cluster[bus] = 0
+            local_traffic_reuse_with_read_in_bytes_per_cluster[bus] = 0
+            local_traffic_reuse_with_read_in_size_per_cluster[bus] = 0
+            for mem in mems:
+                local_traffic = 0
+                block_s_krnels = self.get_krnels_of_block(mem)
+                for krnl in block_s_krnels:
+                    local_traffic += krnl.calc_traffic_per_block(mem)
+                mem_bytes = max(mem.get_area_in_bytes(), config.cacti_min_memory_size_in_bytes)  # to make sure we don't go smaller than cacti's minimum size
+                #mem_bytes_modulo = (math.ceil(mem_bytes/config.min_mem_size[mem.subtype]))*config.min_mem_size[mem.subtype]  # modulo calculation
+                mem_size = mem.get_area()
+                reuse_ratio_no_read_per_cluster = max((local_traffic/mem_bytes)-2, 0)
+                local_traffic_reuse_no_read_in_bytes_per_cluster[bus]+= (reuse_ratio_no_read_per_cluster*mem_bytes)
+                local_traffic_reuse_no_read_in_size_per_cluster[bus]+=(reuse_ratio_no_read_per_cluster*mem_size)
+                reuse_ratio_with_read_per_cluster = max((local_traffic/mem_bytes)-1, 0)
+                local_traffic_reuse_with_read_in_bytes_per_cluster[bus] += (reuse_ratio_with_read_per_cluster*mem_bytes)
+                local_traffic_reuse_with_read_in_size_per_cluster[bus] += (reuse_ratio_with_read_per_cluster*mem_size)
+
+
+        local_total_traffic_reuse_no_read_in_size_per_cluster_avg = st.mean(list(local_traffic_reuse_no_read_in_size_per_cluster.values()))
+        local_total_traffic_reuse_with_read_in_size_per_cluster_avg = st.mean(list(local_traffic_reuse_with_read_in_size_per_cluster.values()))
+        local_total_traffic_reuse_no_read_in_bytes_per_cluster_avg = st.mean(list(local_traffic_reuse_no_read_in_bytes_per_cluster.values()))
+        local_total_traffic_reuse_with_read_in_bytes_per_cluster_avg = st.mean(list(local_traffic_reuse_with_read_in_bytes_per_cluster.values()))
+
+        if len(buses) in [0,1]:
+            local_total_traffic_reuse_no_read_in_size_per_cluster_std = 0
+            local_total_traffic_reuse_with_read_in_size_per_cluster_std = 0
+            local_total_traffic_reuse_no_read_in_bytes_per_cluster_std = 0
+            local_total_traffic_reuse_with_read_in_bytes_per_cluster_std = 0
+            local_total_traffic_reuse_no_read_in_size_per_cluster_var = 0
+            local_total_traffic_reuse_with_read_in_size_per_cluster_var = 0
+            local_total_traffic_reuse_no_read_in_bytes_per_cluster_var = 0
+            local_total_traffic_reuse_with_read_in_bytes_per_cluster_var = 0
+        else:
+            local_total_traffic_reuse_no_read_in_size_per_cluster_std = st.stdev(
+                list(local_traffic_reuse_no_read_in_size_per_cluster.values()))
+            local_total_traffic_reuse_with_read_in_size_per_cluster_std = st.stdev(
+                list(local_traffic_reuse_with_read_in_size_per_cluster.values()))
+            local_total_traffic_reuse_no_read_in_bytes_per_cluster_std = st.stdev(
+                list(local_traffic_reuse_no_read_in_bytes_per_cluster.values()))
+            local_total_traffic_reuse_with_read_in_bytes_per_cluster_std = st.stdev(
+                list(local_traffic_reuse_with_read_in_bytes_per_cluster.values()))
+            local_total_traffic_reuse_no_read_in_size_per_cluster_var = st.stdev(list(local_traffic_reuse_no_read_in_size_per_cluster.values()))/max(st.mean(list(local_traffic_reuse_no_read_in_size_per_cluster.values())),.000001)
+            local_total_traffic_reuse_with_read_in_size_per_cluster_var = st.stdev(list(local_traffic_reuse_with_read_in_size_per_cluster.values()))/max(st.mean(list(local_traffic_reuse_with_read_in_size_per_cluster.values())),.0000001)
+            local_total_traffic_reuse_no_read_in_bytes_per_cluster_var = st.stdev(list(local_traffic_reuse_no_read_in_bytes_per_cluster.values()))/max(st.mean(list(local_traffic_reuse_no_read_in_bytes_per_cluster.values())),.000000001)
+            local_total_traffic_reuse_with_read_in_bytes_per_cluster_var = st.stdev(list(local_traffic_reuse_with_read_in_bytes_per_cluster.values()))/max(st.mean(list(local_traffic_reuse_with_read_in_bytes_per_cluster.values())),.00000001)
+
+
+        # per cluseter end
+        locality_in_bytes = 0
+        for krnl in self.__kernels:
+            pe = [blk for blk in krnl.get_blocks() if blk.type == "pe"][0]
+            mems = [blk for blk in krnl.get_blocks() if blk.type == "mem"]
+            for mem in mems:
+                path_length = len(self.dp_rep.get_hardware_graph().get_path_between_two_vertecies(pe, mem))
+                locality_in_bytes += krnl.calc_traffic_per_block(mem)/(path_length-2)
+
+        """
+        #parallelism data
+        for mem in local_memories:
+            bal_traffic = 0
+            block_s_krnels = self.get_krnels_of_block(mem)
+            for krnl in blocks_krnels: 
+                
+                krnl.block_phase_read_dict[mem][self.phase_num] += read_work
+        """
+
+
+        return {"local_total_traffic":local_total_traffic, "global_total_traffic":global_total_traffic,
+                "local_total_traffic_reuse_no_read_ratio": local_total_traffic_reuse_no_read_ratio, "global_total_traffic_reuse_no_read_ratio": global_total_traffic_reuse_no_read_ratio,
+                "local_total_traffic_reuse_no_read_in_bytes": local_total_traffic_reuse_no_read_in_bytes, "global_total_traffic_reuse_no_read_in_bytes": global_total_traffic_reuse_no_read_in_bytes,
+                "local_total_traffic_reuse_no_read_in_size": local_total_traffic_reuse_no_read_in_size, "global_total_traffic_reuse_no_read_in_size": global_total_traffic_reuse_no_read_in_size,
+                "local_total_traffic_reuse_with_read_ratio": local_total_traffic_reuse_with_read_ratio,
+                "global_total_traffic_reuse_with_read_ratio": global_total_traffic_reuse_with_read_ratio,
+                "local_total_traffic_reuse_with_read_in_bytes": local_total_traffic_reuse_with_read_in_bytes,
+                "global_total_traffic_reuse_with_read_in_bytes": global_total_traffic_reuse_with_read_in_bytes,
+                "local_total_traffic_reuse_with_read_in_size": local_total_traffic_reuse_with_read_in_size,
+                "global_total_traffic_reuse_with_read_in_size": global_total_traffic_reuse_with_read_in_size,
+                "local_total_traffic_reuse_no_read_in_bytes_per_cluster_avg": local_total_traffic_reuse_no_read_in_bytes_per_cluster_avg,
+                "local_total_traffic_reuse_no_read_in_bytes_per_cluster_std": local_total_traffic_reuse_no_read_in_bytes_per_cluster_std,
+                "local_total_traffic_reuse_no_read_in_bytes_per_cluster_var": local_total_traffic_reuse_no_read_in_bytes_per_cluster_var,
+                "local_total_traffic_reuse_no_read_in_size_per_cluster_avg": local_total_traffic_reuse_no_read_in_size_per_cluster_avg,
+                "local_total_traffic_reuse_no_read_in_size_per_cluster_std": local_total_traffic_reuse_no_read_in_size_per_cluster_std,
+                "local_total_traffic_reuse_no_read_in_size_per_cluster_var": local_total_traffic_reuse_no_read_in_size_per_cluster_var,
+                "local_total_traffic_reuse_with_read_in_bytes_per_cluster_avg": local_total_traffic_reuse_with_read_in_bytes_per_cluster_avg,
+                "local_total_traffic_reuse_with_read_in_bytes_per_cluster_std": local_total_traffic_reuse_with_read_in_bytes_per_cluster_std,
+                "local_total_traffic_reuse_with_read_in_bytes_per_cluster_var": local_total_traffic_reuse_with_read_in_bytes_per_cluster_var,
+                "local_total_traffic_reuse_with_read_in_size_per_cluster_avg": local_total_traffic_reuse_with_read_in_size_per_cluster_avg,
+                "local_total_traffic_reuse_with_read_in_size_per_cluster_std": local_total_traffic_reuse_with_read_in_size_per_cluster_std,
+                "local_total_traffic_reuse_with_read_in_size_per_cluster_var": local_total_traffic_reuse_with_read_in_size_per_cluster_var,
+                "global_memory_avg_freq": global_memory_avg_freq,
+                "local_memory_avg_freq": local_memory_avg_freq,
+                "local_memory_freq_coeff_var": local_memory_freq_coeff_var, "local_memory_freq_std": local_memory_freq_std,
+                "global_memory_avg_bus_width": global_memory_avg_bus_width,
+                "local_memory_avg_bus_width": local_memory_avg_bus_width,
+                "local_memory_bus_width_coeff_var": local_memory_bus_width_coeff_var,
+                "local_memory_bus_width_std": local_memory_bus_width_std,
+                "global_memory_total_area": global_memory_total_area,
+                "local_memory_total_area":local_memory_total_area,
+                "local_memory_area_coeff_var": local_memory_area_coeff_var, "local_memory_area_std": local_memory_area_std,
+                "global_memory_total_bytes": global_memory_total_bytes,
+                "local_memory_total_bytes": local_memory_total_bytes,
+                "local_memory_bytes_avg": local_memory_bytes_avg,
+                "local_memory_bytes_coeff_var": local_memory_bytes_coeff_var, "local_memory_bytes_std": local_memory_bytes_std,
                 "memory_total_area":global_memory_total_area+local_memory_total_area,
                 "local_mem_cnt":len(local_memory_freqs),
-                "local_memory_freq_coeff_var": local_memory_freq_coeff_var, "local_memory_freq_std": local_memory_freq_std,
-                "local_memory_area_coeff_var": local_memory_area_coeff_var, "local_memory_area_std": local_memory_area_std
+                "local_memory_traffic_per_mem_avg":  local_traffic_per_mem_avg,
+                "local_memory_traffic_per_mem_std":  local_traffic_per_mem_coeff_var,
+                "local_memory_traffic_per_mem_coeff_var": local_traffic_per_mem_coeff_var,
+                "local_bus_traffic_avg": local_bus_traffic_avg,
+                "local_bus_traffic_std": local_bus_traffic_std,
+                "local_bus_traffic_coeff_var": local_bus_traffic_coeff_var,
+                "locality_in_bytes": locality_in_bytes
                 }
 
 
@@ -860,6 +1243,21 @@ class DPStatsContainer():
                 if krnl.get_task_name() == task.get_name():
                     block_s_krnels.append(krnl)
         return block_s_krnels
+
+    def get_krnels_of_block_clustered_by_workload(self, block):
+        workload_kernels = {}
+        block_s_tasks = block.get_tasks_of_block()
+        block_s_krnels = []
+        # get krnels of block
+        for task in block_s_tasks:
+            for krnl in self.__kernels:
+                if krnl.get_task_name() == task.get_name():
+                    workload = self.database.db_input.task_workload[krnl.get_task_name()],
+                    if workload not in workload_kernels.keys():
+                        workload_kernels[workload] =[]
+                    workload_kernels[workload].append(krnl)
+        return workload_kernels
+
 
     def get_bus_system_attr(self):
         bus_system_attr = {}
@@ -986,42 +1384,84 @@ class DPStatsContainer():
             local_buses_max_work_rate_list.append(max(work_rate))
 
 
+        local_channels_avg_work_rate_list = []
+        local_channels_max_work_rate_list = []
+        for bus in local_buses:
+            for pipe_cluster in bus.get_pipe_clusters():
+                work_rate = []
+                pathlet_phase_work_rate = pipe_cluster.get_pathlet_phase_work_rate()
+                for pathlet, phase_work_rate in pathlet_phase_work_rate.items():
+                    if not pathlet.get_out_pipe().get_slave().subtype == "dram":
+                        work_rate.extend(list(phase_work_rate.values()))
+                if len(work_rate) == 0:
+                    continue
+                local_channels_avg_work_rate_list.append(sum(work_rate)/max(len(work_rate),1))
+                local_channels_max_work_rate_list.append(max(work_rate))
+
+
+        local_channels_cnt_per_bus = {}
+        for bus in local_buses:
+            local_channels_cnt_per_bus[bus] =0
+            work_rate = []
+            for pipe_cluster in bus.get_pipe_clusters():
+                pathlet_phase_work_rate = pipe_cluster.get_pathlet_phase_work_rate()
+                for pathlet, phase_work_rate in pathlet_phase_work_rate.items():
+                    if not pathlet.get_out_pipe().get_slave().subtype == "dram":
+                        work_rate.extend(list(phase_work_rate.values()))
+                if len(work_rate) == 0:
+                    continue
+                local_channels_cnt_per_bus[bus] +=1
+
         attr_val["local_bus_count"] = len(local_buses)
         if len(local_buses) == 0:
+            attr_val["avg_freq"] = 0
             attr_val["local_bus_avg_freq"] = 0
             attr_val["local_bus_avg_bus_width"]  = 0
             attr_val["local_bus_avg_theoretical_bandwidth"]  = 0
             attr_val["local_bus_avg_actual_bandwidth"]  = 0
             attr_val["local_bus_max_actual_bandwidth"]  = 0
             attr_val["local_bus_cnt"]  = 0
-
+            attr_val["local_channel_avg_actual_bandwidth"] = 0
+            attr_val["local_channel_max_actual_bandwidth"] = 0
+            attr_val["local_channel_count_per_bus_avg"] = 0
         else:
             attr_val["avg_freq"] = sum(freq_list) / len(freq_list)
+            attr_val["local_bus_avg_freq"] = sum(freq_list) / len(freq_list)
             attr_val["local_bus_avg_bus_width"]  = sum(bus_width_list)/len(freq_list)
             attr_val["local_bus_avg_theoretical_bandwidth"]  = sum(bus_bandwidth_list)/len(bus_bandwidth_list)
             attr_val["local_bus_avg_actual_bandwidth"]  = sum(local_buses_avg_work_rate_list)/len(local_buses_avg_work_rate_list)
             # getting average of max
             attr_val["local_bus_max_actual_bandwidth"]  = sum(local_buses_max_work_rate_list)/len(local_buses_max_work_rate_list)
             attr_val["local_bus_cnt"]  = len(bus_width_list)
+            attr_val["local_channel_avg_actual_bandwidth"] = st.mean(local_channels_avg_work_rate_list)
+            attr_val["local_channel_max_actual_bandwidth"] = st.mean(local_channels_max_work_rate_list)
+            attr_val["local_channel_count_per_bus_avg"] = st.mean(list(local_channels_cnt_per_bus.values()))
+
 
         if len(local_buses) in [0,1]:
             attr_val["local_bus_freq_std"] = 0
             attr_val["local_bus_freq_coeff_var"] = 0
             attr_val["local_bus_bus_width_std"] = 0
             attr_val["local_bus_bus_width_coeff_var"] = 0
+            attr_val["local_bus_actual_bandwidth_std"] = 0
+            attr_val["local_bus_actual_bandwidth_coeff_var"] = 0
+            attr_val["local_channel_actual_bandwidth_std"] = 0
+            attr_val["local_channel_actual_bandwidth_coeff_var"] = 0
+            attr_val["local_channel_count_per_bus_std"] = 0
+            attr_val["local_channel_count_per_bus_coeff_var"] = 0
         else:
             attr_val["local_bus_freq_std"] = st.stdev(freq_list)
             attr_val["local_bus_freq_coeff_var"] = st.stdev(freq_list)/st.mean(freq_list)
             attr_val["local_bus_bus_width_std"] = st.stdev(bus_width_list)
             attr_val["local_bus_bus_width_coeff_var"] = st.stdev(bus_width_list)/st.mean(bus_width_list)
-
-
+            attr_val["local_bus_actual_bandwidth_std"] = st.stdev(local_buses_avg_work_rate_list)
+            attr_val["local_bus_actual_bandwidth_coeff_var"] = st.stdev(local_buses_avg_work_rate_list)/st.mean(local_buses_avg_work_rate_list)
+            attr_val["local_channel_actual_bandwidth_std"] = st.stdev(local_channels_avg_work_rate_list)
+            attr_val["local_channel_actual_bandwidth_coeff_var"] = st.stdev(local_channels_avg_work_rate_list)/st.mean(local_channels_avg_work_rate_list)
+            attr_val["local_channel_count_per_bus_std"] = st.stdev(list(local_channels_cnt_per_bus.values()))
+            attr_val["local_channel_count_per_bus_coeff_var"] = st.stdev(list(local_channels_cnt_per_bus.values()))/st.mean(list(local_channels_cnt_per_bus.values()))
 
         return attr_val
-
-
-
-
 
 
     # iterate through all the design points and
@@ -1218,6 +1658,7 @@ class DPStatsContainer():
             for block_subtype in ["dram", "sram", "ic", "ip", "gpp"]:
                 self.SOC_area_subtype_dict[block_subtype][SOC_type][SOC_id] = self.calc_SOC_area_base_on_subtype(block_subtype, SOC_type, SOC_id)
         self.SOC_metric_dict[metric_type][SOC_type][SOC_id] =  self.calc_SOC_metric_value(metric_type, SOC_type, SOC_id)
+
 
     def set_system_complex_metric(self, metric_type):
         type_id_list = self.dp_rep.get_designs_SOCs()
@@ -1511,6 +1952,8 @@ class SimDesignPoint(ExDesignPoint):
         self.population_generated_number = 0
         self.depth_number = 0  # the depth (within on iteration) which the simulation is done
         self.simulation_time = 0  # how long did it take to do the simulation
+        self.serial_design_time = 0
+        self.par_speedup_time = 0
         if config.use_cacti:
             self.cacti_hndlr = cact_handlr.CactiHndlr(config.cact_bin_addr, config.cacti_param_addr,
                                                       config.cacti_data_log_file, config.cacti_input_col_order,
@@ -1521,6 +1964,18 @@ class SimDesignPoint(ExDesignPoint):
             self.block_phase_utilization_dict[block] = {}
 
 
+
+    def set_serial_design_time(self, serial_design_time):
+        self.serial_design_time = serial_design_time
+
+    def get_serial_design_time(self):
+        return self.serial_design_time
+
+    def set_par_speedup(self, speedup):
+        self.par_speedup_time = speedup
+
+    def get_par_speedup(self):
+        return self.par_speedup_time
 
     def set_simulation_time(self, simulation_time):
         self.simulation_time= simulation_time
@@ -1646,7 +2101,7 @@ class SimDesignPoint(ExDesignPoint):
         # prime cacti
         mem_bytes = max(blk.get_area_in_bytes(), config.cacti_min_memory_size_in_bytes)
         subtype = blk.subtype
-        mem_bytes = (int(mem_bytes/config.min_mem_size[subtype])+1)*config.min_mem_size[subtype] # modulo calculation
+        mem_bytes = (math.ceil(mem_bytes/config.min_mem_size[subtype]))*config.min_mem_size[subtype] # modulo calculation
 
         #subtype = "sram"  # TODO: change later to sram/dram
         mem_subtype = self.FARSI_to_cacti_mem_type_converter(subtype)
@@ -1686,7 +2141,7 @@ class SimDesignPoint(ExDesignPoint):
         elif blk.type == "mem":
             mem_bytes = max(blk.get_area_in_bytes(), config.cacti_min_memory_size_in_bytes) # to make sure we don't go smaller than cacti's minimum size
             mem_subtype = self.FARSI_to_cacti_mem_type_converter(blk.subtype)
-            mem_bytes = (int(mem_bytes / config.min_mem_size[blk.subtype]) + 1) * config.min_mem_size[blk.subtype]  # modulo calculation
+            mem_bytes = (math.ceil(mem_bytes / config.min_mem_size[blk.subtype])) * config.min_mem_size[blk.subtype]  # modulo calculation
             #mem_subtype = "ram" #choose from ["main memory", "ram"]
             found_results, read_energy_per_byte, write_energy_per_byte, area = \
                 self.cacti_hndlr.cacti_data_container.find(list(zip(config.cacti_input_col_order,[mem_subtype, mem_bytes])))

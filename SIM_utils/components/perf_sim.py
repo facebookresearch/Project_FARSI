@@ -17,6 +17,18 @@ class PerformanceSimulator:
         self.old_clock_time = self.clock_time = 0
         self.program_status = "idle"  # specifying the status of the program at the current tick
         self.phase_num = -1
+        self.krnl_latency_if_run_in_isolation = {}
+        self.serial_latency = 0
+        self.workload_time_if_each_kernel_run_serially()
+
+
+    def workload_time_if_each_kernel_run_serially(self):
+        self.serial_latency = 0
+        for krnl in self.yet_to_schedule_kernels:
+            self.krnl_latency_if_run_in_isolation[krnl] = krnl.get_latency_if_krnel_run_in_isolation()
+
+        for krnl, latency in self.krnl_latency_if_run_in_isolation.items():
+            self.serial_latency += latency
 
 
     def reset_perf_sim(self):
@@ -27,6 +39,7 @@ class PerformanceSimulator:
         self.old_clock_time = self.clock_time = 0
         self.program_status = "idle"  # specifying the status of the program at the current tick
         self.phase_num = -1
+
 
     # ------------------------------
     # Functionality:
@@ -153,6 +166,7 @@ class PerformanceSimulator:
                 for parent_kernel in all_parent_kernels:
                     all_children_kernels = [self.get_kernel_from_task(child_task) for child_task in
                                            parent_kernel.get_task().get_children()]
+
                     if all([child_kernel in self.completed_kernels for child_kernel in all_children_kernels]):
                         parent_kernel.update_mem_size(-1)
 

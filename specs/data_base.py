@@ -79,6 +79,9 @@ class DataBase:
         self.mappable_blocksL_to_tasks_s_name_dict:Dict[str:TaskL] = {}
         self.populate_mappable_blocksL_to_tasks_s_name_dict()
 
+    def set_workloads_last_task(self, workloads_last_task):
+        self.workloads_last_task = workloads_last_task
+
     # used to determine when a workload is done
     def get_workloads_last_task(self):
         return self.workloads_last_task
@@ -98,6 +101,7 @@ class DataBase:
                          obj.clock_freq,
                          obj.bus_width,
                          obj.loop_itr_cnt,
+                         obj.loop_max_possible_itr_cnt,
                          self.get_block_leakage_power(obj),
                          self.get_block_power_knobs(obj))
         elif len(argv) == 0 and isinstance(obj, TaskL):

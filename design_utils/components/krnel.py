@@ -167,7 +167,9 @@ class KernelStats:
     # get the block bottleneck from power perspective
     # phase: Simulation phases
     def get_block_power_bottleneck(self, phase):
-        return (sorted(self.blck_pwr.items(), key=operator.itemgetter(1))[-1])[0]
+        #index =  random.choice([-3,-2,-1])
+        index =  random.choice([-1])
+        return (sorted(self.blck_pwr.items(), key=operator.itemgetter(1))[index])[0]
 
     def get_block_area(self):
         return self.blck_area
@@ -175,7 +177,9 @@ class KernelStats:
     # get the block bottleneck from area perspective
     # phase: Simulation phases
     def get_block_area_bottleneck(self, phase):
-        return (sorted(self.blck_area.items(), key=operator.itemgetter(1))[-1])[0]
+        index =  random.choice([-3,-2,-1])
+        index =  random.choice([-1])
+        return (sorted(self.blck_area.items(), key=operator.itemgetter(1))[index])[0]
 
     # get the block bottleneck from energy perspective
     # phase: Simulation phases
@@ -1149,6 +1153,41 @@ class Kernel:
             block_normalized_work_rate_consolidated = block_normalized_work_rate
 
         return block_normalized_work_rate_consolidated
+
+
+    def get_latency_if_krnel_run_in_isolation(self):
+        if self.get_task().is_task_dummy():
+            return 0
+        block_att_work_rate_dict = self.update_block_att_work_rate_in_isolation()
+        time_to_completion_in_isolation = self.get_total_work()/block_att_work_rate_dict[self.get_ref_block()][self.get_ref_block().get_pipe_clusters()[0]]
+        return time_to_completion_in_isolation
+
+    # only for one krnel
+    def update_block_att_work_rate_in_isolation(self):
+        scheduled_kernels = [self]
+        block_normalized_work_rate_unconsolidated = self.calc_all_block_normalized_work_rate(scheduled_kernels)
+
+        # consolidate read/write channels since DMA serializes read/writes
+        block_normalized_work_rate = self.consolidate_channels(block_normalized_work_rate_unconsolidated)
+
+        # identify the block bottleneck
+        cur_phase_dir_bottleneck, cur_phase_dir_bottleneck_work_rate = self.calc_block_s_bottleneck(block_normalized_work_rate)
+        cur_phase_bottleneck = list(cur_phase_dir_bottleneck.values())[0]
+        cur_phase_bottleneck_work_rate = list(cur_phase_dir_bottleneck_work_rate.values())[0]
+        for dir, work_rate in cur_phase_dir_bottleneck_work_rate.items():
+            if work_rate < cur_phase_bottleneck_work_rate:
+                cur_phase_bottleneck =  cur_phase_dir_bottleneck[dir]
+                cur_phase_bottleneck_work_rate = work_rate
+
+        #.kernel_phase_bottleneck_blocks_dict[self.phase_num] = self.cur_phase_bottleneck
+        ref_block = self.get_ref_block()
+        # unnormalized the results (unnormalizing means that actually provide the work rate as opposed
+        # to normalizing it to the ref block (which is usally PE) work rate
+        block_att_work_rate_dict = self.calc_unnormalize_work_rate(block_normalized_work_rate, cur_phase_bottleneck_work_rate)
+        block_dir_att_work_rate_dict = self.calc_unnormalize_work_rate_by_dir(block_normalized_work_rate, cur_phase_dir_bottleneck_work_rate)
+
+        return block_att_work_rate_dict
+
 
     # calculate the attainable work rate of the block
     def update_block_att_work_rate(self, scheduled_kernels):

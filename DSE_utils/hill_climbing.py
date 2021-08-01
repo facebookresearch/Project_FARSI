@@ -1,6 +1,7 @@
 #Copyright (c) Facebook, Inc. and its affiliates.
 #This source code is licensed under the MIT license found in the
 #LICENSE file in the root directory of this source tree.
+import zipfile
 import _pickle as cPickle
 #import ujson
 from design_utils.components.hardware import *
@@ -109,8 +110,21 @@ class HillClimbing:
 
     # retrieving the pickled check pointed file
     def get_pickeld_file(self, file_addr):
-        with open(file_addr, 'rb') as f:  # will close() when we leave this block
-            obj = pickle.load(f)
+        if not os.path.exists(file_addr):
+            file_name = os.path.basename(file_addr)
+            file_name_modified = file_name.split(".")[0]+".zip"
+            dir_name = os.path.dirname(file_addr)
+            zip_file_addr = os.path.join(dir_name, file_name_modified)
+            if os.path.exists(zip_file_addr):
+                with zipfile.ZipFile(zip_file_addr) as thezip:
+                    with thezip.open(file_name, mode='r') as f:
+                        obj = pickle.load(f)
+            else:
+                print(file_addr +" does not exist for unpickling")
+                exit(0)
+        else:
+            with open(file_addr, 'rb') as f:  # will close() when we leave this block
+                obj = pickle.load(f)
         return obj
 
     # ------------------------------
@@ -129,7 +143,8 @@ class HillClimbing:
         elif mode == "generated_from_check_point":
             pickled_file_addr = self.check_point_folder + "/" + "ex_dp_pickled.txt"
             database_file_addr = self.check_point_folder + "/" + "database_pickled.txt"
-            self.database = self.get_pickeld_file(database_file_addr)
+            if "db" in config.check_point_list:
+                self.database = self.get_pickeld_file(database_file_addr)
             self.init_ex_dp = self.get_pickeld_file(pickled_file_addr)
         elif mode == "hardcoded":
             self.init_ex_dp = self.dh.gen_specific_hardcoded_ex_dp(self.dh.database)
@@ -1944,6 +1959,71 @@ class HillClimbing:
         new_ex_dp.sample_hardware_graph(hw_sampling)
         return new_ex_dp
 
+
+
+    # ------------------------------
+    # Functionality:
+    #       Evaluate the design. 1. simulate 2. collect (profile) data.
+    # Variables:
+    #       ex_dp: example design point.
+    #       database: database containing hardware/software modeled characteristics.
+    # ------------------------------
+    def transform_to_most_inferior_design(self, ex_dp:ExDesignPoint):
+        new_ex_dp = cPickle.loads(cPickle.dumps(ex_dp, -1))
+        move_to_try = move("swap", "swap", "irrelevant", "-1", "latency", "", "", "")
+        all_blocks = new_ex_dp.get_blocks()
+        for block in  all_blocks:
+            self.dh.unload_read_mem(new_ex_dp)  # unload memories
+            if not block.type == "ic":
+                self.dh.unload_buses(new_ex_dp)  # unload buses
+            else:
+                self.dh.unload_read_buses(new_ex_dp)  # unload buses
+
+            move_to_try.set_ref_block(block)
+            # get immediate superior/inferior block (based on the desired direction)
+            most_inferior_block = self.dh.get_most_inferior_block(block, block.get_tasks_of_block())
+            move_to_try.set_dest_block(most_inferior_block)
+            move_to_try.set_customization_type(block, most_inferior_block)
+            move_to_try.set_tasks(block.get_tasks_of_block())
+            self.dh.unload_read_mem(new_ex_dp)    # unload read memories
+            move_to_try.validity_check()  # call after unload rad mems, because we need to check the scenarios where
+                                          # task is unloaded from the mem, but was decided to be migrated/swapped
+            new_ex_dp_res, succeeded = self.dh.apply_move([new_ex_dp,""], move_to_try)
+            #self.dh.load_tasks_to_read_mem_and_ic(new_ex_dp_res)  # loading the tasks on to memory and ic
+            new_ex_dp_res.hardware_graph.pipe_design()
+            new_ex_dp_res.sanity_check()
+            new_ex_dp = new_ex_dp_res
+            #cPickle.loads(cPickle.dumps(new_ex_dp_res, -1))
+            #self.dh.load_tasks_to_read_mem_and_ic(new_ex_dp)  # loading the tasks on to memory and ic
+
+
+        self.dh.load_tasks_to_read_mem_and_ic(new_ex_dp)  # loading the tasks on to memory and ic
+        return new_ex_dp
+
+    def single_out_workload(self,ex_dp, database, workload, workload_tasks):
+        new_ex_dp = cPickle.loads(cPickle.dumps(ex_dp, -1))
+        database_ = cPickle.loads(cPickle.dumps(database, -1))
+        for block in new_ex_dp.get_blocks():
+            for dir in ["loop_back","write","read"]:
+                tasks= block.get_tasks_of_block_by_dir(dir)
+                for task in tasks:
+                    if task.get_name() not in workload_tasks:
+                        block.unload((task,dir))
+
+        tasks = new_ex_dp.get_tasks()
+        for task in tasks:
+            children = task.get_children()[:]
+            parents = task.get_parents()[:]
+            for child in children:
+                if child.get_name() not in workload_tasks:
+                    task.remove_child(child)
+            for parent in parents:
+                if parent.get_name() not in workload_tasks:
+                    task.remove_parent(parent)
+
+        database_.set_workloads_last_task({workload: database_.db_input.workloads_last_task[workload]})
+        return new_ex_dp, database_
+
     # ------------------------------
     # Functionality:
     #       Evaluate the design. 1. simulate 2. collect (profile) data.
@@ -1960,12 +2040,12 @@ class HillClimbing:
             return self.sim_one_design(ex_dp, database) # evaluation the design directly
         elif config.eval_mode == "statistical":
             # generate a population (geneate_sample), evaluate them and reduce to some statistical indicator
-            ex_dp_pop_sample = [self.generate_sample(ex_dp, self.database.hw_sampling) for i in range(0, self.database.hw_sampling["population_size"])] # population sample
+            ex_dp_pop_sample = [self.generate_sample(ex_dp, database.hw_sampling) for i in range(0, self.database.hw_sampling["population_size"])] # population sample
             ex_dp.get_tasks()[0].task_id_for_debugging_static += 1
-            sim_dp_pop_sample = list(map(lambda ex_dp_: self.sim_one_design(ex_dp_, self.database), ex_dp_pop_sample)) # evaluate the population sample
+            sim_dp_pop_sample = list(map(lambda ex_dp_: self.sim_one_design(ex_dp_, database), ex_dp_pop_sample)) # evaluate the population sample
 
             # collect profiling information
-            sim_dp_statistical = SimDesignPointContainer(sim_dp_pop_sample, self.database, config.statistical_reduction_mode)
+            sim_dp_statistical = SimDesignPointContainer(sim_dp_pop_sample, database, config.statistical_reduction_mode)
             #print("time is:" + str(time.time() -start))
             return sim_dp_statistical
         else:
@@ -2034,6 +2114,9 @@ class HillClimbing:
                 sim_dp_pickled_file.close()
                 self.name_ctr += 1
             knob_ctr += 1
+
+
+
 
     # ------------------------------
     # Functionality:
