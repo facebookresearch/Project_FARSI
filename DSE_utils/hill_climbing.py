@@ -2,6 +2,7 @@
 #This source code is licensed under the MIT license found in the
 #LICENSE file in the root directory of this source tree.
 import zipfile
+import csv
 import _pickle as cPickle
 #import ujson
 from design_utils.components.hardware import *
@@ -143,6 +144,7 @@ class HillClimbing:
         elif mode == "generated_from_check_point":
             pickled_file_addr = self.check_point_folder + "/" + "ex_dp_pickled.txt"
             database_file_addr = self.check_point_folder + "/" + "database_pickled.txt"
+            #sim_pickled_file_addr = self.check_point_folder + "/" + "sim_dp_pickled.txt"
             if "db" in config.check_point_list:
                 self.database = self.get_pickeld_file(database_file_addr)
             self.init_ex_dp = self.get_pickeld_file(pickled_file_addr)
@@ -2328,6 +2330,16 @@ class HillClimbing:
 
     def get_log_data(self):
         return self.log_data_list
+
+    def write_data_log(self, log_data, reason_to_terminate, case_study, result_dir_specific, unique_number, file_name):
+        output_file_all = os.path.join(result_dir_specific, file_name + "_all_reults.csv")
+        csv_columns = list(log_data[0].keys())
+        # minimal output
+        with open(output_file_all, 'w') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
+            writer.writeheader()
+            for data in log_data:
+                writer.writerow(data)
 
     # ------------------------------
     # Functionality:
