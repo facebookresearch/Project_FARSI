@@ -70,4 +70,6 @@ class OSASimulator:
             self.knob_change_sim.launch()
 
         self.completion_time = self.next_tick_time
+        self.dp.set_serial_design_time(self.perf_sim.serial_latency)
+        self.dp.set_par_speedup(self.perf_sim.serial_latency/self.completion_time)
         return self.dp

@@ -164,6 +164,7 @@ def write_one_results(sim_dp, dse, reason_to_terminate, case_study, result_dir_s
     compute_system_attrs = sim_dp.dp_stats.get_compute_system_attr()
     bus_system_attrs = sim_dp.dp_stats.get_bus_system_attr()
     memory_system_attrs = sim_dp.dp_stats.get_memory_system_attr()
+    speedup_dict, speedup_attrs = sim_dp.dp_stats.get_speedup_analysis(dse)
 
 
 
@@ -233,8 +234,15 @@ def write_one_results(sim_dp, dse, reason_to_terminate, case_study, result_dir_s
         for key, val in memory_system_attrs.items():
             output_fh_minimal.write(str(key) + ",")
 
+        for key, val in speedup_attrs.items():
+            output_fh_minimal.write(str(key) + ",")
+
+        for key, val in speedup_dict.items():
+            output_fh_minimal.write(str(key)+"_speedup_analysis" + ",")
+
         for key,val in base_budget_scaling.items():
             output_fh_minimal.write("budget_scaling_"+str(key) + ",")
+
 
 
     output_fh_minimal.write("\n")
@@ -359,6 +367,13 @@ def write_one_results(sim_dp, dse, reason_to_terminate, case_study, result_dir_s
         output_fh_minimal.write(str(val) + ",")
     for key, val in memory_system_attrs.items():
         output_fh_minimal.write(str(val) + ",")
+
+    for key, val in speedup_attrs.items():
+        output_fh_minimal.write(str(val) + ",")
+
+    for key, val in speedup_dict.items():
+        output_fh_minimal.write(convert_dictionary_to_parsable_csv_with_semi_column(val)+",")
+
     for key,val in base_budget_scaling.items():
         output_fh_minimal.write(str(val) + ",")
 
@@ -419,7 +434,7 @@ def simple_run(result_folder, sw_hw_database_population, system_workers=(1, 1)):
         run_ctr += 1
         # write the results in the general folder
         result_dir_specific = os.path.join(result_folder, "result_summary")
-        write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse, dse_hndlr.dse.reason_to_terminate, case_study,
+        write_one_results(dse_hndlr.dse.so_far_best_sim_dp,  dse_hndlr.dse, dse_hndlr.dse.reason_to_terminate, case_study,
                           result_dir_specific, unique_suffix,
                           config.FARSI_simple_run_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
         write_data_log(list(dse_hndlr.dse.get_log_data()), dse_hndlr.dse.reason_to_terminate, case_study, result_dir_specific, unique_suffix,

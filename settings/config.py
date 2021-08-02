@@ -203,7 +203,10 @@ statistical_reduction_mode = "avg"
 hw_sampling = {"mode":"exact", "population_size":1, "reduction":"avg"}   # mode:["error_integration", "exact"]  # error integration means that our IP library has an error and needs to be taken into account
                                                # exact, means that (even if IP library has an error), treat the (most likely) value as accurate value
 
-check_pointing_allowed = False
+check_pointing_allowed = True
+check_point_list = ["ex", "db"] #choose from ["sim","ex", "db"]
+
+
 use_slack_management_estimation = False and not (RUN_VERIFICATION_PER_GEN or RUN_VERIFICATION_PER_IMPROVMENT or RUN_VERIFICATION_PER_NEW_CONFIG)# if run verification, we can apply slack, otherwise we get the wrong numbers
 jitter_population_size= 1  # not statistical evaluation
 if hw_sampling["mode"] == "exact":

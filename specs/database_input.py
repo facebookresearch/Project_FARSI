@@ -101,6 +101,8 @@ class database_input_class():
         self.hardware_graph = ""
         self.task_to_hardware_mapping = ""
 
+
+
         # using the input files, populate the task graph and possible blocks and the mapping of tasks to blocks
         if sw_hw_database_population["db_mode"] == "hardcoded":
             if len(imported_databases) > 1:
@@ -231,6 +233,9 @@ class database_input_class():
         #self.misc_data["ref_ic_work_rate"] = self.misc_data["ref_ic_width"] * self.misc_data["ref_ic_clock"]
         #self.misc_data["ref_mem_work_rate"] = self.misc_data["ref_mem_width"] * self.misc_data["ref_mem_clock"]
 
+
+    def set_workloads_last_task(self, workloads_last_task):
+        self.workloads_last_task = workloads_last_task
 
     def get_parsed_hardware_graph(self):
         return self.hardware_graph
