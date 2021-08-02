@@ -1137,6 +1137,10 @@ class DesignHandler:
         return self.database.sample_most_inferior_blocks_by_type(block_type=block.type, tasks=self.__tasks)
 
 
+    def get_most_inferior_block_before_unrolling(self, block, tasks):
+        return self.database.sample_most_inferior_blocks_before_unrolling_by_type(block_type=block.type, tasks=block.get_tasks_of_block(), block=block)
+
+
     # ------------------------------
     # Functionality:
     #       generate initial design. Used to boot strap the exploration

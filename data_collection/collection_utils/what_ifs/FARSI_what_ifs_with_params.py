@@ -55,8 +55,13 @@ def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, trans_
     workloads_first_letter  = '_'.join(sorted([el[0] for el in workloads]))
     budget_values = "lat_"+str(base_budget_scaling["latency"])+"__pow_"+str(base_budget_scaling["power"]) + "__area_"+str(base_budget_scaling["area"])
 
+
     # set result folder
-    result_folder = os.path.join(workload_folder,
+    if check_points["start"]:
+        append = check_points["folder"].split("/")[-2]
+        result_folder = os.path.join(workload_folder, append)
+    else:
+        result_folder = os.path.join(workload_folder,
                                  date_time + "____"+ budget_values +"___workloads_"+workloads_first_letter)
     # set the IP spawning params
     ip_loop_unrolling = {"incr": 2, "max_spawn_ip": 17, "spawn_mode": "geometric"}
@@ -125,12 +130,12 @@ if __name__ == "__main__":
 
     # check pointing information
     check_points_start = False
-    check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_4/data_collection/data/simple_run/check_this"
+    check_points_top_folder = "/media/reddi-rtx/KINGSTON/FARSI_results/scaling_of_1_2_4_across_all_budgets_07-31"
 
     # fast run
-    #workloads = [{"audio_decoder"}]
-    #workloads = [{"hpvm_cava"}]
-    workloads = [{"edge_detection"}]
+    workloads = [{"audio_decoder"}]
+    workloads = [{"hpvm_cava"}]
+    #workloads = [{"edge_detection"}]
 
 
     #workloads =[{"audio_decoder", "hpvm_cava"}]
@@ -138,7 +143,7 @@ if __name__ == "__main__":
     #workloads =[{"audio_decoder"}, {"edge_detection"}, {"hpvm_cava"}]
 
     # all workloads togethe
-    #workloads =[{"audio_decoder", "edge_detection", "hpvm_cava"}]
+    workloads =[{"audio_decoder", "edge_detection", "hpvm_cava"}]
 
     # entire workload set
     #workloads = [{"hpvm_cava"}, {"audio_decoder"}, {"edge_detection"}, {"edge_detection", "audio_decoder"}, {"hpvm_cava", "audio_decoder"}, {"hpvm_cava", "edge_detection"} , {"audio_decoder", "edge_detection", "hpvm_cava"}]
@@ -148,13 +153,13 @@ if __name__ == "__main__":
     area_scaling_range  = [.8,1,1.2]
 
     # edge detection lower budget
-    latency_scaling_range  = [4]
+    latency_scaling_range  = [.9]
     # for audio
     #power_scaling_range  = [.6,.5,.4,.3]
     #area_scaling_range  = [.6,.5,.5,.3]
 
-    power_scaling_range  = [4]
-    area_scaling_range  = [4]
+    power_scaling_range  = [1]
+    area_scaling_range  = [1]
 
     result_home_dir_default = os.path.join(os.getcwd(), "data_collection/data/" + study_type)
     result_folder = os.path.join(config.home_dir, "data_collection/data/" + study_type)
@@ -186,7 +191,8 @@ if __name__ == "__main__":
             for w in workloads:
                 workloads_first_letter = '_'.join(sorted([el[0] for el in w])) +"__"+trans_sel_mode[0]
                 workload_folder = os.path.join(run_folder, workloads_first_letter)
-                os.mkdir(workload_folder)
+                if not os.path.exists(workload_folder):
+                    os.mkdir(workload_folder)
                 for d in SA_depth:
                     for latency_scaling,power_scaling, area_scaling in itertools.product(latency_scaling_range, power_scaling_range, area_scaling_range):
                         base_budget_scaling = {"latency": latency_scaling, "power": power_scaling, "area": area_scaling}

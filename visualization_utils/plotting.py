@@ -962,7 +962,7 @@ def plot_convergence_vs_time(input_dir_names, res_column_name_number):
                 if not os.path.exists(output_dir):
                     os.makedirs(output_dir)
                 fig.savefig(os.path.join(output_dir,str(k)+"_" + y_column_name+"_vs_"+x_column_name+"_FARSI_vs_PA.png"))
-                plt.show()
+                #plt.show()
                 plt.close('all')
 
 
@@ -1273,6 +1273,14 @@ def plot_codesign_nav_breakdown_cross_workload(input_dir_names, input_all_res_co
                     #    continue
                     if i > 1:
                         try:
+
+                            # the following for workload awareness
+                            #if row[all_res_column_name_number["move name"]] == "identity":
+                            #    continue
+                            #if row[all_res_column_name_number["architectural principle"]] == "spatial_locality":
+                            #    continue
+
+
                             col_value = row[columne_number]
                             col_values = col_value.split(";")
                             for col_val in col_values:
@@ -1293,7 +1301,8 @@ def plot_codesign_nav_breakdown_cross_workload(input_dir_names, input_all_res_co
 
         for col_val, exp_vals in column_value_experiment_frequency_dict.items():
             for exp, values in exp_vals.items():
-                column_value_experiment_frequency_dict[col_val][exp] /= total_cnt[exp]
+                column_value_experiment_frequency_dict[col_val][exp] = column_value_experiment_frequency_dict[col_val][exp]
+                column_value_experiment_frequency_dict[col_val][exp] /= total_cnt[exp] # normalize
 
         # prepare for plotting and plot
         # plt.figure(figsize=(10, 8))
@@ -2701,13 +2710,33 @@ if __name__ == "__main__":
 
     case_studies["heterogeneity_var_system_compleixty"] = [
         "local_channel_count_per_bus_coeff_var",
-        "loop_itr_ratio_var"
+        "loop_itr_ratio_var",
+        "cluster_pe_cnt_coeff_var"
     ]
     case_studies["heterogeneity_std_system_compleixty"] = [
         "local_channel_count_per_bus_std",
-        "loop_itr_ratio_std",
+        "loop_itr_ratio_std", "cluster_pe_cnt_std"
     ]
 
+
+
+    case_studies["speedup"] = [
+        "customization_speed_up_full_system",
+        "loop_unrolling_parallelism_speed_up_full_system",
+        "task_level_parallelism_speed_up_full_system"
+    ]
+    """ 
+      [ 
+        "customization_first_speed_up_avg",
+        "customization_second_speed_up_avg",
+        "parallelism_first_speed_up_avg",
+        "parallelism_second_speed_up_avg",
+        "interference_degradation_avg",
+        "customization_first_speed_up_full_system",
+        "customization_second_speed_up_full_system",
+        "parallelism_first_speed_up_full_system",
+        "parallelism_second_speed_up_full_system",
+    ]
 
     case_studies["speedup"] = [
         "customization_first_speed_up_avg",
@@ -2720,7 +2749,7 @@ if __name__ == "__main__":
         "parallelism_first_speed_up_full_system",
         "parallelism_second_speed_up_full_system",
     ]
-
+    """
 
 
 
@@ -2799,8 +2828,9 @@ if __name__ == "__main__":
 
 
     if "budget_optimality" in config_plotting.plot_list:
+        pass
         #get_budget_optimality_advanced(experiment_full_addr_list, all_results_files, summary_res_column_name_number)
-        get_budget_optimality(experiment_full_addr_list, all_results_files, summary_res_column_name_number)
+        #get_budget_optimality(experiment_full_addr_list, all_results_files, summary_res_column_name_number)
 
     if "cross_workloads" in config_plotting.plot_list:
         # get column orders (assumption is that the column order doesn't change between experiments)
@@ -2824,38 +2854,38 @@ if __name__ == "__main__":
         plot_3d(experiment_full_addr_list, summary_res_column_name_number)
 
     if "pandas_plots" in config_plotting.plot_list:
-        pandas_case_studies = {}
-        pandas_case_studies["system_complexity"] = ["system block count", "routing complexity", "system PE count",
+        #pandas_case_studies = {}
+        case_studies["system_complexity"] = ["system block count", "routing complexity", "system PE count",
                                              "local_mem_cnt", "local_bus_cnt" , "channel_cnt", "ip_cnt", "gpp_cnt"]
 
-        pandas_case_studies["pe_parallelism"] = ["max_accel_parallelism", "avg_accel_parallelism", "avg_gpp_parallelism", "max_gpp_parallelism"]
+        case_studies["pe_parallelism"] = ["max_accel_parallelism", "avg_accel_parallelism", "avg_gpp_parallelism", "max_gpp_parallelism"]
 
-        pandas_case_studies["ip_frequency"] = ["ips_avg_freq", "gpps_avg_freq", "ips_freq_std", "pes_freq_std",
+        case_studies["ip_frequency"] = ["ips_avg_freq", "gpps_avg_freq", "ips_freq_std", "pes_freq_std",
                                             "ips_freq_coeff_var", "pes_freq_coeff_var"]
 
-        pandas_case_studies["pe_area"] = ["ips_total_area", "gpps_total_area", "ips_area_std", "pes_area_std",
+        case_studies["pe_area"] = ["ips_total_area", "gpps_total_area", "ips_area_std", "pes_area_std",
                                             "ips_area_coeff_var", "pes_area_coeff_var"]
 
-        pandas_case_studies["mem_frequency"] = ["local_memory_avg_freq", "global_memory_avg_freq",
+        case_studies["mem_frequency"] = ["local_memory_avg_freq", "global_memory_avg_freq",
                                                 "local_memory_freq_std","local_memory_freq_coeff_var"]
 
-        pandas_case_studies["mem_area"] = ["local_memory_total_area", "global_memory_total_area", "local_memory_area_std",
+        case_studies["mem_area"] = ["local_memory_total_area", "global_memory_total_area", "local_memory_area_std",
                                            "local_memory_area_coeff_var"]
 
-        pandas_case_studies["traffic"] = ["local_total_traffic", "global_total_traffic"]
+        case_studies["traffic"] = ["local_total_traffic", "global_total_traffic"]
 
 
-        pandas_case_studies["bus_width"] = ["local_bus_avg_bus_width",
+        case_studies["bus_width"] = ["local_bus_avg_bus_width",
                                             "system_bus_avg_bus_width"]
 
 
-        pandas_case_studies["bus_bandwidth"] = ["local_bus_avg_actual_bandwidth",  "system_bus_avg_actual_bandwidth",
+        case_studies["bus_bandwidth"] = ["local_bus_avg_actual_bandwidth",  "system_bus_avg_actual_bandwidth",
                                                 "local_bus_avg_theoretical_bandwidth", "system_bus_avg_theoretical_bandwidth",
                                                 "local_bus_max_actual_bandwidth", "system_bus_max_actual_bandwidth"]
 
 
 
-        for case_study_name, metrics in pandas_case_studies.items():
+        for case_study_name, metrics in case_studies.items():
             for metric in metrics:
                 pandas_plots(experiment_full_addr_list, all_results_files, metric)
 

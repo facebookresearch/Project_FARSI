@@ -581,6 +581,18 @@ class DataBase:
         all_compatible_blocks = self.find_all_compatible_blocks(block_type, tasks)
         return sorted(all_compatible_blocks)[0]
 
+    def sample_most_inferior_blocks_before_unrolling_by_type(self, mode="random", tasks=[], block_type="pe", block=""):
+        if not block.subtype == "ip":
+            return self.sample_similar_block(block)
+        else:
+            all_compatible_blocks = self.find_all_compatible_blocks(block_type, tasks)
+            sorted_blocks = sorted(all_compatible_blocks)
+            for block_ in  sorted_blocks:
+                if block_.subtype == "ip" and block_.get_block_freq() == block.get_block_freq():
+                    return block_
+            return sorted(all_compatible_blocks)[0]
+
+
     # superior = better performant wise
     # Variables:
     #       cur_blck: current block to find a superior for

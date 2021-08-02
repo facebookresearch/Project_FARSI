@@ -779,6 +779,21 @@ class DPStatsContainer():
             max_gpp_parallelism = max(list(phase_gpp_parallelism.values()))
 
 
+
+        buses = [el for el in self.dp_rep.get_blocks() if el.subtype == "ic"]
+        bus_neigh_count = []
+        for bus in buses:
+            pe_neighs  = [neigh for neigh in bus.get_neighs() if neigh.type == "pe"]
+            bus_neigh_count.append(len(pe_neighs))
+
+        cluster_pe_cnt_avg = st.mean(bus_neigh_count)
+        if len(bus_neigh_count) in [0,1]:
+            cluster_pe_cnt_std = 0
+            cluster_pe_cnt_coeff_var = 0
+        else:
+            cluster_pe_cnt_std = st.stdev(bus_neigh_count)
+            cluster_pe_cnt_coeff_var = st.stdev(bus_neigh_count)/st.mean(bus_neigh_count)
+
         return {
                 "avg_accel_parallelism": avg_accel_parallelism, "max_accel_parallelism":max_accel_parallelism,
                 "avg_gpp_parallelism": avg_gpp_parallelism, "max_gpp_parallelism": max_gpp_parallelism,
@@ -793,6 +808,9 @@ class DPStatsContainer():
                 "loop_itr_ratio_avg":loop_itr_ratio_avg,
                 "loop_itr_ratio_std":loop_itr_ratio_std,
                 "loop_itr_ratio_var":loop_itr_ratio_var,
+              "cluster_pe_cnt_avg":cluster_pe_cnt_avg,
+                "cluster_pe_cnt_std":cluster_pe_cnt_std,
+                "cluster_pe_cnt_coeff_var":cluster_pe_cnt_coeff_var
             }
 
 
@@ -842,21 +860,30 @@ class DPStatsContainer():
         most_infer_ex_dp = dse.transform_to_most_inferior_design(dse.so_far_best_ex_dp)
         most_infer_sim_dp = dse.eval_design(most_infer_ex_dp, self.database)
 
-        customization_first_speed_up_full_system = most_infer_sim_dp.dp.get_serial_design_time()/dse.so_far_best_sim_dp.dp.get_serial_design_time()
-        parallelism_second_speed_up_full_system = dse.so_far_best_sim_dp.dp.get_par_speedup()
+        most_infer_ex_before_unrolling_dp = dse.transform_to_most_inferior_design_before_loop_unrolling(dse.so_far_best_ex_dp)
+        most_infer_sim_before_unrolling_dp = dse.eval_design(most_infer_ex_before_unrolling_dp, self.database)
 
-        parallelism_first_speed_up_full_system = most_infer_sim_dp.dp.get_par_speedup()
-        customization_second_speed_up_full_system = max(list((most_infer_sim_dp.dp_stats.get_system_complex_metric("latency")).values()))/max(list((dse.so_far_best_sim_dp.dp_stats.get_system_complex_metric("latency")).values()))
+        #customization_first_speed_up_full_system = most_infer_sim_dp.dp.get_serial_design_time()/dse.so_far_best_sim_dp.dp.get_serial_design_time()
+        #parallelism_second_speed_up_full_system = dse.so_far_best_sim_dp.dp.get_par_speedup()
+
+        #parallelism_first_speed_up_full_system = most_infer_sim_dp.dp.get_par_speedup()
+        #customization_second_speed_up_full_system = max(list((most_infer_sim_dp.dp_stats.get_system_complex_metric("latency")).values()))/max(list((dse.so_far_best_sim_dp.dp_stats.get_system_complex_metric("latency")).values()))
+
+        customization_speed_up_full_system = most_infer_sim_dp.dp.get_serial_design_time()/most_infer_sim_before_unrolling_dp.dp.get_serial_design_time()
+        loop_unrolling_parallelism_speed_up_full_system = most_infer_sim_before_unrolling_dp.dp.get_serial_design_time()/dse.so_far_best_sim_dp.dp.get_serial_design_time()
+        task_level_parallelism_speed_up_full_system = dse.so_far_best_sim_dp.dp.get_serial_design_time()/max(list((dse.so_far_best_sim_dp.dp_stats.get_system_complex_metric("latency")).values()))
+
+        #
+
 
         speedup_avg = {"customization_first_speed_up_avg": st.mean(customization_first_speed_up_list),
                                          "parallelism_second_speed_up_avg": st.mean(parallelism_second_speed_up_list),
                                          "customization_second_speed_up_avg": st.mean(customization_second_speed_up_list),
                                          "parallelism_first_speed_up_avg": st.mean(parallelism_first_speed_up_list),
                                          "interference_degradation_avg": st.mean(interference_degradation_list),
-                       "customization_first_speed_up_full_system": customization_first_speed_up_full_system,
-                       "parallelism_second_speed_up_full_system": parallelism_second_speed_up_full_system,
-                       "customization_second_speed_up_full_system": customization_second_speed_up_full_system,
-                       "parallelism_first_speed_up_full_system": parallelism_first_speed_up_full_system
+                       "customization_speed_up_full_system": customization_speed_up_full_system,
+                       "loop_unrolling_parallelism_speed_up_full_system": loop_unrolling_parallelism_speed_up_full_system,
+                       "task_level_parallelism_speed_up_full_system": task_level_parallelism_speed_up_full_system
                        }
 
         return workload_speed_up,speedup_avg

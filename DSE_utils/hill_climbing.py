@@ -1961,13 +1961,7 @@ class HillClimbing:
 
 
 
-    # ------------------------------
-    # Functionality:
-    #       Evaluate the design. 1. simulate 2. collect (profile) data.
-    # Variables:
-    #       ex_dp: example design point.
-    #       database: database containing hardware/software modeled characteristics.
-    # ------------------------------
+
     def transform_to_most_inferior_design(self, ex_dp:ExDesignPoint):
         new_ex_dp = cPickle.loads(cPickle.dumps(ex_dp, -1))
         move_to_try = move("swap", "swap", "irrelevant", "-1", "latency", "", "", "")
@@ -1996,6 +1990,38 @@ class HillClimbing:
             #cPickle.loads(cPickle.dumps(new_ex_dp_res, -1))
             #self.dh.load_tasks_to_read_mem_and_ic(new_ex_dp)  # loading the tasks on to memory and ic
 
+
+        self.dh.load_tasks_to_read_mem_and_ic(new_ex_dp)  # loading the tasks on to memory and ic
+        return new_ex_dp
+
+    def transform_to_most_inferior_design_before_loop_unrolling(self, ex_dp: ExDesignPoint):
+        new_ex_dp = cPickle.loads(cPickle.dumps(ex_dp, -1))
+        move_to_try = move("swap", "swap", "irrelevant", "-1", "latency", "", "", "")
+        all_blocks = new_ex_dp.get_blocks()
+        for block in all_blocks:
+            self.dh.unload_read_mem(new_ex_dp)  # unload memories
+            if not block.type == "ic":
+                self.dh.unload_buses(new_ex_dp)  # unload buses
+            else:
+                self.dh.unload_read_buses(new_ex_dp)  # unload buses
+
+            move_to_try.set_ref_block(block)
+            # get immediate superior/inferior block (based on the desired direction)
+            most_inferior_block = self.dh.get_most_inferior_block_before_unrolling(block,  block.get_tasks_of_block())
+            #most_inferior_block = self.dh.get_most_inferior_block(block, block.get_tasks_of_block())
+            move_to_try.set_dest_block(most_inferior_block)
+            move_to_try.set_customization_type(block, most_inferior_block)
+            move_to_try.set_tasks(block.get_tasks_of_block())
+            self.dh.unload_read_mem(new_ex_dp)  # unload read memories
+            move_to_try.validity_check()  # call after unload rad mems, because we need to check the scenarios where
+            # task is unloaded from the mem, but was decided to be migrated/swapped
+            new_ex_dp_res, succeeded = self.dh.apply_move([new_ex_dp, ""], move_to_try)
+            # self.dh.load_tasks_to_read_mem_and_ic(new_ex_dp_res)  # loading the tasks on to memory and ic
+            new_ex_dp_res.hardware_graph.pipe_design()
+            new_ex_dp_res.sanity_check()
+            new_ex_dp = new_ex_dp_res
+            # cPickle.loads(cPickle.dumps(new_ex_dp_res, -1))
+            # self.dh.load_tasks_to_read_mem_and_ic(new_ex_dp)  # loading the tasks on to memory and ic
 
         self.dh.load_tasks_to_read_mem_and_ic(new_ex_dp)  # loading the tasks on to memory and ic
         return new_ex_dp
