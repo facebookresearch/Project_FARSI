@@ -1122,10 +1122,14 @@ class HillClimbing:
 
     # select the kernel for the move
     def select_kernel(self, ex_dp, sim_dp, selected_metric, move_sorted_metric_dir):
+
         # get each kernel's contributions
         krnl_contribution_dict = self.get_kernels_s_contribution(selected_metric, sim_dp)
         # get each kernel's improvement cost
         krnl_improvement_ease = self.get_kernels_s_improvement_ease(ex_dp, sim_dp, selected_metric, move_sorted_metric_dir)
+
+
+
 
         # combine the selections methods
         # multiply the probabilities for a more complex metric
@@ -1152,6 +1156,11 @@ class HillClimbing:
                 break
         else:
             selected_krnl = self.pick_from_prob_dict(krnl_prob_dict_sorted)
+
+        if config.transformation_selection_mode == "random":
+            krnls = sim_dp.get_dp_stats().get_kernels()
+            random.seed(datetime.now().microsecond)
+            selected_krnl = random.choice(krnls)
 
         return selected_krnl, krnl_prob_dict, krnl_prob_dict_sorted
 

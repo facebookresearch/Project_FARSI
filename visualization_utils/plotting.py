@@ -989,7 +989,7 @@ def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
     for y_column_name in y_column_name_list:
         # get all possible the values of interest
         y_column_number = res_column_name_number[y_column_name]
-        x_column_number = res_column_name_number[x_column_name]
+        #x_column_number = res_column_name_number[x_column_name]
 
         column_experiment_value[y_column_name] = {}
         # initialize the dictionary
@@ -1004,7 +1004,7 @@ def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
                     #if row[trueNum] != "True":
                     #    continue
                     if i >= 1:
-                        value_to_add = (float(row[x_column_number]), max(float(row[y_column_number]),.01))
+                        value_to_add = (i, max(float(row[y_column_number]),.01))
                         column_experiment_value[y_column_name][experiment_name].append(value_to_add)
 
         # prepare for plotting and plot
@@ -2894,8 +2894,7 @@ if __name__ == "__main__":
     if "plot_3d" in config_plotting.plot_list:
         plot_3d(experiment_full_addr_list, summary_res_column_name_number)
 
-    if "pie_chart":
-
+    if "pie_chart" in config_plotting.plot_list:
         pie_chart_case_study = {"Performance Breakdown": ["transformation generation time", "simulation time",
                             "neighbour selection time"],
                                 "Transformation_Generation_Breakdown": ["metric selection time", "dir selection time", "kernel selection time",
