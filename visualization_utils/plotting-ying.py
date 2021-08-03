@@ -379,7 +379,7 @@ def plot_codesign_rate_efficacy_cross_workloads_updated(input_dir_names, res_col
             for idx,el in enumerate(column_co_design_dist[y_column_name]):
                 if idx == len(co_design_dist_selected) - 1:
                     break
-                co_design_dist_sum += 1/(column_co_design_dist[y_column_name][idx] + column_co_design_dist[y_column_name][idx+1])
+                co_design_dist_sum += (column_co_design_dist[y_column_name][idx] + column_co_design_dist[y_column_name][idx+1])
                 co_design_efficacy_sum += (column_co_design_improvement[y_column_name][idx] + column_co_design_improvement[y_column_name][idx+1])
                 #/(column_co_design_dist[y_column_name][idx] + column_co_design_dist[y_column_name][idx+1])
                 avg_ctr+=1
@@ -430,7 +430,6 @@ def plot_codesign_rate_efficacy_cross_workloads_updated(input_dir_names, res_col
     plt.savefig(os.path.join(output_dir,"_".join(experiment_name_list) +"_"+"co_design_efficacy"+'_'.join(y_column_name_list)+".png"))
     plt.close('all')
 
-"""
 def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_number):
     #itrColNum = all_res_column_name_number["iteration cnt"]
     #distColNum = all_res_column_name_number["dist_to_goal_non_cost"]
@@ -589,7 +588,7 @@ def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_n
 
         plt.savefig(os.path.join(output_dir,experiment_name+"_"+"co_design_efficacy_rate_"+'_'.join(y_column_name_list)+".png"))
         plt.close('all')
-"""
+
 
 
 def plot_codesign_progression_per_workloads(input_dir_names, res_column_name_number):
@@ -990,7 +989,7 @@ def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
     for y_column_name in y_column_name_list:
         # get all possible the values of interest
         y_column_number = res_column_name_number[y_column_name]
-        #x_column_number = res_column_name_number[x_column_name]
+        x_column_number = res_column_name_number[x_column_name]
 
         column_experiment_value[y_column_name] = {}
         # initialize the dictionary
@@ -1005,7 +1004,7 @@ def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
                     #if row[trueNum] != "True":
                     #    continue
                     if i >= 1:
-                        value_to_add = (i, max(float(row[y_column_number]),.01))
+                        value_to_add = (float(row[x_column_number]), max(float(row[y_column_number]),.01))
                         column_experiment_value[y_column_name][experiment_name].append(value_to_add)
 
         # prepare for plotting and plot
@@ -1244,126 +1243,6 @@ def plot_codesign_nav_breakdown_cross_workload(input_dir_names, input_all_res_co
         file_full_addr = os.path.join(dir_name, "result_summary/FARSI_simple_run_0_1_all_reults.csv")
         file_full_addr_list.append(file_full_addr)
         experiment_name = get_experiments_name(file_full_addr, input_all_res_column_name_number)
-        experiment_names.append(experiment_name)
-
-    axis_font = {'size': '20'}
-    fontSize = 20
-    column_name_list = ["transformation_metric", "transformation_block_type", "move name", "comm_comp", "architectural principle", "high level optimization name", "exact optimization name", "neighbouring design space size"]
-    #column_name_list = ["transformation_metric", "move name"]#, "comm_comp", "architectural principle", "high level optimization name", "exact optimization name", "neighbouring design space size"]
-    #column_name = "move name"
-    # initialize the dictionary
-    column_column_value_experiment_frequency_dict = {}
-    for column_name in column_name_list:
-        column_value_experiment_frequency_dict = {}
-        # get all possible the values of interest
-        all_values = get_all_col_values_of_a_folders(input_dir_names, input_all_res_column_name_number, column_name)
-        columne_number = all_res_column_name_number[column_name]
-        for column in all_values:
-            column_value_experiment_frequency_dict[column] = {}
-
-        # get all the data
-        for file_full_addr in file_full_addr_list:
-            with open(file_full_addr, newline='') as csvfile:
-                resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
-                experiment_name = get_experiments_name( file_full_addr, input_all_res_column_name_number)
-                for column_value in all_values:
-                    column_value_experiment_frequency_dict[column_value][experiment_name] = 0
-
-                for i, row in enumerate(resultReader):
-                    #if row[trueNum] != "True":
-                    #    continue
-                    if i > 1:
-                        try:
-
-                            # the following for workload awareness
-                            #if row[all_res_column_name_number["move name"]] == "identity":
-                            #    continue
-                            #if row[all_res_column_name_number["architectural principle"]] == "spatial_locality":
-                            #    continue
-
-
-                            col_value = row[columne_number]
-                            col_values = col_value.split(";")
-                            for col_val in col_values:
-                                if "=" in col_val:
-                                    val_splitted = col_val.split("=")
-                                    column_value_experiment_frequency_dict[val_splitted[0]][experiment_name] += float(val_splitted[1])
-                                else:
-                                    column_value_experiment_frequency_dict[col_val][experiment_name] += 1
-                        except:
-                            print("what")
-
-        total_cnt = {}
-        for el in column_value_experiment_frequency_dict.values():
-            for exp, values in el.items():
-                if exp not in total_cnt.keys():
-                    total_cnt[exp] = 0
-                total_cnt[exp] += values
-
-        for col_val, exp_vals in column_value_experiment_frequency_dict.items():
-            for exp, values in exp_vals.items():
-                column_value_experiment_frequency_dict[col_val][exp] = column_value_experiment_frequency_dict[col_val][exp]
-                column_value_experiment_frequency_dict[col_val][exp] /= total_cnt[exp] # normalize
-
-        # prepare for plotting and plot
-        # plt.figure(figsize=(10, 8))
-        index = experiment_names
-        plotdata = pd.DataFrame(column_value_experiment_frequency_dict, index=index)
-        plotdata.plot(kind='bar', stacked=True, figsize=(12, 10))
-        plt.rc('font', **axis_font)
-        plt.xlabel("experiments", **axis_font)
-        plt.ylabel(column_name, **axis_font)
-        plt.xticks(fontsize=fontSize, rotation=45)
-        plt.yticks(fontsize=fontSize)
-        plt.title("experiment vs " + column_name, **axis_font)
-        plt.legend(bbox_to_anchor=(1, 1), loc='upper left', fontsize=fontSize)
-        # dump in the top folder
-        output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
-        output_dir = os.path.join(output_base_dir, "cross_workloads/nav_breakdown")
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        plt.tight_layout()
-        plt.savefig(os.path.join(output_dir,'_'.join(column_name.split(" "))+".png"), bbox_inches='tight')
-        # plt.show()
-        plt.close('all')
-        column_column_value_experiment_frequency_dict[column_name] = copy.deepcopy(column_value_experiment_frequency_dict)
-
-    """
-    # multi-stack plot here
-    index = experiment_names
-    plotdata = pd.DataFrame(column_column_value_experiment_frequency_dict, index=index)
-
-    df_g = plotdata.groupby(["transformation_metric", "move name"])
-    plotdata.plot(kind='bar', stacked=True, figsize=(12, 10))
-    plt.rc('font', **axis_font)
-    plt.xlabel("experiments", **axis_font)
-    plt.ylabel(column_name, **axis_font)
-    plt.xticks(fontsize=fontSize, rotation=45)
-    plt.yticks(fontsize=fontSize)
-    plt.title("experiment vs " + column_name, **axis_font)
-    plt.legend(bbox_to_anchor=(1, 1), loc='upper left', fontsize=fontSize)
-    # dump in the top folder
-    output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
-    output_dir = os.path.join(output_base_dir, "cross_workloads/nav_breakdown")
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir,'column____'.join(column_name.split(" "))+".png"), bbox_inches='tight')
-    # plt.show()
-    plt.close('all')
-    """
-    return column_column_value_experiment_frequency_dict
-
-def plot_codesign_nav_breakdown_cross_workload_for_paper(input_dir_names, input_all_res_column_name_number):
-    trueNum = input_all_res_column_name_number["move validity"]
-
-    # experiment_names
-    experiment_names = []
-    file_full_addr_list = []
-    for dir_name in input_dir_names:
-        file_full_addr = os.path.join(dir_name, "result_summary/FARSI_simple_run_0_1_all_reults.csv")
-        file_full_addr_list.append(file_full_addr)
-        experiment_name = get_experiments_name(file_full_addr, input_all_res_column_name_number)
         """
         Ying: the following lines are added to make the names clearer in the plottings
         """
@@ -1573,6 +1452,8 @@ def plot_codesign_nav_breakdown_cross_workload_for_paper(input_dir_names, input_
     plt.close('all')
     """
     return column_column_value_experiment_frequency_dict
+
+
 
 
 # the function to plot distance to goal vs. iteration cnt
@@ -2226,193 +2107,6 @@ def grouped_barplot_varying_x(df, metric, metric_ylabel, varying_x, varying_x_la
 
     start_loc = 0
     bar_width = 0.15
-    offset = 0
-    # [[bar locations for varying_x1], [bar locs for varying_x2]...]
-    grouped_bar_locs_list = []
-    for x in varying_x:
-        n_unique_varying_x = df[x].nunique()
-        bound = (n_unique_varying_x-1) * (bar_width+offset)
-        end_loc = start_loc+bound
-        bar_locs = np.linspace(start_loc, end_loc, n_unique_varying_x)
-        grouped_bar_locs_list.append(bar_locs)
-        start_loc = end_loc + 2*bar_width
-
-    print(grouped_bar_locs_list)
-
-    color = ["red", "orange", "green"]
-    ctr = 0
-    for x_i,x in enumerate(varying_x):
-        ax.bar(
-            grouped_bar_locs_list[x_i],
-            grouped_stats_list[x_i]["mean"],
-            width=bar_width,
-            yerr=grouped_stats_list[x_i]["std"],
-            color = color,
-            label=metric_ylabel
-        )
-        ctr +=1
-    cat_xticks = []
-    cat_xticklabels = []
-
-    xticks = []
-    xticklabels = []
-    for x_i,x in enumerate(varying_x):
-        xticklabels.extend(grouped_stats_list[x_i].index.astype(float))
-        xticks.extend(grouped_bar_locs_list[x_i])
-
-        xticks_cat = grouped_bar_locs_list[x_i]
-        xticks_cat_start = xticks_cat[0]
-        xticks_cat_end = xticks_cat[-1]
-        xticks_cat_mid = xticks_cat_start + (xticks_cat_end - xticks_cat_start) / 2
-
-        cat_xticks.append(xticks_cat_mid)
-        cat_xticklabels.append("\n\n" + varying_x_labels[x_i])
-
-    xticks.extend(cat_xticks)
-    xticklabels.extend(cat_xticklabels)
-
-    ax.set_ylabel(metric_ylabel)
-    #ax.set_xlabel(xlabel)
-    ax.set_xticks(xticks)
-    ax.set_xticklabels(xticklabels)
-
-    return ax
-
-def pie_chart(dir_names, all_res_column_name_number, case_study):
-
-
-    file_full_addr = os.path.join(dir_names[0], "result_summary/FARSI_simple_run_0_1_all_reults.csv")
-    column_name_number_dic = {}
-
-    column_name_list = case_study[1]
-    column_aggregate = {}
-    for column_name in column_name_list:
-        column_aggregate[column_name] = 0
-        with open(file_full_addr, newline='') as csvfile:
-            resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
-            for i, row in enumerate(resultReader):
-                if i > 1:
-                    try:
-                        column_aggregate[column_name] += float(row[all_res_column_name_number[column_name]])
-                    except:
-                        continue
-
-    y = np.array(list(column_aggregate.values()))
-    mylabels = list(column_aggregate.keys())
-
-    plt.pie(y, labels=mylabels)
-    plt.legend()
-
-    output_base_dir = '/'.join(dir_names[0].split("/")[:-2])
-    output_dir = os.path.join(output_base_dir, "pie_chart")
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    plt.savefig(os.path.join(output_dir, case_study[0]+".png"))
-    #plt.show()
-
-
-    plt.show()
-
-def pie_chart_for_paper(dir_names, all_res_column_name_number, case_study):
-
-
-    file_full_addr = os.path.join(dir_names[0], "result_summary/FARSI_simple_run_0_1_all_reults.csv")
-    column_name_number_dic = {}
-
-    column_name_list = case_study[1]
-    column_aggregate = {}
-    for column_name in column_name_list:
-        column_aggregate[column_name] = 0
-        with open(file_full_addr, newline='') as csvfile:
-            resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
-            for i, row in enumerate(resultReader):
-                if i > 1:
-                    try:
-                        column_aggregate[column_name] += float(row[all_res_column_name_number[column_name]])
-                    except:
-                        continue
-
-    y = np.array(list(column_aggregate.values()))
-    mylabels = list(column_aggregate.keys())
-
-    axis_font = {'size': '15'}
-    fontSize = 15
-    if mylabels == ['transformation generation time', 'simulation time', 'neighbour selection time']:
-        mylabels = ['Move Generation', 'Simulation', 'Neighbour Selection']
-    elif mylabels == ['dir selection time', 'kernel selection time', 'block selection time', 'transformation selection time', 'design duplication time', 'metric selection time']:
-        mylabels = ['Direction Selection', 'Task Selection', 'Block Selection', 'Move Selection', 'Design Duplication', 'Metric Selection']
-    plt.pie(y, autopct='%1.1f%%')  # Ying: original: , labels=mylabels)
-    plt.legend(mylabels, bbox_to_anchor=(0.5, 1.15), loc="upper center", ncol=2, fontsize=fontSize)
-    plt.tight_layout()
-
-    output_base_dir = '/'.join(dir_names[0].split("/")[:-2])
-    output_dir = os.path.join(output_base_dir, "pie_chart")
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    print(output_dir)
-    plt.savefig(os.path.join(output_dir, case_study[0]+".png"))
-    #plt.show()
-
-
-    plt.show()
-    plt.close('all')
-
-def pandas_plots(input_dir_names, all_results_files, metric):
-    df = pd.concat((pd.read_csv(f) for f in all_results_files))
-
-    #df = raw_df.loc[(raw_df["move validity"] == True)]
-    #df["dist_to_goal_non_cost_delta"] = df["ref_des_dist_to_goal_non_cost"] - df["dist_to_goal_non_cost"]
-    #df["local_traffic_ratio"] = np.divide(df["local_total_traffic"], df["local_total_traffic"] + df["global_total_traffic"])
-    #metric = "global_memory_avg_freq"
-    #metric_ylabel = "Global memory avg freq"
-    #metric = "local_traffic_ratio"
-
-    metric_ylabel = metric #"Local traffic ratio"
-
-
-    varying_x = [
-            "budget_scaling_latency",
-            "budget_scaling_power",
-            "budget_scaling_area",
-    ]
-    varying_x_labels = [
-            "latency",
-            "power",
-            "area",
-    ]
-
-
-    fig, ax = plt.subplots(1)
-    grouped_barplot_varying_x(
-            df,
-            metric, metric_ylabel,
-            varying_x, varying_x_labels,
-            ax
-    )
-    output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
-    output_dir = os.path.join(output_base_dir, "panda_study/")
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    fig.savefig(os.path.join(output_dir, metric+".png"))
-    #plt.show()
-    plt.close('all')
-
-
-
-    #fig.tight_layout(rect=[0, 0, 1, 1])
-    #fig.savefig("/Users/behzadboro/Project_FARSI_dir/Project_FARSI_with_channels/data_collection/data/simple_run/27_point_coverage_zad/bleh.png")
-    #plt.close(fig)
-
-def grouped_barplot_varying_x_for_paper(df, metric, metric_ylabel, varying_x, varying_x_labels, ax):
-    # [[bar heights, errs for varying_x1], [heights, errs for varying_x2]...]
-    grouped_stats_list = []
-    for x in varying_x:
-        grouped_x = df.groupby([x])
-        stats = grouped_x[metric].agg([np.mean, np.std])
-        grouped_stats_list.append(stats)
-
-    start_loc = 0
-    bar_width = 0.15
     offset = 0  # Ying: original: 0.03
     # [[bar locations for varying_x1], [bar locs for varying_x2]...]
     grouped_bar_locs_list = []
@@ -2427,35 +2121,15 @@ def grouped_barplot_varying_x_for_paper(df, metric, metric_ylabel, varying_x, va
     # print(grouped_bar_locs_list)  # Ying: comment out for WTF
 
     color = ["red", "orange", "green"]
-    legendLabel = ["Scaling 1", "2", "4"]
     ctr = 0
-    coloredLocList=[[], [], []]
-    coloredStatsValueList = [[], [], []]
-    """
-    Ying: add the following lines for the legend
-    """
     for x_i,x in enumerate(varying_x):
-        for i in range(0, len(grouped_bar_locs_list)):
-            coloredLocList[x_i].append(grouped_bar_locs_list[i][x_i])
-            coloredStatsValueList[i].append(grouped_stats_list[x_i]["mean"].to_numpy()[i])
-    """
-    Ying: adding finished
-    """
-    for x_i, x, in enumerate(varying_x):
-        # ax.bar(
-        #     grouped_bar_locs_list[x_i],
-        #     grouped_stats_list[x_i]["mean"],
-        #     width=bar_width,
-        #     # yerr=grouped_stats_list[x_i]["std"],
-        #     color = color,
-        # )
         ax.bar(
-            coloredLocList[x_i],
-            coloredStatsValueList[x_i],
+            grouped_bar_locs_list[x_i],
+            grouped_stats_list[x_i]["mean"],
             width=bar_width,
             # yerr=grouped_stats_list[x_i]["std"],
-            color=color[x_i],
-            label=legendLabel[x_i]
+            color = color,
+            # label=metric_ylabel
         )
         ctr +=1
     cat_xticks = []
@@ -2491,13 +2165,13 @@ def grouped_barplot_varying_x_for_paper(df, metric, metric_ylabel, varying_x, va
     ax.set_ylabel(metric_ylabel, fontsize=fontSize) # Ying: add fontsize
     #ax.set_xlabel(xlabel)
     ax.set_xticks(xticks)
-    ax.legend(legendLabel, bbox_to_anchor=(0.5, 1.2), loc="upper center", fontsize=fontSize, ncol=3) # Ying: test the way to add legends
+    # ax.legend(loc="upper center") # Ying: test the way to add legends
     ax.set_xticklabels(xticklabels, fontsize=fontSize)  # Ying: add fontsize
 
     return ax
 
 
-def pandas_plots_for_paper(input_dir_names, all_results_files, metric):
+def pandas_plots(input_dir_names, all_results_files, metric):
     df = pd.concat((pd.read_csv(f) for f in all_results_files))
 
     #df = raw_df.loc[(raw_df["move validity"] == True)]
@@ -2547,7 +2221,7 @@ def pandas_plots_for_paper(input_dir_names, all_results_files, metric):
 
     axis_font = {'size': "20"}
     fig, ax = plt.subplots(1, figsize=(7, 7))   # Ying: add the figure size
-    grouped_barplot_varying_x_for_paper(
+    grouped_barplot_varying_x(
             df,
             metric, metric_ylabel,
             varying_x, varying_x_labels,
@@ -3175,38 +2849,20 @@ if __name__ == "__main__":
                                          "loop_itr_ratio_avg",
                                          ]  # , "channel_cnt"]
 
-    """
+
     case_studies["heterogeneity_var_system_compleixty"] = [
         "local_channel_count_per_bus_coeff_var",
         "loop_itr_ratio_var",
-        "cluster_pe_cnt_coeff_var"
+        # "cluster_pe_cnt_coeff_var"
     ]
    
     case_studies["heterogeneity_std_system_compleixty"] = [
         "local_channel_count_per_bus_std",
-        "loop_itr_ratio_std", "cluster_pe_cnt_std"
+        "loop_itr_ratio_std" #Ying: comment out: , "cluster_pe_cnt_std"
     ]
 
+
     """
-    """
-    case_studies["speedup"] = [
-        # "customization_speed_up_full_system",
-        "loop_unrolling_parallelism_speed_up_full_system",
-        "task_level_parallelism_speed_up_full_system"
-    ]
-    """
-    """ 
-      [ 
-        "customization_first_speed_up_avg",
-        "customization_second_speed_up_avg",
-        "parallelism_first_speed_up_avg",
-        "parallelism_second_speed_up_avg",
-        "interference_degradation_avg",
-        "customization_first_speed_up_full_system",
-        "customization_second_speed_up_full_system",
-        "parallelism_first_speed_up_full_system",
-        "parallelism_second_speed_up_full_system",
-    ]
 
     case_studies["speedup"] = [
         "customization_first_speed_up_avg",
@@ -3303,15 +2959,13 @@ if __name__ == "__main__":
 
     if "cross_workloads" in config_plotting.plot_list:  # Ying: from for_paper/workload_awareness
         # get column orders (assumption is that the column order doesn't change between experiments)
-        plot_convergence_cross_workloads(experiment_full_addr_list, all_res_column_name_number)
-        # column_column_value_experiment_frequency_dict = plot_codesign_nav_breakdown_cross_workload(experiment_full_addr_list, all_res_column_name_number)
-        column_column_value_experiment_frequency_dict = plot_codesign_nav_breakdown_cross_workload_for_paper(
-            experiment_full_addr_list, all_res_column_name_number)
+        # plot_convergence_cross_workloads(experiment_full_addr_list, all_res_column_name_number)
+        column_column_value_experiment_frequency_dict = plot_codesign_nav_breakdown_cross_workload(experiment_full_addr_list, all_res_column_name_number)
 
         for key, val in case_studies.items():
             case_study = {key:val}
-            plot_system_implication_analysis(experiment_full_addr_list, summary_res_column_name_number, case_study)
-        plot_co_design_nav_breakdown_post_processing(experiment_full_addr_list, column_column_value_experiment_frequency_dict)
+            # plot_system_implication_analysis(experiment_full_addr_list, summary_res_column_name_number, case_study)   # Ying: comment out because of "KeyError: 'cluster_pe_cnt_coeff_var'"
+        # plot_co_design_nav_breakdown_post_processing(experiment_full_addr_list, column_column_value_experiment_frequency_dict)
         # plot_codesign_rate_efficacy_cross_workloads_updated(experiment_full_addr_list, all_res_column_name_number)
 
     if "single_workload" in config_plotting.plot_list:
@@ -3323,18 +2977,6 @@ if __name__ == "__main__":
 
     if "plot_3d" in config_plotting.plot_list:
         plot_3d(experiment_full_addr_list, summary_res_column_name_number)
-
-    if "pie_chart" in config_plotting.plot_list:       # Ying: 1_1_1_for_paper_07-31
-        pie_chart_case_study = {"Performance Breakdown": ["transformation generation time", "simulation time",
-                            "neighbour selection time"],
-                                "Transformation_Generation_Breakdown": ["metric selection time", "dir selection time", "kernel selection time",
-                                                                        "block selection time",  "transformation selection time",
-                                                                "design duplication time", "metric selection time"]}
-                                # , "architectural principle", "high level optimization name", "exact optimization name"]
-
-        for case_study_ in pie_chart_case_study.items():
-            # pie_chart(experiment_full_addr_list, all_res_column_name_number, case_study_)
-            pie_chart_for_paper(experiment_full_addr_list, all_res_column_name_number, case_study_)
 
     if "pandas_plots" in config_plotting.plot_list: # Ying: from scaling_of_1_2_4_07-31
         #pandas_case_studies = {}
@@ -3370,9 +3012,7 @@ if __name__ == "__main__":
 
         for case_study_name, metrics in case_studies.items():
             for metric in metrics:
-                # pandas_plots(experiment_full_addr_list, all_results_files, metric)
-                pandas_plots_for_paper(experiment_full_addr_list, all_results_files, metric)
-
+                pandas_plots(experiment_full_addr_list, all_results_files, metric)
 
     # get the the workload_set folder
     # each workload_set has a bunch of experiments underneath it
