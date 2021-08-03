@@ -2898,9 +2898,9 @@ if __name__ == "__main__":
 
         pie_chart_case_study = {"Performance Breakdown": ["transformation generation time", "simulation time",
                             "neighbour selection time"],
-                                "Transformation_Generation_Breakdown": ["dir selection time", "kernel selection time",
+                                "Transformation_Generation_Breakdown": ["metric selection time", "dir selection time", "kernel selection time",
                                                                         "block selection time",  "transformation selection time",
-                                                                "design duplication time", "neighbour selection time"]}
+                                                                "design duplication time", ]}
                                 # , "architectural principle", "high level optimization name", "exact optimization name"]
 
         for case_study_ in pie_chart_case_study.items():
