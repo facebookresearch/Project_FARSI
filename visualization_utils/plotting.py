@@ -2020,7 +2020,7 @@ def grouped_barplot_varying_x(df, metric, metric_ylabel, varying_x, varying_x_la
 
     print(grouped_bar_locs_list)
 
-    color = ["red", "blue", "yellow"]
+    color = ["red", "orange", "green"]
     ctr = 0
     for x_i,x in enumerate(varying_x):
         ax.bar(
@@ -2028,8 +2028,8 @@ def grouped_barplot_varying_x(df, metric, metric_ylabel, varying_x, varying_x_la
             grouped_stats_list[x_i]["mean"],
             width=bar_width,
             yerr=grouped_stats_list[x_i]["std"],
-            color = color
-            #label=metric_ylabel
+            color = color,
+            label=metric_ylabel
         )
         ctr +=1
     cat_xticks = []
