@@ -116,15 +116,6 @@ def copy_DSE_data(result_dir):
     #result_dir_specific = os.path.join(result_dirresult_summary")
     os.system("cp " + config.latest_visualization+"/*" + " " + result_dir)
 
-def write_data_log(log_data, reason_to_terminate, case_study, result_dir_specific, unique_number, file_name):
-    output_file_all = os.path.join(result_dir_specific, file_name+ "_all_reults.csv")
-    csv_columns = list(log_data[0].keys())
-    # minimal output
-    with open(output_file_all, 'w') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
-        writer.writeheader()
-        for data in log_data:
-            writer.writerow(data)
 
 # ------------------------------
 # Functionality:
@@ -437,7 +428,7 @@ def simple_run(result_folder, sw_hw_database_population, system_workers=(1, 1)):
         write_one_results(dse_hndlr.dse.so_far_best_sim_dp,  dse_hndlr.dse, dse_hndlr.dse.reason_to_terminate, case_study,
                           result_dir_specific, unique_suffix,
                           config.FARSI_simple_run_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
-        write_data_log(list(dse_hndlr.dse.get_log_data()), dse_hndlr.dse.reason_to_terminate, case_study, result_dir_specific, unique_suffix,
+        dse_hndlr.dse.write_data_log(list(dse_hndlr.dse.get_log_data()), dse_hndlr.dse.reason_to_terminate, case_study, result_dir_specific, unique_suffix,
                       config.FARSI_simple_run_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
 
         # write the results in the specific folder

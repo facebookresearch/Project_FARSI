@@ -32,6 +32,7 @@ class DSEHandler:
         self.IP_library = []
         self.result_dir = result_dir
         self.check_point_folder_name = "check_points"
+        self.check_point_ctr = 0
         return None
 
     # ---------------
@@ -308,3 +309,7 @@ class DSEHandler:
             dill.dump(self.dse.so_far_best_sim_dp, sim_dp_pickled_file)
             sim_dp_pickled_file.close()
             vis_hardware.vis_hardware(self.dse.so_far_best_ex_dp, config.hw_graphing_mode, result_folder)
+
+        self.dse.write_data_log(list(self.dse.get_log_data()), self.dse.reason_to_terminate, "", result_folder, self.check_point_ctr,
+                      config.FARSI_simple_run_prefix)
+        self.check_point_ctr +=1

@@ -2007,12 +2007,12 @@ def grouped_barplot_varying_x(df, metric, metric_ylabel, varying_x, varying_x_la
 
     start_loc = 0
     bar_width = 0.15
-    offset = 0.03
+    offset = 0
     # [[bar locations for varying_x1], [bar locs for varying_x2]...]
     grouped_bar_locs_list = []
     for x in varying_x:
         n_unique_varying_x = df[x].nunique()
-        bound = n_unique_varying_x * (bar_width+offset)
+        bound = (n_unique_varying_x-1) * (bar_width+offset)
         end_loc = start_loc+bound
         bar_locs = np.linspace(start_loc, end_loc, n_unique_varying_x)
         grouped_bar_locs_list.append(bar_locs)
@@ -2020,15 +2020,18 @@ def grouped_barplot_varying_x(df, metric, metric_ylabel, varying_x, varying_x_la
 
     print(grouped_bar_locs_list)
 
+    color = ["red", "orange", "green"]
+    ctr = 0
     for x_i,x in enumerate(varying_x):
         ax.bar(
             grouped_bar_locs_list[x_i],
             grouped_stats_list[x_i]["mean"],
             width=bar_width,
-            yerr=grouped_stats_list[x_i]["std"]
-            #label=metric_ylabel
+            yerr=grouped_stats_list[x_i]["std"],
+            color = color,
+            label=metric_ylabel
         )
-
+        ctr +=1
     cat_xticks = []
     cat_xticklabels = []
 
@@ -2076,9 +2079,9 @@ def pandas_plots(input_dir_names, all_results_files, metric):
             "budget_scaling_area",
     ]
     varying_x_labels = [
-            "Budget scaling latency",
-            "Budget scaling power",
-            "Budget scaling area",
+            "latency",
+            "power",
+            "area",
     ]
 
 
@@ -2372,6 +2375,7 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
             resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
             for i, row in enumerate(resultReader):
                 if i == 1:
+                    print("file"+file)
                     if float(row[summary_res_column_name_number["budget_scaling_latency"]]) == 1 and\
                             float(row[summary_res_column_name_number["budget_scaling_power"]]) == 1 and \
                             float(row[summary_res_column_name_number["budget_scaling_area"]]) == 1:
@@ -2708,17 +2712,19 @@ if __name__ == "__main__":
                                          "loop_itr_ratio_avg",
                                          ]  # , "channel_cnt"]
 
+    """
     case_studies["heterogeneity_var_system_compleixty"] = [
         "local_channel_count_per_bus_coeff_var",
         "loop_itr_ratio_var",
         "cluster_pe_cnt_coeff_var"
     ]
+   
     case_studies["heterogeneity_std_system_compleixty"] = [
         "local_channel_count_per_bus_std",
         "loop_itr_ratio_std", "cluster_pe_cnt_std"
     ]
 
-
+    """
 
     case_studies["speedup"] = [
         "customization_speed_up_full_system",
@@ -2828,9 +2834,8 @@ if __name__ == "__main__":
 
 
     if "budget_optimality" in config_plotting.plot_list:
-        pass
         #get_budget_optimality_advanced(experiment_full_addr_list, all_results_files, summary_res_column_name_number)
-        #get_budget_optimality(experiment_full_addr_list, all_results_files, summary_res_column_name_number)
+        get_budget_optimality(experiment_full_addr_list, all_results_files, summary_res_column_name_number)
 
     if "cross_workloads" in config_plotting.plot_list:
         # get column orders (assumption is that the column order doesn't change between experiments)

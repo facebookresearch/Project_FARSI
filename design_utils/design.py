@@ -65,8 +65,21 @@ class ExDesignPoint:
         self.valid = True
         self.FARSI_ex_id = str(-1)
         self.PA_knob_ctr_id = str(-1)
+        self.check_pointed_population_generation_cnt = 0  # only for check pointing purposes, and only work if the design has been checkpointed
+        self.check_pointed_total_iteration_cnt = 0
+
+    def set_check_pointed_population_generation_cnt(self, generation_cnt):
+        self.check_pointed_population_generation_cnt = generation_cnt
+
+    def set_check_pointed_total_iteration_cnt(self, total_iteration):
+        self.check_pointed_total_iteration_cnt = total_iteration
 
 
+    def get_check_pointed_population_generation_cnt(self):
+        return self.check_pointed_population_generation_cnt
+
+    def get_check_pointed_total_iteration_cnt(self):
+        self.check_pointed_total_iteration_cnt
 
     def eliminate_system_bus(self):
         all_drams = [el for el in self.get_hardware_graph().get_blocks() if el.subtype == "dram"]
@@ -2013,6 +2026,9 @@ class SimDesignPoint(ExDesignPoint):
     def set_population_generation_cnt(self, generation_cnt):
         self.population_generation_cnt = generation_cnt
 
+    def set_total_iteration_cnt(self, total_iteration):
+        self.total_iteration_cnt = total_iteration
+
     def set_population_observed_number(self, population_observed_number):
         self.population_observed_number = population_observed_number
 
@@ -2027,6 +2043,10 @@ class SimDesignPoint(ExDesignPoint):
 
     def get_population_generation_cnt(self):
         return self.population_generation_cnt
+
+    def get_total_iteration_cnt(self):
+        return self.total_iteration_cnt
+
 
     def get_population_observed_number(self):
         return self.population_observed_number
