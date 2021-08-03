@@ -2337,12 +2337,17 @@ def pie_chart_for_paper(dir_names, all_res_column_name_number, case_study):
 
     axis_font = {'size': '15'}
     fontSize = 15
+    # plt.figure(figsize=(7, 7))
+    plt.rc('font', **axis_font)
     if mylabels == ['transformation generation time', 'simulation time', 'neighbour selection time']:
         mylabels = ['Move Generation', 'Simulation', 'Neighbour Selection']
-    elif mylabels == ['dir selection time', 'kernel selection time', 'block selection time', 'transformation selection time', 'design duplication time', 'metric selection time']:
-        mylabels = ['Direction Selection', 'Task Selection', 'Block Selection', 'Move Selection', 'Design Duplication', 'Metric Selection']
-    plt.pie(y, autopct='%1.1f%%')  # Ying: original: , labels=mylabels)
-    plt.legend(mylabels, bbox_to_anchor=(0.5, 1.15), loc="upper center", ncol=2, fontsize=fontSize)
+    elif mylabels == ['metric selection time', 'dir selection time', 'kernel selection time', 'block selection time', 'transformation selection time', 'design duplication time']:
+        mylabels = ['Metric Selection', 'Direction Selection', 'Task Selection', 'Block Selection', 'Move Selection', 'Design Duplication']
+    plt.pie(y, autopct=lambda p: '{:1.1f}%'.format(p) if p > 0.8 else '')  # Ying: original: , labels=mylabels)
+    if case_study[0] == "Performance Breakdown":
+        plt.legend(mylabels, bbox_to_anchor=(0.5, 1.1), loc="upper center", ncol=2, fontsize=fontSize)
+    elif case_study[0] == "Transformation_Generation_Breakdown":
+        plt.legend(mylabels, bbox_to_anchor=(0.5, 1.2), loc="upper center", ncol=2, fontsize=fontSize)
     plt.tight_layout()
 
     output_base_dir = '/'.join(dir_names[0].split("/")[:-2])
@@ -2350,7 +2355,7 @@ def pie_chart_for_paper(dir_names, all_res_column_name_number, case_study):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     print(output_dir)
-    plt.savefig(os.path.join(output_dir, case_study[0]+".png"))
+    plt.savefig(os.path.join(output_dir, case_study[0]+".png"), bbox_inches='tight')
     #plt.show()
 
 
@@ -2559,7 +2564,7 @@ def pandas_plots_for_paper(input_dir_names, all_results_files, metric):
     output_dir = os.path.join(output_base_dir, "panda_study/")
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    fig.savefig(os.path.join(output_dir, metric+".png"))
+    fig.savefig(os.path.join(output_dir, metric+".png"), bbox_inches='tight')
     #plt.show()
     plt.close('all')
 
