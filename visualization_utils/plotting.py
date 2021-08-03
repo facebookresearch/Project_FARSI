@@ -3304,9 +3304,11 @@ if __name__ == "__main__":
     if "cross_workloads" in config_plotting.plot_list:  # Ying: from for_paper/workload_awareness
         # get column orders (assumption is that the column order doesn't change between experiments)
         plot_convergence_cross_workloads(experiment_full_addr_list, all_res_column_name_number)
-        # column_column_value_experiment_frequency_dict = plot_codesign_nav_breakdown_cross_workload(experiment_full_addr_list, all_res_column_name_number)
-        column_column_value_experiment_frequency_dict = plot_codesign_nav_breakdown_cross_workload_for_paper(
+        if config_plotting.draw_for_paper:
+            column_column_value_experiment_frequency_dict = plot_codesign_nav_breakdown_cross_workload_for_paper(
             experiment_full_addr_list, all_res_column_name_number)
+        else:
+            column_column_value_experiment_frequency_dict = plot_codesign_nav_breakdown_cross_workload(experiment_full_addr_list, all_res_column_name_number)
 
         for key, val in case_studies.items():
             case_study = {key:val}
@@ -3333,8 +3335,10 @@ if __name__ == "__main__":
                                 # , "architectural principle", "high level optimization name", "exact optimization name"]
 
         for case_study_ in pie_chart_case_study.items():
-            # pie_chart(experiment_full_addr_list, all_res_column_name_number, case_study_)
-            pie_chart_for_paper(experiment_full_addr_list, all_res_column_name_number, case_study_)
+            if config_plotting.draw_for_paper:
+                pie_chart_for_paper(experiment_full_addr_list, all_res_column_name_number, case_study_)
+            else:
+                cofig_plotting.pie_chart(experiment_full_addr_list, all_res_column_name_number, case_study_)
 
     if "pandas_plots" in config_plotting.plot_list: # Ying: from scaling_of_1_2_4_07-31
         #pandas_case_studies = {}
@@ -3370,9 +3374,10 @@ if __name__ == "__main__":
 
         for case_study_name, metrics in case_studies.items():
             for metric in metrics:
-                # pandas_plots(experiment_full_addr_list, all_results_files, metric)
-                pandas_plots_for_paper(experiment_full_addr_list, all_results_files, metric)
-
+                if config_plotting.draw_for_paper:
+                    pandas_plots_for_paper(experiment_full_addr_list, all_results_files, metric)
+                else:
+                    pandas_plots(experiment_full_addr_list, all_results_files, metric)
 
     # get the the workload_set folder
     # each workload_set has a bunch of experiments underneath it
