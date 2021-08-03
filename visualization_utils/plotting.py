@@ -2059,6 +2059,42 @@ def grouped_barplot_varying_x(df, metric, metric_ylabel, varying_x, varying_x_la
 
     return ax
 
+def pie_chart(dir_names, all_res_column_name_number, case_study):
+
+
+    file_full_addr = os.path.join(dir_names[0], "result_summary/FARSI_simple_run_0_1_all_reults.csv")
+    column_name_number_dic = {}
+
+    column_name_list = case_study[1]
+    column_aggregate = {}
+    for column_name in column_name_list:
+        column_aggregate[column_name] = 0
+        with open(file_full_addr, newline='') as csvfile:
+            resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+            for i, row in enumerate(resultReader):
+                if i > 1:
+                    try:
+                        column_aggregate[column_name] += float(row[all_res_column_name_number[column_name]])
+                    except:
+                        continue
+
+    y = np.array(list(column_aggregate.values()))
+    mylabels = list(column_aggregate.keys())
+
+    plt.pie(y, labels=mylabels)
+    plt.legend()
+
+    output_base_dir = '/'.join(dir_names[0].split("/")[:-2])
+    output_dir = os.path.join(output_base_dir, "pie_chart")
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    plt.savefig(os.path.join(output_dir, case_study[0]+".png"))
+    #plt.show()
+
+
+    plt.show()
+
+
 
 def pandas_plots(input_dir_names, all_results_files, metric):
     df = pd.concat((pd.read_csv(f) for f in all_results_files))
@@ -2858,6 +2894,18 @@ if __name__ == "__main__":
     if "plot_3d" in config_plotting.plot_list:
         plot_3d(experiment_full_addr_list, summary_res_column_name_number)
 
+    if "pie_chart":
+
+        pie_chart_case_study = {"Performance Breakdown": ["transformation generation time", "simulation time",
+                            "neighbour selection time"],
+                                "Transformation_Generation_Breakdown": ["dir selection time", "kernel selection time",
+                                                                        "block selection time",  "transformation selection time",
+                                                                "design duplication time", "neighbour selection time"]}
+                                # , "architectural principle", "high level optimization name", "exact optimization name"]
+
+        for case_study_ in pie_chart_case_study.items():
+            pie_chart(experiment_full_addr_list, all_res_column_name_number, case_study_)
+
     if "pandas_plots" in config_plotting.plot_list:
         #pandas_case_studies = {}
         case_studies["system_complexity"] = ["system block count", "routing complexity", "system PE count",
@@ -2893,6 +2941,7 @@ if __name__ == "__main__":
         for case_study_name, metrics in case_studies.items():
             for metric in metrics:
                 pandas_plots(experiment_full_addr_list, all_results_files, metric)
+
 
     # get the the workload_set folder
     # each workload_set has a bunch of experiments underneath it
