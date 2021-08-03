@@ -379,7 +379,7 @@ def plot_codesign_rate_efficacy_cross_workloads_updated(input_dir_names, res_col
             for idx,el in enumerate(column_co_design_dist[y_column_name]):
                 if idx == len(co_design_dist_selected) - 1:
                     break
-                co_design_dist_sum += (column_co_design_dist[y_column_name][idx] + column_co_design_dist[y_column_name][idx+1])
+                co_design_dist_sum += 1/(column_co_design_dist[y_column_name][idx] + column_co_design_dist[y_column_name][idx+1])
                 co_design_efficacy_sum += (column_co_design_improvement[y_column_name][idx] + column_co_design_improvement[y_column_name][idx+1])
                 #/(column_co_design_dist[y_column_name][idx] + column_co_design_dist[y_column_name][idx+1])
                 avg_ctr+=1
@@ -430,6 +430,7 @@ def plot_codesign_rate_efficacy_cross_workloads_updated(input_dir_names, res_col
     plt.savefig(os.path.join(output_dir,"_".join(experiment_name_list) +"_"+"co_design_efficacy"+'_'.join(y_column_name_list)+".png"))
     plt.close('all')
 
+"""
 def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_number):
     #itrColNum = all_res_column_name_number["iteration cnt"]
     #distColNum = all_res_column_name_number["dist_to_goal_non_cost"]
@@ -588,7 +589,7 @@ def plot_codesign_rate_efficacy_per_workloads(input_dir_names, res_column_name_n
 
         plt.savefig(os.path.join(output_dir,experiment_name+"_"+"co_design_efficacy_rate_"+'_'.join(y_column_name_list)+".png"))
         plt.close('all')
-
+"""
 
 
 def plot_codesign_progression_per_workloads(input_dir_names, res_column_name_number):
@@ -2760,14 +2761,12 @@ if __name__ == "__main__":
         "loop_itr_ratio_std", "cluster_pe_cnt_std"
     ]
 
-    """
 
     case_studies["speedup"] = [
         "customization_speed_up_full_system",
         "loop_unrolling_parallelism_speed_up_full_system",
         "task_level_parallelism_speed_up_full_system"
     ]
-    """ 
       [ 
         "customization_first_speed_up_avg",
         "customization_second_speed_up_avg",
