@@ -2335,19 +2335,22 @@ def pie_chart_for_paper(dir_names, all_res_column_name_number, case_study):
     y = np.array(list(column_aggregate.values()))
     mylabels = list(column_aggregate.keys())
 
-    axis_font = {'size': '15'}
-    fontSize = 15
-    # plt.figure(figsize=(7, 7))
+    axis_font = {'size': '28'}
+    fontSize = 24
+    if case_study[0] == "Performance Breakdown":
+        plt.figure(figsize=(8, 6))
+    elif case_study[0] == "Transformation_Generation_Breakdown":
+        plt.figure(figsize=(8, 6))
     plt.rc('font', **axis_font)
     if mylabels == ['transformation generation time', 'simulation time', 'neighbour selection time']:
-        mylabels = ['Move Generation', 'Simulation', 'Neighbour Selection']
+        mylabels = ['System Generation', 'Simulation', 'System Selection']
     elif mylabels == ['metric selection time', 'dir selection time', 'kernel selection time', 'block selection time', 'transformation selection time', 'design duplication time']:
-        mylabels = ['Metric Selection', 'Direction Selection', 'Task Selection', 'Block Selection', 'Move Selection', 'Design Duplication']
+        mylabels = ['Metric', 'Direction', 'Task', 'Block', 'Move', 'Design Duplication']
     plt.pie(y, autopct=lambda p: '{:1.1f}%'.format(p) if p > 0.8 else '')  # Ying: original: , labels=mylabels)
     if case_study[0] == "Performance Breakdown":
-        plt.legend(mylabels, bbox_to_anchor=(0.5, 1.1), loc="upper center", ncol=2, fontsize=fontSize)
+        plt.legend(mylabels, bbox_to_anchor=(0.5, 1.5), loc="upper center", ncol=1, fontsize=fontSize)
     elif case_study[0] == "Transformation_Generation_Breakdown":
-        plt.legend(mylabels, bbox_to_anchor=(0.5, 1.2), loc="upper center", ncol=2, fontsize=fontSize)
+        plt.legend(mylabels, bbox_to_anchor=(0.5, 1.5), loc="upper center", ncol=2, fontsize=fontSize)
     plt.tight_layout()
 
     output_base_dir = '/'.join(dir_names[0].split("/")[:-2])
