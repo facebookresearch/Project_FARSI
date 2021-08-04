@@ -3314,7 +3314,7 @@ if __name__ == "__main__":
             case_study = {key:val}
             plot_system_implication_analysis(experiment_full_addr_list, summary_res_column_name_number, case_study)
         plot_co_design_nav_breakdown_post_processing(experiment_full_addr_list, column_column_value_experiment_frequency_dict)
-        # plot_codesign_rate_efficacy_cross_workloads_updated(experiment_full_addr_list, all_res_column_name_number)
+        plot_codesign_rate_efficacy_cross_workloads_updated(experiment_full_addr_list, all_res_column_name_number)
 
     if "single_workload" in config_plotting.plot_list:
         #single workload
