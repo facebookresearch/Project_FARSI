@@ -393,8 +393,10 @@ def plot_codesign_rate_efficacy_cross_workloads_updated(input_dir_names, res_col
 
     plt.figure()
     plotdata = pd.DataFrame(column_co_design_dist_avg, index=y_column_name_list)
+    #plotdata_2 = pd.DataFrame(column_co_design_efficacy_avg, index=y_column_name_list)
     fontSize = 10
     plotdata.plot(kind='bar', fontsize=fontSize)
+    #plotdata_2.plot(kind='bar', fontsize=fontSize)
     plt.xticks(fontsize=fontSize, rotation=6)
     plt.yticks(fontsize=fontSize)
     plt.xlabel("co design parameter", fontsize=fontSize)
@@ -3338,7 +3340,7 @@ if __name__ == "__main__":
             if config_plotting.draw_for_paper:
                 pie_chart_for_paper(experiment_full_addr_list, all_res_column_name_number, case_study_)
             else:
-                cofig_plotting.pie_chart(experiment_full_addr_list, all_res_column_name_number, case_study_)
+                pie_chart(experiment_full_addr_list, all_res_column_name_number, case_study_)
 
     if "pandas_plots" in config_plotting.plot_list: # Ying: from scaling_of_1_2_4_07-31
         #pandas_case_studies = {}
