@@ -337,7 +337,7 @@ def plot_codesign_rate_efficacy_cross_workloads_updated(input_dir_names, res_col
                 resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
                 rows = list(resultReader)
                 for i, row in enumerate(rows):
-                    if i >= 1:
+                    if i > 1:
                         last_row = rows[i - 1]
                         if row[y_column_number] not in all_values or row[move_name_number]=="identity":
                             continue
@@ -351,7 +351,11 @@ def plot_codesign_rate_efficacy_cross_workloads_updated(input_dir_names, res_col
                             if float(row[ref_des_dis_to_goal_column_number]) - float(row[dis_to_goal_column_number]) < 0:
                                 continue
 
-                            delta_x_column = (float(row[x_column_number]) - float(last_row[x_column_number]))/len(col_values)
+                            try:
+                                delta_x_column = (float(row[x_column_number]) - float(last_row[x_column_number]))/len(col_values)
+                            except:
+                                pass
+
                             delta_improvement = (float(last_row[dis_to_goal_column_number]) - float(row[dis_to_goal_column_number]))/(float(last_row[dis_to_goal_column_number])*len(col_values))
 
 
@@ -494,7 +498,7 @@ def plot_codesign_rate_efficacy_cross_workloads_updated_for_paper(input_dir_name
                 resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
                 rows = list(resultReader)
                 for i, row in enumerate(rows):
-                    if i >= 1:
+                    if i > 1:
                         last_row = rows[i - 1]
                         if row[y_column_number] not in all_values or row[move_name_number]=="identity":
                             continue
@@ -1173,8 +1177,8 @@ def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
         ax = fig.add_subplot(111)
         #plt.tight_layout()
         for experiment_name, values in column_experiment_value[y_column_name].items():
-            x_values = [el[0] for el in values]
-            y_values = [el[1] for el in values]
+            x_values = [el[0] for el in values[:-10]]
+            y_values = [el[1] for el in values[:-10]]
             ax.scatter(x_values, y_values, label=experiment_name[1:])
 
         #ax.set_title("experiment vs system implicaction")
@@ -1243,8 +1247,8 @@ def plot_convergence_cross_workloads_for_paper(input_dir_names, res_column_name_
         #plt.tight_layout()
         labelName = ""
         for experiment_name, values in column_experiment_value[y_column_name].items():
-            x_values = [el[0] for el in values]
-            y_values = [el[1] for el in values]
+            x_values = [el[0] for el in values[:-10]]
+            y_values = [el[1] for el in values[:-10]]
             if experiment_name[1:] == "0.021_e0.034_h0.034_0.008737_1.7475e-05_random":
                 labelName = "Blind DSE"
             elif experiment_name[1:] == "0.021_e0.034_h0.034_0.008737_1.7475e-05_arch-aware":
@@ -3018,10 +3022,12 @@ def get_budget_optimality_advanced(input_dir_names,all_result_files, summary_res
     plt.close('all')
 
 
-def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_name_number):
+def get_budget_optimality(input_dir_names,all_result_files, reg_summary_res_column_name_number, a_e_h_summary_res_column_name_number):
 
     def get_equivalent_total(charac):
         if charac == "ips_avg_freq":
+            return "ip_cnt"
+        if charac == "cluster_pe_cnt_avg":
             return "ip_cnt"
         elif charac == "avg_accel_parallelism":
             return "ip_cnt"
@@ -3053,7 +3059,9 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
 
     system_char_to_keep_track_of = {"memory_total_area", "local_memory_total_area","pe_total_area", "ip_cnt","ips_total_area", "ips_avg_freq",  "local_mem_cnt",
                                     "local_bus_avg_actual_bandwidth", "local_bus_avg_theoretical_bandwidth", "local_memory_avg_freq", "local_bus_count", "local_bus_avg_bus_width", "avg_freq", "local_total_traffic",
-                                    "global_total_traffic","local_memory_avg_freq", "global_memory_avg_freq", "gpps_total_area", "avg_gpp_parallelism", "avg_accel_parallelism"}
+                                    "global_total_traffic","local_memory_avg_freq", "global_memory_avg_freq", "gpps_total_area", "avg_gpp_parallelism", "avg_accel_parallelism", "channel_cnt",
+                                   "local_total_traffic_reuse_with_read_in_bytes",
+                                    }
     #system_char_to_show = ["local_memory_total_area"]
     #system_char_to_show = ["avg_accel_parallelism"]
     #system_char_to_show = ["avg_gpp_parallelism"]
@@ -3063,7 +3071,7 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
     #system_char_to_show = ["ips_avg_freq"]
     #system_char_to_show = ["gpps_total_area"]
     #system_char_to_show = ["local_bus_avg_bus_width"]
-    system_char_to_show = ["local_memory_avg_freq"]
+    #system_char_to_show = ["local_memory_avg_freq"]
     #system_char_to_show = ["ips_total_area"]
     #system_char_to_show = ["ip_cnt"]
     #system_char_to_show = ["local_mem_cnt"]
@@ -3072,26 +3080,42 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
     #system_char_to_show = ["local_memory_avg_freq"]
     #system_char_to_show = ["local_total_traffic"]
     #system_char_to_show = ["global_total_traffic"]
+    system_char_to_show = ["local_total_traffic_reuse_with_read_in_bytes"]
+    #system_char_to_show = ["local_bus_count"]
+    #system_char_to_show = ["cluster_pe_cnt_avg"]
+    #system_char_to_show = ["ip_cnt"]
+    #system_char_to_show = ["channel_cnt"]
 
     # budget scaling to consider
     budget_scale_to_consider = .5
     # get budget first
     base_budgets = {}
+    """
     for file in all_result_files:
         with open(file, newline='') as csvfile:
+            if not ("a_e_h"  in file and "lat_1__pow_1__area_1" in file):
+                continue
             resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
             for i, row in enumerate(resultReader):
                 if i == 1:
                     print("file"+file)
-                    if float(row[summary_res_column_name_number["budget_scaling_latency"]]) == 1 and\
-                            float(row[summary_res_column_name_number["budget_scaling_power"]]) == 1 and \
-                            float(row[summary_res_column_name_number["budget_scaling_area"]]) == 1:
+                    if float(row[reg_summary_res_column_name_number["budget_scaling_latency"]]) == 1 and\
+                            float(row[reg_summary_res_column_name_number["budget_scaling_power"]]) == 1 and \
+                            float(row[reg_summary_res_column_name_number["budget_scaling_area"]]) == 1:
                         base_budgets["power"] = float(row[summary_res_column_name_number["power_budget"]])
                         base_budgets["area"] = float(row[summary_res_column_name_number["area_budget"]])
                         break
-
+    """
+    base_budgets = {"power":.008738,"area":.000017475}
 
     for file in all_result_files:
+        if ("a_e_h" in file and "1_1_1" in file):
+            continue
+        if ("a_e_h" in file):
+            summary_res_column_name_number = a_e_h_summary_res_column_name_number
+        else:
+            summary_res_column_name_number = reg_summary_res_column_name_number
+
         with open(file, newline='') as csvfile:
             resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
             for i, row in enumerate(resultReader):
@@ -3116,6 +3140,7 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
                         #    system_char[el] = row[summary_res_column_name_number[el]]
                         #else:
                         system_char[el] = float(row[summary_res_column_name_number[el]])
+                        system_char["file"] = file
                     point_system_char = {(power, area): system_char}
                     results_with_sys_char.append(point_system_char)
 
@@ -3163,8 +3188,13 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
     for results_combined in itertools.product(*list(workload_in_isolation_pareto.values())):
         # add up all the charactersitics
         combined_sys_chars = {}
+
+        system_char_to_keep_track_of.add("file")
         for el in system_char_to_keep_track_of:
-            combined_sys_chars[el] = (0,0)
+            if el =="file":
+                combined_sys_chars[el] = []
+            else:
+                combined_sys_chars[el] = (0,0)
 
         # add up area,power
         combined_power_area_tuple = [0,0]
@@ -3174,6 +3204,10 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
 
             sys_char = find_sys_char(el[0], el[1], results_with_sys_char)
             for el_,val_ in sys_char.items():
+                if el_ == "file":
+                    combined_sys_chars[el_].append(val_)
+                    continue
+
                 if "avg" in el_:
                     total = sys_char[get_equivalent_total(el_)]
                     coeff = total
@@ -3187,8 +3221,15 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
         for key, values in combined_sys_chars.items():
             if "avg" in key:
                 combined_sys_chars[key] = values[1] /max(values[0],.00000000000000000000000000000001)
+            elif "file" in key:
+                combined_sys_chars[key] = values
             else:
                 combined_sys_chars[key] = values[1]
+
+        if float(combined_sys_chars[system_char_to_show[0]]) == 53675449.0:
+            for f in  combined_sys_chars["file"]:
+                print("/".join(f.split("/")[:-2])+"./runs/0/system_image.dot")
+        #if float(combined_sys_chars[system_char_to_show[0]]) == 53008113:
 
         #combined_area_power_in_isolation.append((combined_power_area_tuple[0],combined_power_area_tuple[1], combined_power_area_tuple[2]))
         combined_area_power_in_isolation.append((combined_power_area_tuple[0],combined_power_area_tuple[1]))
@@ -3234,6 +3275,7 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
         power= x_values[idx]
         area = y_values[idx]
         sys_char = find_sys_char(power, area, combined_area_power_in_isolation_with_sys_char)
+
         value_to_show = 0
         value_to_show  = sys_char[system_char_to_show[0]]
         #for el in system_char_to_show:
@@ -3243,7 +3285,8 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
         #    value_in_scientific_notation = value_to_show
         #else:
         #value_to_show = sys_char["local_total_traffic"]/(sys_char["local_memory_total_area"]*4*10**12)
-        value_in_scientific_notation = "{:.2e}".format(value_to_show)
+        value_in_scientific_notation = "{:.10e}".format(value_to_show)
+        value_in_scientific_notation = value_to_show
         #if idx ==0:
         plt.text(power,area, value_in_scientific_notation)
 
@@ -3543,7 +3586,12 @@ if __name__ == "__main__":
 
     if "budget_optimality" in config_plotting.plot_list:
         #get_budget_optimality_advanced(experiment_full_addr_list, all_results_files, summary_res_column_name_number)
-        get_budget_optimality(experiment_full_addr_list, all_results_files, summary_res_column_name_number)
+
+        for el in  experiment_full_addr_list:
+            if "a_e_h" in el and not "lat_1__pow_1__area_1" in el:
+                a_e_h_summary_res_column_name_number = get_column_name_number(el, "simple")
+
+        get_budget_optimality(experiment_full_addr_list, all_results_files, summary_res_column_name_number, a_e_h_summary_res_column_name_number)
 
     if "cross_workloads" in config_plotting.plot_list:  # Ying: from for_paper/workload_awareness
         # get column orders (assumption is that the column order doesn't change between experiments)
