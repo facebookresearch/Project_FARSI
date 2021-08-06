@@ -2530,7 +2530,6 @@ def grouped_barplot_varying_x(df, metric, metric_ylabel, varying_x, varying_x_la
        print (metric+":"+el.index.name +" : "+ str(diff))
     """
 
-    """
     if metric in ["loop_unrolling_parallelism_speed_up_full_system", "customization_speed_up_full_system",
                   "task_level_parallelism_speed_up_full_system",
                   "interference_degradation_avg"]:
@@ -2538,7 +2537,6 @@ def grouped_barplot_varying_x(df, metric, metric_ylabel, varying_x, varying_x_la
         print("metric is:" + metric)
         for el in grouped_stats_list:
             print(el)
-    """
     start_loc = 0
     bar_width = 0.15
     offset = 0
@@ -3561,7 +3559,6 @@ if __name__ == "__main__":
         "interference_degradation_avg"]
 
     """
-    """
       [ 
         "customization_first_speed_up_avg",
         "customization_second_speed_up_avg",
@@ -3573,21 +3570,13 @@ if __name__ == "__main__":
         "parallelism_first_speed_up_full_system",
         "parallelism_second_speed_up_full_system",
     ]
-    """
-
     case_studies["speedup"] = [
-        "customization_first_speed_up_avg",
-        "customization_second_speed_up_avg",
-        "parallelism_first_speed_up_avg",
-        "parallelism_second_speed_up_avg",
         "interference_degradation_avg",
-        "customization_first_speed_up_full_system",
-        "customization_second_speed_up_full_system",
-        "parallelism_first_speed_up_full_system",
-        "parallelism_second_speed_up_full_system",
+        "customization_speed_up_full_system",
+        "parallelism_speed_up_full_system",
+        "parallelism_nd_speed_up_full_system",
     ]
-    
-
+    """
 
 
     case_studies["heterogenity_area"] = [
