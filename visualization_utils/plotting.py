@@ -414,7 +414,7 @@ def plot_codesign_rate_efficacy_cross_workloads_updated(input_dir_names, res_col
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    plt.savefig(os.path.join(output_dir,"_".join(experiment_name_list) +"_"+"co_design_avg_dist"+'_'.join(y_column_name_list)+".png"))
+    plt.savefig(os.path.join(output_dir,"_".join(experiment_name_list[0]) +"_"+"co_design_avg_dist"+'_'.join(y_column_name_list)+".png"))
     plt.close('all')
 
 
@@ -981,6 +981,13 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
                                   "latency_budget":"white"
                                   }
 
+    column_name_color_val_dict = {"power":"purple", "power_budget":"purple","area_non_dram":"blue", "area_budget":"blue",
+                                  "latency_budget_hpvm_cava":"orange", "latency_budget_audio_decoder":"yellow", "latency_budget_edge_detection":"red",
+                                  "latency_hpvm_cava":"orange", "latency_audio_decoder": "yellow","latency_edge_detection": "red",
+                                  "latency_budget":"white"
+                                  }
+
+
     axis_font = {'size': '20'}
     fontSize = 20
     x_column_name = "iteration cnt"
@@ -991,10 +998,10 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
         experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
         experiment_column_value[experiment_name] = {}
         for y_column_name in y_column_name_list:
-            if "budget"  in y_column_name:
+            if "budget"  in y_column_name or True:
                 prefix = ""
             else:
-                prefix = "best_des_so_far_"
+                prefix = "des_so_far_"
             y_column_name = prefix+y_column_name
             y_column_number = res_column_name_number[y_column_name]
             x_column_number = res_column_name_number[x_column_name]
@@ -1011,27 +1018,38 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
                     if i > 1:
                         if row[trueNum] == "FALSE" or row[move_name_number]=="identity":
                             continue
+                        metric_chosen  = row[res_column_name_number["transformation_metric"]]
+                        workload_chosen  = row[res_column_name_number["workload"]]
+                        if metric_chosen in y_column_name and "budget" not in y_column_name:
+                            alpha = 1
+                        else:
+                            alpha = .3
+
                         col_value = row[y_column_number]
                         if ";" in col_value:
                             col_value = col_value[:-1]
                         col_values = col_value.split(";")
                         for col_val in col_values:
                             if "=" in col_val:
+                                if workload_chosen in col_val:
+                                    alpha = 1
+                                else:
+                                    alpha = .3
                                 val_splitted = col_val.split("=")
-                                value_to_add = (float(row[x_column_number]), (val_splitted[0], val_splitted[1]))
+                                value_to_add = (float(row[x_column_number]), (val_splitted[0], val_splitted[1]), alpha)
                             else:
-                                value_to_add = (float(row[x_column_number]), col_val)
+                                value_to_add = (float(row[x_column_number]), col_val, alpha)
 
                             if y_column_name in [prefix+"latency", prefix+"latency_budget"] :
-                                new_tuple = (value_to_add[0], 1000*float(value_to_add[1][1]))
+                                new_tuple = (value_to_add[0], 1000*float(value_to_add[1][1]), value_to_add[2])
                                 if y_column_name+"_"+value_to_add[1][0] not in experiment_column_value[experiment_name].keys():
                                     experiment_column_value[experiment_name][y_column_name + "_" + value_to_add[1][0]] = []
                                 experiment_column_value[experiment_name][y_column_name+"_"+value_to_add[1][0]].append(new_tuple)
                             if y_column_name in [prefix+"power", prefix+"power_budget"]:
-                               new_tuple = (value_to_add[0], float(value_to_add[1])*1000)
+                               new_tuple = (value_to_add[0], float(value_to_add[1])*1000, value_to_add[2])
                                experiment_column_value[experiment_name][y_column_name].append(new_tuple)
                             elif y_column_name in [prefix+"area_non_dram", prefix+"area_budget"]:
-                                new_tuple = (value_to_add[0], float(value_to_add[1]) * 1000000)
+                                new_tuple = (value_to_add[0], float(value_to_add[1]) * 1000000, value_to_add[2])
                                 experiment_column_value[experiment_name][y_column_name].append(new_tuple)
 
             # prepare for plotting and plot
@@ -1040,14 +1058,16 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
             for column, values in experiment_column_value[experiment_name].items():
                 x_values = [el[0] for el in values]
                 y_values = [el[1] for el in values]
+                alphas = [el[2] for el in values]
                 ax.set_yscale('log')
+
                 if "budget" in column:
                     marker = 'x'
-                    alpha_ = .3
+                    #alpha_ = .3
                 else:
-                    marker = "_"
-                    alpha_ = 1
-                ax.plot(x_values, y_values, label=column, c=column_name_color_val_dict[column], marker=marker, alpha=alpha_)
+                    marker = "."
+                    #alpha_ = 1
+                ax.plot(x_values, y_values, label=column, c=column_name_color_val_dict[column], marker=marker, alpha=alphas)
 
             #ax.set_title("experiment vs system implicaction")
             ax.set_xlabel(x_column_name, fontsize=fontSize)
@@ -1093,7 +1113,7 @@ def plot_convergence_vs_time(input_dir_names, res_column_name_number):
     #column_name = "move name"
     for k, file_full_addr in enumerate(file_full_addr_list):
         for y_column_name in y_column_name_list:
-            # get all possible the values of interest
+            # get all possible the values of inteFARSI_results/blind_study_all_dumb_versionrest
             y_column_number = res_column_name_number[y_column_name]
             x_column_number = res_column_name_number[x_column_name]
             PA_column_experiment_value[y_column_name] = []
@@ -2907,7 +2927,8 @@ def get_budget_optimality_advanced(input_dir_names,all_result_files, summary_res
 
     workload_results = {}
 
-    system_char_to_keep_track_of = {"memory_total_area", "local_memory_total_area","pe_total_area", "ip_cnt", "ips_total_area"}
+    #system_char_to_keep_track_of = {"memory_total_area", "local_memory_total_area","pe_total_area", "ip_cnt", "ips_total_area"}
+    system_char_to_keep_track_of = {"ip_cnt"}
 
     # budget scaling to consider
     budget_scale_to_consider = .5
@@ -3101,7 +3122,58 @@ def get_budget_optimality_advanced(input_dir_names,all_result_files, summary_res
     plt.close('all')
 
 
+def get_budget_optimality_error():
+    X = ['CAVA', "ED", "Audio"]
+    optimal = [10, 20, 20, 40]
+    Myopic_budgetting = [20, 30, 25, 30]
+
+    X_axis = np.arange(len(X))
+
+    plt.bar(X_axis - 0.2, Ygirls, 0.4, label='Girls')
+    plt.bar(X_axis + 0.2, Zboys, 0.4, label='Boys')
+
+    plt.xticks(X_axis, X)
+    plt.xlabel("Groups")
+    plt.ylabel("Number of Students")
+    plt.title("Number of Students in each group")
+    plt.legend()
+    plt.show()
+
 def get_budget_optimality(input_dir_names,all_result_files, reg_summary_res_column_name_number, a_e_h_summary_res_column_name_number):
+    #methodology 1:
+    e = {"power":0.00211483379112716, "area":0.00000652737916}
+    a = {"power": 0.00133071013064968, "area":0.0000048380066802}
+    hc = {"power": 0.000471573339922609, "area":0.0000019979449678}
+    e_budget = {"power":0.00190575, "area":0.0000038115}
+    a_budget = {"power":0.0015485, "area":0.0000030975}
+    hc_budget = {"power":0.001005, "area":0.00000201}
+
+
+    e_dis_budget = {"power":0, "area":0}
+    a_dis_budget = {"power":0, "area":0}
+    hc_dis_budget = {"power":0, "area":0}
+
+    for el in e_dis_budget.keys():
+        e_dis_budget[el] = (e_budget[el]-e[el])/e[el]
+
+    for el in a_dis_budget.keys():
+        a_dis_budget[el] = (a_budget[el]-a[el])/a[el]
+
+    for el in hc_dis_budget.keys():
+        hc_dis_budget[el] = (hc_budget[el]-hc[el])/hc[el]
+
+
+
+
+
+    combined_design_methodology_A = {"power":0, "area":0}
+    for el in e.keys() :
+        combined_design_methodology_A[el] += e[el]
+    for el in a.keys() :
+        combined_design_methodology_A[el] += e[el]
+    for el in hc.keys() :
+        combined_design_methodology_A[el] += e[el]
+
 
     def get_equivalent_total(charac):
         if charac == "ips_avg_freq":
@@ -3133,6 +3205,7 @@ def get_budget_optimality(input_dir_names,all_result_files, reg_summary_res_colu
             return True
         return False
 
+
     workload_results = {}
     results_with_sys_char = []
 
@@ -3140,6 +3213,8 @@ def get_budget_optimality(input_dir_names,all_result_files, reg_summary_res_colu
                                     "local_bus_avg_actual_bandwidth", "local_bus_avg_theoretical_bandwidth", "local_memory_avg_freq", "local_bus_count", "local_bus_avg_bus_width", "avg_freq", "local_total_traffic",
                                     "global_total_traffic","local_memory_avg_freq", "global_memory_avg_freq", "gpps_total_area", "avg_gpp_parallelism", "avg_accel_parallelism", "channel_cnt",
                                    "local_total_traffic_reuse_with_read_in_bytes",
+                                    }
+    system_char_to_keep_track_of = {"ip_cnt"
                                     }
     #system_char_to_show = ["local_memory_total_area"]
     #system_char_to_show = ["avg_accel_parallelism"]
@@ -3152,14 +3227,14 @@ def get_budget_optimality(input_dir_names,all_result_files, reg_summary_res_colu
     #system_char_to_show = ["local_bus_avg_bus_width"]
     #system_char_to_show = ["local_memory_avg_freq"]
     #system_char_to_show = ["ips_total_area"]
-    #system_char_to_show = ["ip_cnt"]
+    system_char_to_show = ["ip_cnt"]
     #system_char_to_show = ["local_mem_cnt"]
     #system_char_to_show = ["global_memory_avg_freq"]
     #system_char_to_show = ["local_bus_avg_theoretical_bandwidth"]
     #system_char_to_show = ["local_memory_avg_freq"]
     #system_char_to_show = ["local_total_traffic"]
     #system_char_to_show = ["global_total_traffic"]
-    system_char_to_show = ["local_total_traffic_reuse_with_read_in_bytes"]
+    #system_char_to_show = ["local_total_traffic_reuse_with_read_in_bytes"]
     #system_char_to_show = ["local_bus_count"]
     #system_char_to_show = ["cluster_pe_cnt_avg"]
     #system_char_to_show = ["ip_cnt"]
@@ -3188,7 +3263,7 @@ def get_budget_optimality(input_dir_names,all_result_files, reg_summary_res_colu
     base_budgets = {"power":.008738,"area":.000017475}
 
     for file in all_result_files:
-        if ("a_e_h" in file and "1_1_1" in file):
+        if "a_e_h" in file and "lat_1__pow_1__area_1" in file:
             continue
         if ("a_e_h" in file):
             summary_res_column_name_number = a_e_h_summary_res_column_name_number
@@ -3258,6 +3333,7 @@ def get_budget_optimality(input_dir_names,all_result_files, reg_summary_res_colu
     for workload, points in workload_in_isolation.items():
         optimal_points = find_pareto_points(list(set(points)))
         workload_in_isolation_pareto[workload] = optimal_points
+        #workload_in_isolation_pareto[workload] = points  # show all points instead
 
 
     combined_area_power_in_isolation= []
@@ -3367,7 +3443,8 @@ def get_budget_optimality(input_dir_names,all_result_files, reg_summary_res_colu
         value_in_scientific_notation = "{:.10e}".format(value_to_show)
         value_in_scientific_notation = value_to_show
         #if idx ==0:
-        plt.text(power,area, value_in_scientific_notation)
+
+        #plt.text(power,area, value_in_scientific_notation)
 
 
     x_values = [el[0] for el in all_points_cross_workloads_filtered]
@@ -3391,8 +3468,9 @@ def get_budget_optimality(input_dir_names,all_result_files, reg_summary_res_colu
         #else:
         #value_to_show = sys_char["local_total_traffic"]/(sys_char["local_memory_total_area"]*4*10**12)
         value_in_scientific_notation = "{:.2e}".format(value_to_show)
-        plt.text(power,area, value_in_scientific_notation)
-        plt.text(power,area, value_in_scientific_notation)
+
+        #plt.text(power,area, value_in_scientific_notation)
+        #plt.text(power,area, value_in_scientific_notation)
 
 
 
@@ -3416,8 +3494,9 @@ def get_budget_optimality(input_dir_names,all_result_files, reg_summary_res_colu
         #value_to_show = sys_char["local_total_traffic"]/sys_char["local_memory_total_area"]
         #value_to_show = sys_char["local_total_traffic"]/(sys_char["local_memory_total_area"]*4*10**12)
         value_in_scientific_notation = "{:.2e}".format(value_to_show)
-        plt.text(power,area, value_in_scientific_notation)
-        #plt.text(power,area, sys_char[system_char_to_show[0]])
+
+        #plt.text(power,area, value_in_scientific_notation)
+
 
     ax.set_xlabel("power", fontsize=fontSize)
     ax.set_ylabel("area", fontsize=fontSize)
@@ -3429,9 +3508,13 @@ def get_budget_optimality(input_dir_names,all_result_files, reg_summary_res_colu
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
+
+    ax.scatter(combined_design_methodology_A["power"], combined_design_methodology_A["area"], label="methodology A",marker="+")
+
     ax.set_title(system_char_to_show[0] +" for FARSI vs in isolation")
     #ax.set_title("memory_reuse for FARSI vs in isolation")
     fig.savefig(os.path.join(output_dir, system_char_to_show[0] + "_budget_optimality.png"))
+
 
     #plt.show()
     plt.close('all')
@@ -3541,17 +3624,16 @@ if __name__ == "__main__":
                                          "loop_itr_ratio_avg",
                                          ]  # , "channel_cnt"]
 
-
     case_studies["heterogeneity_var_system_compleixty"] = [
         "local_channel_count_per_bus_coeff_var",
         "loop_itr_ratio_var",
         # "cluster_pe_cnt_coeff_var"
     ]
+    
     case_studies["heterogeneity_std_system_compleixty"] = [
         "local_channel_count_per_bus_std",
         "loop_itr_ratio_std", "cluster_pe_cnt_std"
     ]
-
 
     case_studies["speedup"] = [
         # "customization_speed_up_full_system",
@@ -3682,7 +3764,8 @@ if __name__ == "__main__":
         if config_plotting.draw_for_paper:
             plot_codesign_rate_efficacy_cross_workloads_updated_for_paper(experiment_full_addr_list, all_res_column_name_number)
         else:
-            plot_codesign_rate_efficacy_cross_workloads_updated(experiment_full_addr_list, all_res_column_name_number)
+            #plot_codesign_rate_efficacy_cross_workloads_updated(experiment_full_addr_list, all_res_column_name_number)
+            pass
 
     if "single_workload" in config_plotting.plot_list:
         #single workload
