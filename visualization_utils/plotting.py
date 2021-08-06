@@ -1048,7 +1048,7 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
             plt.close('all')
 
 def plot_convergence_vs_time(input_dir_names, res_column_name_number):
-    PA_time_scaling_factor = 10
+    PA_time_scaling_factor = 8500
     #itrColNum = all_res_column_name_number["iteration cnt"]
     #distColNum = all_res_column_name_number["dist_to_goal_non_cost"]
     trueNum  =  all_res_column_name_number["move validity"]
@@ -1105,14 +1105,14 @@ def plot_convergence_vs_time(input_dir_names, res_column_name_number):
                 y_values = [str(float(el[1]) * 100 // 1 / 100.0) for el in FARSI_column_experiment_value[y_column_name]]
                 x_values.reverse()
                 y_values.reverse()
-                ax.scatter(x_values, y_values, label="FARSI time to completion", marker="_")
+                ax.scatter(x_values, y_values, label="FARSI time to completion", marker="*")
                 # ax.set_yscale('log')
 
                 x_values = [el[0] for el in PA_column_experiment_value[y_column_name]]
                 y_values = [str(float(el[1]) * 100 // 1 / 100.0) for el in PA_column_experiment_value[y_column_name]]
                 x_values.reverse()
                 y_values.reverse()
-                ax.scatter(x_values, y_values, label="PA time to completion", marker="_")
+                ax.scatter(x_values, y_values, label="PA time to completion", marker="*")
                 #ax.set_xscale('log')
 
                #ax.set_title("experiment vs system implicaction")
