@@ -2873,8 +2873,7 @@ def pandas_plots_for_paper(input_dir_names, all_results_files, metric):
     ]
 
     axis_font = {'size': "26"}
-    fig, ax = plt.subplots(1, figsize=(6.8, 6.4))   # Ying: add the figure size
-    plt.figure(figsize=(6.8, 6.4))
+    fig, ax = plt.subplots(1, figsize=(7, 6.4))   # Ying: add the figure size
     grouped_barplot_varying_x_for_paper(
             df,
             metric, metric_ylabel,
@@ -3561,7 +3560,8 @@ if __name__ == "__main__":
         "task_level_parallelism_speed_up_full_system",
         "interference_degradation_avg"]
 
-    """ 
+    """
+    """
       [ 
         "customization_first_speed_up_avg",
         "customization_second_speed_up_avg",
@@ -3573,6 +3573,7 @@ if __name__ == "__main__":
         "parallelism_first_speed_up_full_system",
         "parallelism_second_speed_up_full_system",
     ]
+    """
 
     case_studies["speedup"] = [
         "customization_first_speed_up_avg",
@@ -3585,7 +3586,7 @@ if __name__ == "__main__":
         "parallelism_first_speed_up_full_system",
         "parallelism_second_speed_up_full_system",
     ]
-    """
+    
 
 
 
