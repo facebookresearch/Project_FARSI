@@ -3479,7 +3479,6 @@ def get_budget_optimality(input_dir_names,all_result_files, reg_summary_res_colu
     x_values.reverse()
     y_values.reverse()
     ax.scatter(x_values, y_values, label="cross workload pareto front",marker="o")
-    ax.legend(loc="upper right")  # bbox_to_anchor=(1, 1), loc="upper left")
 
     for idx, _ in enumerate(x_values) :
         power= x_values[idx]
@@ -3510,7 +3509,7 @@ def get_budget_optimality(input_dir_names,all_result_files, reg_summary_res_colu
 
 
     ax.scatter(combined_design_methodology_A["power"], combined_design_methodology_A["area"], label="methodology A",marker="+")
-
+    ax.legend(loc="upper right")  # bbox_to_anchor=(1, 1), loc="upper left")
     ax.set_title(system_char_to_show[0] +" for FARSI vs in isolation")
     #ax.set_title("memory_reuse for FARSI vs in isolation")
     fig.savefig(os.path.join(output_dir, system_char_to_show[0] + "_budget_optimality.png"))
