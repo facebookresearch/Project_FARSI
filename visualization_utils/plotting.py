@@ -1084,6 +1084,8 @@ def plot_convergence_vs_time(input_dir_names, res_column_name_number):
     fontSize = 20
     x_column_name = "exploration_plus_simulation_time"
     y_column_name_list = ["best_des_so_far_dist_to_goal_non_cost"]
+    y_column_name_list = ["dist_to_goal_non_cost"]
+
 
     PA_column_experiment_value = {}
     FARSI_column_experiment_value = {}
@@ -1131,7 +1133,7 @@ def plot_convergence_vs_time(input_dir_names, res_column_name_number):
                 x_values.reverse()
                 y_values.reverse()
                 ax.scatter(x_values, y_values, label="PA time to completion", marker="*")
-                #ax.set_xscale('log')
+                ax.set_xscale('log')
 
                #ax.set_title("experiment vs system implicaction")
                 ax.legend(loc="upper right")#bbox_to_anchor=(1, 1), loc="upper left")
