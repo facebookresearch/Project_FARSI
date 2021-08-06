@@ -564,7 +564,7 @@ def plot_codesign_rate_efficacy_cross_workloads_updated_for_paper(input_dir_name
     ax.set_xlabel("Co-design Parameter", fontsize=fontSize)
     ax.set_ylabel("Co-design Index", fontsize=fontSize)
     for experiment_name, value in column_co_design_dist_avg.items():
-        print(experiment_name[-6:])
+        # print(experiment_name[-6:])
         if experiment_name[-6:] == "random":
             ax.legend(['Blind', 'Arch-aware'], bbox_to_anchor=(0.45, 1.23), loc="upper center", fontsize=fontSize - 2, ncol=2)
         else:
@@ -593,7 +593,7 @@ def plot_codesign_rate_efficacy_cross_workloads_updated_for_paper(input_dir_name
     ax.set_xlabel("Co-design Parameter", fontsize=fontSize)
     ax.set_ylabel("Co-design Efficacy Rate", fontsize=fontSize)
     for experiment_name, value in column_co_design_dist_avg.items():
-        print(experiment_name[-6:])
+        # print(experiment_name[-6:])
         if experiment_name[-6:] == "random":
             ax.legend(['Blind', 'Arch-aware'], bbox_to_anchor=(0.45, 1.23), loc="upper center", fontsize=fontSize - 2, ncol=2)
         else:
@@ -1122,14 +1122,14 @@ def plot_convergence_vs_time(input_dir_names, res_column_name_number):
                 fontSize = 20
                 #plt.tight_layout()
                 x_values = [el[0] for el in FARSI_column_experiment_value[y_column_name]]
-                y_values = [str(float(el[1]) * 100 // 1 / 100.0) for el in FARSI_column_experiment_value[y_column_name]]
+                y_values = [(float(el[1]) * 100 // 1 / 100.0) for el in FARSI_column_experiment_value[y_column_name]]
                 x_values.reverse()
                 y_values.reverse()
                 ax.scatter(x_values, y_values, label="FARSI time to completion", marker="*")
                 # ax.set_yscale('log')
 
                 x_values = [el[0] for el in PA_column_experiment_value[y_column_name]]
-                y_values = [str(float(el[1]) * 100 // 1 / 100.0) for el in PA_column_experiment_value[y_column_name]]
+                y_values = [(float(el[1]) * 100 // 1 / 100.0) for el in PA_column_experiment_value[y_column_name]]
                 x_values.reverse()
                 y_values.reverse()
                 ax.scatter(x_values, y_values, label="PA time to completion", marker="*")
@@ -1150,6 +1150,100 @@ def plot_convergence_vs_time(input_dir_names, res_column_name_number):
                 #plt.show()
                 plt.close('all')
 
+def plot_convergence_vs_time_for_paper(input_dir_names, res_column_name_number):
+    PA_time_scaling_factor = 8500
+    #itrColNum = all_res_column_name_number["iteration cnt"]
+    #distColNum = all_res_column_name_number["dist_to_goal_non_cost"]
+    trueNum  =  all_res_column_name_number["move validity"]
+
+    # experiment_names
+    experiment_names = []
+    file_full_addr_list = []
+    for dir_name in input_dir_names:
+        file_full_addr = os.path.join(dir_name, "result_summary/FARSI_simple_run_0_1_all_reults.csv")
+        file_full_addr_list.append(file_full_addr)
+        experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
+        experiment_names.append(experiment_name)
+
+    axis_font = {'size': '25'}
+    fontSize = 25
+    x_column_name = "exploration_plus_simulation_time"
+    y_column_name_list = ["best_des_so_far_dist_to_goal_non_cost"]
+    y_column_name_list = ["dist_to_goal_non_cost"]
+
+
+    PA_column_experiment_value = {}
+    FARSI_column_experiment_value = {}
+
+    #column_name = "move name"
+    for k, file_full_addr in enumerate(file_full_addr_list):
+        for y_column_name in y_column_name_list:
+            # get all possible the values of interest
+            y_column_number = res_column_name_number[y_column_name]
+            x_column_number = res_column_name_number[x_column_name]
+            PA_column_experiment_value[y_column_name] = []
+            FARSI_column_experiment_value[y_column_name] = []
+            PA_last_time = 0
+            FARSI_last_time = 0
+            with open(file_full_addr, newline='') as csvfile:
+                resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+                experiment_name = get_experiments_name( file_full_addr, res_column_name_number)
+                for i, row in enumerate(resultReader):
+                    #if row[trueNum] != "True":
+                    #    continue
+                    if i >= 1:
+                        FARSI_last_time += float(row[x_column_number])
+                        FARSI_value_to_add = (float(FARSI_last_time), row[y_column_number])
+                        FARSI_column_experiment_value[y_column_name].append(FARSI_value_to_add)
+
+                        PA_last_time = FARSI_last_time*PA_time_scaling_factor
+                        PA_value_to_add = (float(PA_last_time), row[y_column_number])
+                        PA_column_experiment_value[y_column_name].append(PA_value_to_add)
+
+                # prepare for plotting and plot
+                print(k)
+                fig = plt.figure(figsize=(6, 6))
+                # axes = plt.gca()
+                ymax = 2800.0
+                plt.rc('font', **axis_font)
+                ax = fig.add_subplot(111)
+                #plt.tight_layout()
+                x_values = [el[0] for el in FARSI_column_experiment_value[y_column_name]]
+                y_values = [(float(el[1]) * 100 // 1 / 100.0) for el in FARSI_column_experiment_value[y_column_name]]
+                x_values.reverse()
+                y_values.reverse()
+                ax.scatter(x_values, y_values, label="FARSI", marker="*")
+                # ax.set_yscale('log')
+
+                x_values = [el[0] for el in PA_column_experiment_value[y_column_name]]
+                y_values = [(float(el[1]) * 100 // 1 / 100.0) for el in PA_column_experiment_value[y_column_name]]
+                x_values.reverse()
+                y_values.reverse()
+                ax.scatter(x_values, y_values, label="PA", marker="*")
+                ax.set_xscale('log')
+                ax.set_yscale('log')
+                # ax.set_yscale('linear') # Ying: by default, the y ticks are strange
+                ax.set_ylim([np.power(10.0, -2), np.power(10.0, 3.5)])
+
+                #ax.set_title("experiment vs system implicaction")
+                ax.legend(bbox_to_anchor=(0.5, 1.15), loc="upper center", fontsize=fontSize, ncol=2, borderpad=0)#bbox_to_anchor=(1, 1), loc="upper left")
+                ax.set_xlabel("Time to Completion (s)", fontsize=fontSize)
+                ax.set_ylabel("Norm Distance to Goal", fontsize=fontSize)
+                # floatY = [float(i) for i in y_values]
+                # maxY = max(floatY)
+                # ax.set_yticks(np.arange(0, ymax + 1, ymax / 5))
+                ax.set_xticks(np.power(10.0, [0, 4, 8]))
+                ax.set_yticks(np.power(10.0, [-2, -1, 0, 1, 2, 3]))
+                plt.tight_layout()
+
+                # dump in the top folder
+                output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+                output_dir = os.path.join(output_base_dir, "single_workload/progression")
+                if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
+                fig.savefig(os.path.join(output_dir,str(k)+"_" + y_column_name+"_vs_"+x_column_name+"_FARSI_vs_PA.png"), bbox_inches='tight')
+                #plt.show()
+                plt.close('all')
 
 def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
     #itrColNum = all_res_column_name_number["iteration cnt"]
@@ -1233,8 +1327,8 @@ def plot_convergence_cross_workloads_for_paper(input_dir_names, res_column_name_
         experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
         experiment_names.append(experiment_name)
 
-    axis_font = {'size': '30'}
-    fontSize = 30
+    axis_font = {'size': '25'}
+    fontSize = 25
     x_column_name = "Iteration"
     y_column_name_list = ["best_des_so_far_dist_to_goal_non_cost", "dist_to_goal_non_cost"]
 
@@ -1266,33 +1360,41 @@ def plot_convergence_cross_workloads_for_paper(input_dir_names, res_column_name_
 
             ctr +=1
         # prepare for plotting and plot
-        fig = plt.figure(figsize=(6.5, 6.5))
+        fig = plt.figure(figsize=(6.4, 6.4))
         plt.rc('font', **axis_font)
         ax = fig.add_subplot(111)
         #plt.tight_layout()
         labelName = ""
+        color = (1.0, 0.0, 0.0, 0.5) # ""
         for experiment_name, values in column_experiment_value[y_column_name].items():
             x_values = [el[0] for el in values[:-10]]
             y_values = [el[1] for el in values[:-10]]
-            print(experiment_name)
             # Ying: hardcode here
-            # if experiment_name[-6:] == "random":
-            #     labelName = "Blind"
-            # else:
-            #     labelName = "Arch-aware"
+            if experiment_name[-1] == "3":
+                labelName = "T.B.M. blind"
+                color = (1, 0, 0, 1) # "Red"
+            if experiment_name[-1] == "2":
+                labelName = "FARSI"
+                color = (0, 0.6, 0, 1) # "ForestGreen"
+            if experiment_name[-1] == "1":
+                labelName = "B.M. blind"
+                color = (1, 0.5, 0.0, 1) # "DarkOrange"
+            if experiment_name[-1] == "0":
+                labelName = "M. blind"
+                color = (0.5, 0.5, 0, 1) # "Olive"
             # Ying: hardcode finished
-            ax.scatter(x_values, y_values, label=experiment_name)
+            ax.scatter(x_values, y_values, label=labelName, color=color)
 
         #ax.set_title("experiment vs system implicaction")
         ax.set_yscale('log')
-        ax.legend(bbox_to_anchor=(1.02, 1.02), loc="upper right", fontsize=fontSize-2)
+        ax.legend(bbox_to_anchor=(0.5, 1.3), loc="upper center", fontsize=fontSize-2, ncol=2, borderpad=0)
         ax.set_xlabel(x_column_name, fontsize=fontSize)
         # Ying: hardcode here
         if y_column_name == "dist_to_goal_non_cost":
-            y_column_name_rep = "Distance to Goal"
+            y_column_name_rep = "Norm Distance to Goal"
         # Ying: hardcode finished
         ax.set_ylabel(y_column_name_rep, fontsize=fontSize)
-        plt.xticks(np.arange(0, 5000, 2000.0))
+        plt.xticks(np.arange(0, 7000, 2000.0))
         plt.yticks(np.power(10.0, [-2, -1, 0, 1, 2, 3]))
         plt.tight_layout()
 
@@ -3687,12 +3789,15 @@ if __name__ == "__main__":
         else:
             plot_codesign_rate_efficacy_cross_workloads_updated(experiment_full_addr_list, all_res_column_name_number)
 
-    if "single_workload" in config_plotting.plot_list:
+    if "single_workload" in config_plotting.plot_list:  # Ying: blind_study_all_dumb_versions/blind_vs_arch_aware
         #single workload
-        plot_codesign_progression_per_workloads(experiment_full_addr_list, all_res_column_name_number)
+        # plot_codesign_progression_per_workloads(experiment_full_addr_list, all_res_column_name_number)
         _ = plot_codesign_nav_breakdown_per_workload(experiment_full_addr_list, all_res_column_name_number)
         plot_convergence_per_workloads(experiment_full_addr_list, all_res_column_name_number)
-        plot_convergence_vs_time(experiment_full_addr_list, all_res_column_name_number)
+        if config_plotting.draw_for_paper:
+            plot_convergence_vs_time_for_paper(experiment_full_addr_list, all_res_column_name_number)
+        else:
+            plot_convergence_vs_time(experiment_full_addr_list, all_res_column_name_number)
 
     if "plot_3d" in config_plotting.plot_list:
         plot_3d(experiment_full_addr_list, summary_res_column_name_number)
