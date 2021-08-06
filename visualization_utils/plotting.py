@@ -1066,7 +1066,7 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
             plt.close('all')
 
 def plot_convergence_vs_time(input_dir_names, res_column_name_number):
-    PA_time_scaling_factor = 10
+    PA_time_scaling_factor = 8500
     #itrColNum = all_res_column_name_number["iteration cnt"]
     #distColNum = all_res_column_name_number["dist_to_goal_non_cost"]
     trueNum  =  all_res_column_name_number["move validity"]
@@ -1084,6 +1084,8 @@ def plot_convergence_vs_time(input_dir_names, res_column_name_number):
     fontSize = 20
     x_column_name = "exploration_plus_simulation_time"
     y_column_name_list = ["best_des_so_far_dist_to_goal_non_cost"]
+    y_column_name_list = ["dist_to_goal_non_cost"]
+
 
     PA_column_experiment_value = {}
     FARSI_column_experiment_value = {}
@@ -1123,15 +1125,15 @@ def plot_convergence_vs_time(input_dir_names, res_column_name_number):
                 y_values = [str(float(el[1]) * 100 // 1 / 100.0) for el in FARSI_column_experiment_value[y_column_name]]
                 x_values.reverse()
                 y_values.reverse()
-                ax.scatter(x_values, y_values, label="FARSI time to completion", marker="_")
+                ax.scatter(x_values, y_values, label="FARSI time to completion", marker="*")
                 # ax.set_yscale('log')
 
                 x_values = [el[0] for el in PA_column_experiment_value[y_column_name]]
                 y_values = [str(float(el[1]) * 100 // 1 / 100.0) for el in PA_column_experiment_value[y_column_name]]
                 x_values.reverse()
                 y_values.reverse()
-                ax.scatter(x_values, y_values, label="PA time to completion", marker="_")
-                #ax.set_xscale('log')
+                ax.scatter(x_values, y_values, label="PA time to completion", marker="*")
+                ax.set_xscale('log')
 
                #ax.set_title("experiment vs system implicaction")
                 ax.legend(loc="upper right")#bbox_to_anchor=(1, 1), loc="upper left")
@@ -1247,10 +1249,12 @@ def plot_convergence_cross_workloads_for_paper(input_dir_names, res_column_name_
         column_experiment_value[y_column_name] = {}
         # initialize the dictionary
         # get all the data
+        ctr = 0
         for file_full_addr in file_full_addr_list:
             with open(file_full_addr, newline='') as csvfile:
                 resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
-                experiment_name = get_experiments_name( file_full_addr, res_column_name_number)
+                experiment_name = get_experiments_name( file_full_addr, res_column_name_number) +str(ctr)
+
                 column_experiment_value[y_column_name][experiment_name] = []
 
                 for i, row in enumerate(resultReader):
@@ -1260,6 +1264,7 @@ def plot_convergence_cross_workloads_for_paper(input_dir_names, res_column_name_
                         value_to_add = (i, max(float(row[y_column_number]),.01))
                         column_experiment_value[y_column_name][experiment_name].append(value_to_add)
 
+            ctr +=1
         # prepare for plotting and plot
         fig = plt.figure(figsize=(6.5, 6.5))
         plt.rc('font', **axis_font)
@@ -2527,7 +2532,6 @@ def grouped_barplot_varying_x(df, metric, metric_ylabel, varying_x, varying_x_la
        print (metric+":"+el.index.name +" : "+ str(diff))
     """
 
-    """
     if metric in ["loop_unrolling_parallelism_speed_up_full_system", "customization_speed_up_full_system",
                   "task_level_parallelism_speed_up_full_system",
                   "interference_degradation_avg"]:
@@ -2535,7 +2539,6 @@ def grouped_barplot_varying_x(df, metric, metric_ylabel, varying_x, varying_x_la
         print("metric is:" + metric)
         for el in grouped_stats_list:
             print(el)
-    """
     start_loc = 0
     bar_width = 0.15
     offset = 0
@@ -3545,7 +3548,6 @@ if __name__ == "__main__":
         "loop_itr_ratio_var",
         # "cluster_pe_cnt_coeff_var"
     ]
-    """
     case_studies["heterogeneity_std_system_compleixty"] = [
         "local_channel_count_per_bus_std",
         "loop_itr_ratio_std", "cluster_pe_cnt_std"
@@ -3560,7 +3562,6 @@ if __name__ == "__main__":
         "interference_degradation_avg"]
 
     """
-    """
       [ 
         "customization_first_speed_up_avg",
         "customization_second_speed_up_avg",
@@ -3572,21 +3573,15 @@ if __name__ == "__main__":
         "parallelism_first_speed_up_full_system",
         "parallelism_second_speed_up_full_system",
     ]
-    """
-
     case_studies["speedup"] = [
-        "customization_first_speed_up_avg",
-        "customization_second_speed_up_avg",
-        "parallelism_first_speed_up_avg",
-        "parallelism_second_speed_up_avg",
         "interference_degradation_avg",
-        "customization_first_speed_up_full_system",
-        "customization_second_speed_up_full_system",
-        "parallelism_first_speed_up_full_system",
-        "parallelism_second_speed_up_full_system",
+        "customization_speed_up_full_system",
+        "parallelism_speed_up_full_system",
+        "parallelism_nd_speed_up_full_system",
     ]
 
 
+    """
 
 
     case_studies["heterogenity_area"] = [
