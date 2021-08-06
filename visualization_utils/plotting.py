@@ -1173,6 +1173,7 @@ def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
         # get all possible the values of interest
         y_column_number = res_column_name_number[y_column_name]
         #x_column_number = res_column_name_number[x_column_name]
+        ctr = 0
 
         column_experiment_value[y_column_name] = {}
         # initialize the dictionary
@@ -1180,7 +1181,7 @@ def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
         for file_full_addr in file_full_addr_list:
             with open(file_full_addr, newline='') as csvfile:
                 resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
-                experiment_name = get_experiments_name( file_full_addr, res_column_name_number)
+                experiment_name = get_experiments_name( file_full_addr, res_column_name_number) +str(ctr)
                 column_experiment_value[y_column_name][experiment_name] = []
 
                 for i, row in enumerate(resultReader):
@@ -1189,6 +1190,7 @@ def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
                     if i >= 1:
                         value_to_add = (i, max(float(row[y_column_number]),.01))
                         column_experiment_value[y_column_name][experiment_name].append(value_to_add)
+            ctr +=1
 
         # prepare for plotting and plot
         fig = plt.figure()
@@ -2480,15 +2482,60 @@ def get_experiment_full_file_addr_list(experiment_full_dir_list):
     return results
 
 ######### RADHIKA PANDAS PLOTS ############
+def simple_stack_bar_plot(output_dir):
+    labels = ['1', '2', '3']
+    customization = [13, 11.74, 11.55]
+    LLP = [100, 49, 27]
+    TLP = [2.0, 2.3, 2.14]
+    degradation = [1.07, 1.25, 1.35]
+    width = 0.35  # the width of the bars: can also be len(x) sequence
+
+    fig, ax = plt.subplots()
+
+    ax.bar(labels, customization, width,  label='customization')
+    ax.bar(labels, LLP, width,  bottom=customization, label='LLP')
+    ax.bar(labels, TLP, width,  bottom=np.add(LLP, customization).tolist(), label='TLP')
+
+    ax.set_ylabel('Performance Driver')
+    #ax.set_title()
+    ax.legend()
+
+    output_dir_ = os.path.join(output_dir, "drivers")
+    if not os.path.exists(output_dir_):
+        os.makedirs(output_dir_)
+    plt.savefig(os.path.join(output_dir_, "performance_driver.png"))
+    plt.show()
+
+
 
 def grouped_barplot_varying_x(df, metric, metric_ylabel, varying_x, varying_x_labels, ax):
     # [[bar heights, errs for varying_x1], [heights, errs for varying_x2]...]
+    #if metric in ["ip_cnt", "local_bus_avg_bus_width", "local_memory_total_area"]:
+    #    print("ok")
+
+
+
     grouped_stats_list = []
     for x in varying_x:
         grouped_x = df.groupby([x])
         stats = grouped_x[metric].agg([np.mean, np.std])
         grouped_stats_list.append(stats)
+    """
+    for el in grouped_stats_list:
+       #x = el.at[2, "mean"]
+       diff = (((el.at[1, "mean"] - el.at[4, "mean"])/el.at[4, "mean"])*100)
+       print (metric+":"+el.index.name +" : "+ str(diff))
+    """
 
+    """
+    if metric in ["loop_unrolling_parallelism_speed_up_full_system", "customization_speed_up_full_system",
+                  "task_level_parallelism_speed_up_full_system",
+                  "interference_degradation_avg"]:
+
+        print("metric is:" + metric)
+        for el in grouped_stats_list:
+            print(el)
+    """
     start_loc = 0
     bar_width = 0.15
     offset = 0
@@ -2502,7 +2549,7 @@ def grouped_barplot_varying_x(df, metric, metric_ylabel, varying_x, varying_x_la
         grouped_bar_locs_list.append(bar_locs)
         start_loc = end_loc + 2*bar_width
 
-    print(grouped_bar_locs_list)
+    #print(grouped_bar_locs_list)
 
     color = ["red", "orange", "green"]
     ctr = 0
@@ -3504,14 +3551,14 @@ if __name__ == "__main__":
         "loop_itr_ratio_std", "cluster_pe_cnt_std"
     ]
 
-    """
-    """
+
     case_studies["speedup"] = [
         # "customization_speed_up_full_system",
         "loop_unrolling_parallelism_speed_up_full_system",
-        "task_level_parallelism_speed_up_full_system"
-    ]
-    """
+        "customization_speed_up_full_system",
+        "task_level_parallelism_speed_up_full_system",
+        "interference_degradation_avg"]
+
     """ 
       [ 
         "customization_first_speed_up_avg",
@@ -3698,7 +3745,6 @@ if __name__ == "__main__":
                                                 "local_bus_max_actual_bandwidth", "system_bus_max_actual_bandwidth"]
 
 
-
         for case_study_name, metrics in case_studies.items():
             for metric in metrics:
                 if config_plotting.draw_for_paper:
@@ -3709,6 +3755,9 @@ if __name__ == "__main__":
     # get the the workload_set folder
     # each workload_set has a bunch of experiments underneath it
     workload_set_folder_list = os.listdir(run_folder_name)
+
+    if "drivers" in config_plotting.plot_list:
+        simple_stack_bar_plot(run_folder_name)
 
     #  iterate and generate plots
     for workload_set_folder in workload_set_folder_list:
