@@ -106,6 +106,71 @@ def plot_sim_time_vs_system_char_minimal(output_dir, csv_file_addr):
 
     plt.close("all")
 
+def plot_sim_time_vs_system_char_minimal_for_paper(output_dir, csv_file_addr):
+    data = pd.read_csv(csv_file_addr)
+    blk_cnt = list(data["blk_cnt"])
+    pa_sim_time = list(data["PA simulation time"])
+    farsi_sim_time = list(data["FARSI simulation time"])
+    tmp_reformatted_df_data = [blk_cnt * 2,  pa_sim_time + farsi_sim_time,
+                               ["PA"] * len(blk_cnt) + ["FARSI"] * len(blk_cnt)]
+    reformatted_df_data = [[tmp_reformatted_df_data[j][i] for j in range(len(tmp_reformatted_df_data))] for i in
+                           range(len(blk_cnt) * 2)]
+    # print(reformatted_df_data[0:3])
+    # exit()
+    # for col in reformatted_df_data:
+    #    print("Len of col is {}".format(len(col)))
+    reformatted_df = pd.DataFrame(reformatted_df_data,
+                                  columns=["Block Counts", "Simulation Time",
+                                           "FARSI or PA"])
+    print(reformatted_df.head())
+
+    df_blk_avg = get_df_as_avg_for_each_x_coord(reformatted_df, "Block Counts")
+
+
+
+    df_avg = get_df_as_avg_for_each_x_coord(reformatted_df, x_coord_name = "Block Counts", y_coord_name = "Simulation Time", hue_col = "FARSI or PA")
+
+    #df_pe_avg = get_df_as_avg_for_each_x_coord(reformatted_df, "PE counts")
+    #df_mem_avg = get_df_as_avg_for_each_x_coord(reformatted_df, "Mem counts")
+    #df_bus_avg = get_df_as_avg_for_each_x_coord(reformatted_df, "Bus counts")
+
+    #print("Bola")
+    #print(df_blk_avg)
+
+    axis_font = {'size': '20'}
+    fontSize = 20
+    sns.set(font_scale=2, rc={'figure.figsize': (5, 4)})
+    sns.set_style("white")
+    splot = sns.scatterplot(data=df_avg, x="Block Counts", y="Simulation Time", hue="FARSI or PA", sizes=(6, 6))
+    splot.set(yscale="log")
+    splot.legend(title="", fontsize=fontSize, loc="center right")
+
+    color_per_hue = {"FARSI" : "green", "PA" : "orange"}
+    hues = set(list(df_avg["FARSI or PA"]))
+    for hue in hues:
+       #x required to be in matrix format in sklearn
+       print(np.isnan(df_avg["Simulation Time"]))
+       xs_hue = [[x] for x in list(df_avg.loc[(df_avg["FARSI or PA"] == hue) & (df_avg["Simulation Time"].notnull())]["Block Counts"])]
+       ys_hue = np.array(list(df_avg.loc[(df_avg["FARSI or PA"] == hue) & (df_avg["Simulation Time"].notnull())]["Simulation Time"]))
+       print("xs_hue")
+       print(xs_hue)
+
+       print("ys_hue")
+       print(ys_hue)
+       reg = LinearRegression().fit(xs_hue, ys_hue)
+       m = reg.coef_[0]
+       n = reg.intercept_
+       abline(m, n, color_per_hue[hue])
+    #plt.set_ylim(top = 10)
+
+    plt.xticks(np.arange(0, 30, 10.0))
+    plt.yticks(np.power(10.0, [-1, 0, 1, 2, 3]))
+    plt.ylabel("Simulation Time (s)")
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir,'block_counts_vs_simtime.png'), bbox_inches='tight')
+    # plt.show()
+    plt.close("all")
+
 """
 def plot_sim_time_vs_system_char(output_dir, csv_file_addr):
     data = pd.read_csv(csv_file_addr)
@@ -190,6 +255,7 @@ def plot_error_vs_system_char(output_dir, csv_file_addr):
     #splot.set(yscale = "log")
 
 
+
     #sklearn.linear_model.LinearRegression()
     hues = set(list(df_avg["ArchParam"]))
     for hue in hues:
@@ -208,11 +274,75 @@ def plot_error_vs_system_char(output_dir, csv_file_addr):
        abline(m, n, color_per_hue[hue])
     #plt.set_ylim(top = 10)
 
-
     output_file = os.path.join(output_dir, "error_vs_system_char.png")
     plt.savefig(output_file)
     plt.close("all")
 
+def plot_error_vs_system_char_for_paper(output_dir, csv_file_addr):
+    data = pd.read_csv(csv_file_addr)
+    error = list(data["error"])
+    blk_cnt = list(data["blk_cnt"])
+    pe_cnt = list(data["pe_cnt"])
+    mem_cnt = list(data["mem_cnt"])
+    bus_cnt = list(data["bus_cnt"])
+    #channel_cnt = list(data["channel_cnt"])
+    pa_sim_time = list(data["PA simulation time"])
+    farsi_sim_time = list(data["FARSI simulation time"])
+
+    num_counts_cols = 4
+    tmp_reformatted_df_data = [blk_cnt+pe_cnt+mem_cnt+bus_cnt, ["Block Counts"]*len(blk_cnt)+["PE Counts"]*len(blk_cnt) + ["Memory Counts"]*len(blk_cnt) + ["NoC Counts"]*len(bus_cnt) , error*num_counts_cols]
+
+    reformatted_df_data = [[tmp_reformatted_df_data[j][i] for j in range(len(tmp_reformatted_df_data))] for i in range(len(blk_cnt)*num_counts_cols) ]
+
+
+
+    #print(reformatted_df_data[0:3])
+    #exit()
+    #for col in reformatted_df_data:
+    #    print("Len of col is {}".format(len(col)))
+    reformatted_df = pd.DataFrame(reformatted_df_data, columns = ["Counts", "ArchParam", "Error"])
+    print(reformatted_df.tail())
+
+
+    df_avg = get_df_as_avg_for_each_x_coord(reformatted_df, x_coord_name = "Counts", y_coord_name = "Error", hue_col = "ArchParam")
+
+    color_per_hue = {"NoC Counts" : "green", "Memory Counts" : "orange", "PE Counts" : "blue", "Block Counts" : "red", "Channel Counts" : "pink"}
+    #df_avg = df_avg.loc[df_avg["ArchParam"] != "Bus Counts"]
+    axis_font = {'size': '20'}
+    fontSize = 20
+    sns.set(font_scale=2, rc={'figure.figsize': (5, 4.5)})
+    sns.set_style("white")
+    splot = sns.scatterplot(data=df_avg, y = "Error", x = "Counts", hue = "ArchParam", palette = color_per_hue, hue_order= ["NoC Counts", "Memory Counts", "PE Counts", "Block Counts"], sizes=(8, 8))
+    #splot.set(yscale = "log")
+
+    #sklearn.linear_model.LinearRegression()
+    hues = set(list(df_avg["ArchParam"]))
+    splot.legend(title="", fontsize=fontSize, loc="upper right")
+    for hue in hues:
+        #x required to be in matrix format in sklearn
+        print(np.isnan(df_avg["Error"]))
+        xs_hue = [[x] for x in list(df_avg.loc[(df_avg["ArchParam"] == hue) & (df_avg["Error"].notnull())]["Counts"])]
+        ys_hue = np.array(list(df_avg.loc[(df_avg["ArchParam"] == hue) & (df_avg["Error"].notnull())]["Error"]))
+        print("xs_hue")
+        print(xs_hue)
+
+        print("ys_hue")
+        print(ys_hue)
+        reg = LinearRegression().fit(xs_hue, ys_hue)
+        m = reg.coef_[0]
+        n = reg.intercept_
+        abline(m, n, color_per_hue[hue])
+    #plt.set_ylim(top = 10)
+
+    plt.xticks(np.arange(-5, 30, 10.0))
+    plt.yticks(np.arange(-5, 50, 10.0))
+    plt.xlabel("Block Counts")
+    plt.ylabel("Error (%)")
+    plt.tight_layout()
+    output_file = os.path.join(output_dir, "error_vs_system_char.png")
+    plt.savefig(output_file, bbox_inches='tight')
+    # plt.show()
+    plt.close("all")
 
 def plot_latency_vs_sim_time(output_dir, csv_file_addr):
     data = pd.read_csv(csv_file_addr)
@@ -290,6 +420,82 @@ def plot_latency_vs_sim_time(output_dir, csv_file_addr):
     plt.savefig(output_file)
     plt.close("all")
     """
+
+def plot_latency_vs_sim_time_for_paper(output_dir, csv_file_addr):
+    data = pd.read_csv(csv_file_addr)
+    blk_cnt = list(data["blk_cnt"])
+    pe_cnt = list(data["pe_cnt"])
+    mem_cnt = list(data["mem_cnt"])
+    bus_cnt = list(data["bus_cnt"])
+    pa_sim_time = list(data["PA simulation time"])
+    farsi_sim_time = list(data["FARSI simulation time"])
+    pa_predicted_lat = list(data["PA_predicted_latency"])
+    tmp_reformatted_df_data = [pa_predicted_lat * 2, pa_sim_time + farsi_sim_time,
+                               ["PA"] * len(blk_cnt) + ["FARSI"] * len(blk_cnt)]
+    reformatted_df_data = [[tmp_reformatted_df_data[j][i] for j in range(len(tmp_reformatted_df_data))] for i in
+                           range(len(blk_cnt) * 2)]
+    # print(reformatted_df_data[0:3])
+    # exit()
+    # for col in reformatted_df_data:
+    #    print("Len of col is {}".format(len(col)))
+    reformatted_df = pd.DataFrame(reformatted_df_data,
+                                  columns=["PA Predicted Latency", "Simulation Time", "FARSI or PA"])
+
+    reformatted_df = pd.DataFrame(reformatted_df_data,
+                                  columns=["PA _predicted_latencys", "Simulation Time",
+                                           "FARSI or PA"])
+    print(reformatted_df.head())
+
+    df_blk_avg = get_df_as_avg_for_each_x_coord(reformatted_df, "PA _predicted_latencys")
+
+    df_avg = get_df_as_avg_for_each_x_coord(reformatted_df, x_coord_name="PA _predicted_latencys", y_coord_name="Simulation Time",
+                                            hue_col="FARSI or PA")
+
+    # df_pe_avg = get_df_as_avg_for_each_x_coord(reformatted_df, "PE counts")
+    # df_mem_avg = get_df_as_avg_for_each_x_coord(reformatted_df, "Mem counts")
+    # df_bus_avg = get_df_as_avg_for_each_x_coord(reformatted_df, "Bus counts")
+
+    # print("Bola")
+    # print(df_blk_avg)
+
+    axis_font = {'size': '20'}
+    fontSize = 20
+    sns.set(font_scale=2, rc={'figure.figsize': (4.5, 4)})
+    sns.set_style("white")
+    splot = sns.scatterplot(data=df_avg, x="PA _predicted_latencys", y="Simulation Time", hue="FARSI or PA")
+    splot.set(yscale="log")
+    splot.legend(title="", fontsize=fontSize, loc="center right")
+
+    color_per_hue = {"FARSI": "green", "PA": "orange"}
+    hues = set(list(df_avg["FARSI or PA"]))
+    for hue in hues:
+        # x required to be in matrix format in sklearn
+        print(np.isnan(df_avg["Simulation Time"]))
+        xs_hue = [[x] for x in list(
+            df_avg.loc[(df_avg["FARSI or PA"] == hue) & (df_avg["Simulation Time"].notnull())]["PA _predicted_latencys"])]
+        ys_hue = np.array(
+            list(df_avg.loc[(df_avg["FARSI or PA"] == hue) & (df_avg["Simulation Time"].notnull())]["Simulation Time"]))
+        print("xs_hue")
+        print(xs_hue)
+
+        print("ys_hue")
+        print(ys_hue)
+        reg = LinearRegression().fit(xs_hue, ys_hue)
+        m = reg.coef_[0]
+        n = reg.intercept_
+        abline(m, n, color_per_hue[hue])
+    # plt.set_ylim(top = 10)
+
+    plt.xticks(np.arange(0, 60, 10.0))
+    plt.yticks(np.power(10.0, [-1, 0, 1, 2, 3]))
+    plt.xlabel("Execution latency")
+    plt.ylabel("")
+    plt.tight_layout()
+    #plt.savefig(os.path.join(output_dir, 'block_counts_vs_simtime.png'))
+    plt.savefig(os.path.join(output_dir,'latency_vs_sim_time.png'), bbox_inches='tight')
+    # plt.show()
+    plt.close("all")
+
 if __name__ == "__main__":
     run_folder_name = config_plotting.run_folder_name
     csv_file_addr = os.path.join(run_folder_name, "input_data","aggregate_data.csv")
@@ -297,8 +503,10 @@ if __name__ == "__main__":
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    if config_plotting.draw_for_paper:
-        pass
+    if config_plotting.draw_for_paper:  # Ying: aggregate_data
+        plot_error_vs_system_char_for_paper(output_dir, csv_file_addr)
+        plot_sim_time_vs_system_char_minimal_for_paper(output_dir, csv_file_addr)
+        plot_latency_vs_sim_time_for_paper(output_dir, csv_file_addr)
     else:
         plot_error_vs_system_char(output_dir, csv_file_addr)
         plot_sim_time_vs_system_char_minimal(output_dir, csv_file_addr)
