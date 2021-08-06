@@ -11,6 +11,7 @@ import numpy as np
 import shutil
 from settings import config_plotting
 import time
+import re
 
 def get_column_name_number(dir_addr, mode):
     column_name_number_dic = {}
@@ -553,14 +554,23 @@ def plot_codesign_rate_efficacy_cross_workloads_updated_for_paper(input_dir_name
         #rate_column_co_design = {}
 
     plt.figure()
-    y_column_name_list_rep = ["L.Opt",  "H.Opt", "comm_comp", "workload"]
+    y_column_name_list_rep = ["L.Opt",  "H.Opt", "CM", "WL"]
+    y_column_name_list_rep_rep = [re.sub("(.{5})", "\\1\n", label, 0, re.DOTALL) for label in y_column_name_list_rep]
     plotdata = pd.DataFrame(column_co_design_dist_avg, index=y_column_name_list)
-    fontSize = 30
-    ax = plotdata.plot(kind='bar', fontsize=fontSize, figsize=(8, 8))
-    ax.set_xticklabels(y_column_name_list_rep, rotation=20)
+    fontSize = 26
+    ax = plotdata.plot(kind='bar', fontsize=fontSize, figsize=(6.6, 6.6))
+    ax.set_xticklabels(y_column_name_list_rep_rep, rotation=0)
+    # Ying: hardcode here
     ax.set_xlabel("Co-design Parameter", fontsize=fontSize)
     ax.set_ylabel("Co-design Index", fontsize=fontSize)
-    ax.legend(["Blind DSE", "Arch-aware DSE"], bbox_to_anchor=(0.5, 1.02), loc="upper center", fontsize=fontSize-2)
+    for experiment_name, value in column_co_design_dist_avg.items():
+        print(experiment_name[-6:])
+        if experiment_name[-6:] == "random":
+            ax.legend(['Blind', 'Arch-aware'], bbox_to_anchor=(0.45, 1.23), loc="upper center", fontsize=fontSize - 2, ncol=2)
+        else:
+            ax.legend(['Arch-aware', 'Blind'], bbox_to_anchor=(0.45, 1.23), loc="upper center", fontsize=fontSize - 2, ncol=2)
+        break
+    # Ying: hardcode finished
     plt.tight_layout()
 
     # dump in the top folder
@@ -569,19 +579,27 @@ def plot_codesign_rate_efficacy_cross_workloads_updated_for_paper(input_dir_name
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    plt.savefig(os.path.join(output_dir,"co_design_avg_dist"+'_'.join(y_column_name_list)+".png"))
+    plt.savefig(os.path.join(output_dir,"co_design_avg_dist"+'_'.join(y_column_name_list)+".png"), bbox_inches='tight')
     # plt.show()
     plt.close('all')
 
 
     plt.figure()
     plotdata = pd.DataFrame(column_co_design_efficacy_avg, index=y_column_name_list)
-    fontSize = 30
-    ax = plotdata.plot(kind='bar', fontsize=fontSize, figsize=(8, 8))
-    ax.set_xticklabels(y_column_name_list_rep, rotation=20)
+    fontSize = 26
+    ax = plotdata.plot(kind='bar', fontsize=fontSize, figsize=(6.6, 6.6))
+    ax.set_xticklabels(y_column_name_list_rep_rep, rotation=0)
+    # Ying: hardcode here
     ax.set_xlabel("Co-design Parameter", fontsize=fontSize)
     ax.set_ylabel("Co-design Efficacy Rate", fontsize=fontSize)
-    ax.legend(["Blind DSE", "Arch-aware DSE"], bbox_to_anchor=(0.5, 1.02), loc="upper center", fontsize=fontSize-2)
+    for experiment_name, value in column_co_design_dist_avg.items():
+        print(experiment_name[-6:])
+        if experiment_name[-6:] == "random":
+            ax.legend(['Blind', 'Arch-aware'], bbox_to_anchor=(0.45, 1.23), loc="upper center", fontsize=fontSize - 2, ncol=2)
+        else:
+            ax.legend(['Arch-aware', 'Blind'], bbox_to_anchor=(0.45, 1.23), loc="upper center", fontsize=fontSize - 2, ncol=2)
+        break
+    # Ying: hardcode finished
     plt.tight_layout()
 
     # dump in the top folder
@@ -590,7 +608,7 @@ def plot_codesign_rate_efficacy_cross_workloads_updated_for_paper(input_dir_name
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    plt.savefig(os.path.join(output_dir,"co_design_efficacy"+'_'.join(y_column_name_list)+".png"))
+    plt.savefig(os.path.join(output_dir,"co_design_efficacy"+'_'.join(y_column_name_list)+".png"), bbox_inches='tight')
     # plt.show()
     plt.close('all')
 
@@ -1243,7 +1261,7 @@ def plot_convergence_cross_workloads_for_paper(input_dir_names, res_column_name_
                         column_experiment_value[y_column_name][experiment_name].append(value_to_add)
 
         # prepare for plotting and plot
-        fig = plt.figure(figsize=(8, 8))
+        fig = plt.figure(figsize=(6.5, 6.5))
         plt.rc('font', **axis_font)
         ax = fig.add_subplot(111)
         #plt.tight_layout()
@@ -1251,19 +1269,26 @@ def plot_convergence_cross_workloads_for_paper(input_dir_names, res_column_name_
         for experiment_name, values in column_experiment_value[y_column_name].items():
             x_values = [el[0] for el in values[:-10]]
             y_values = [el[1] for el in values[:-10]]
-            if experiment_name[1:] == "0.021_e0.034_h0.034_0.008737_1.7475e-05_random":
-                labelName = "Blind DSE"
-            elif experiment_name[1:] == "0.021_e0.034_h0.034_0.008737_1.7475e-05_arch-aware":
-                labelName = "Arch-aware DSE"
+            print(experiment_name[-6:])
+            # Ying: hardcode here
+            if experiment_name[-6:] == "random":
+                labelName = "Blind"
+            else:
+                labelName = "Arch-aware"
+            # Ying: hardcode finished
             ax.scatter(x_values, y_values, label=labelName)
 
         #ax.set_title("experiment vs system implicaction")
         ax.set_yscale('log')
-        ax.legend(bbox_to_anchor=(0.5, 1), loc="upper center", fontsize=fontSize)
+        ax.legend(bbox_to_anchor=(1.02, 1.02), loc="upper right", fontsize=fontSize-2)
         ax.set_xlabel(x_column_name, fontsize=fontSize)
+        # Ying: hardcode here
         if y_column_name == "dist_to_goal_non_cost":
             y_column_name_rep = "Distance to Goal"
+        # Ying: hardcode finished
         ax.set_ylabel(y_column_name_rep, fontsize=fontSize)
+        plt.xticks(np.arange(0, 5000, 2000.0))
+        plt.yticks(np.power(10.0, [-2, -1, 0, 1, 2, 3]))
         plt.tight_layout()
 
         # dump in the top folder
@@ -1271,7 +1296,7 @@ def plot_convergence_cross_workloads_for_paper(input_dir_names, res_column_name_
         output_dir = os.path.join(output_base_dir, "cross_workloads/convergence")
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
-        fig.savefig(os.path.join(output_dir,x_column_name+"_"+y_column_name+".png"))
+        fig.savefig(os.path.join(output_dir,x_column_name+"_"+y_column_name+".png"), bbox_inches='tight')
         # plt.show()
         plt.close('all')
 
@@ -2722,7 +2747,7 @@ def grouped_barplot_varying_x_for_paper(df, metric, metric_ylabel, varying_x, va
     # print(grouped_bar_locs_list)  # Ying: comment out for WTF
 
     color = ["red", "orange", "green"]
-    legendLabel = ["Scaling 1", "2", "4"]
+    legendLabel = ["Scale 1", "2", "4"]
     ctr = 0
     coloredLocList=[[], [], []]
     coloredStatsValueList = [[], [], []]
@@ -2778,15 +2803,15 @@ def grouped_barplot_varying_x_for_paper(df, metric, metric_ylabel, varying_x, va
         cat_xticks.append(xticks_cat_mid)
         cat_xticklabels.append(varying_x_labels[x_i])   # Ying: the original code was: "\n\n" + varying_x_labels[x_i])
 
-    fontSize = 20
-    axis_font = {'size': '20'}
+    fontSize = 26
+    axis_font = {'size': '26'}
     xticks.extend(cat_xticks)
     xticklabels.extend(cat_xticklabels)
 
     ax.set_ylabel(metric_ylabel, fontsize=fontSize) # Ying: add fontsize
     #ax.set_xlabel(xlabel)
     ax.set_xticks(xticks)
-    ax.legend(legendLabel, bbox_to_anchor=(0.5, 1.2), loc="upper center", fontsize=fontSize, ncol=3) # Ying: test the way to add legends
+    ax.legend(legendLabel, bbox_to_anchor=(0.5, 1.25), loc="upper center", fontsize=fontSize, ncol=3) # Ying: test the way to add legends
     ax.set_xticklabels(xticklabels, fontsize=fontSize)  # Ying: add fontsize
 
     return ax
@@ -2812,19 +2837,23 @@ def pandas_plots_for_paper(input_dir_names, all_results_files, metric):
     elif metric == "local_bus_cnt":
         metric_ylabel = "NoC Count"
     elif metric == "local_bus_avg_freq":
-        metric_ylabel = "NoC Avg Frequency"
+        metric_ylabel = "NoC Avg Frequency (Hz)"
     elif metric == "local_channel_count_per_bus_coeff_var":
-        metric_ylabel = "Link Variation"
+        metric_ylabel = "Channel Variation"
     elif metric == "local_memory_area_coeff_var":
-        metric_ylabel = "Memory Aria Variation"
+        metric_ylabel = "Memory Area Variation"
     elif metric == "local_bus_freq_coeff_var":
         metric_ylabel = "NoC Frequency Variation"
     elif metric == "local_total_traffic_reuse_no_read_in_bytes_per_cluster_avg":
-        metric_ylabel = "Memory Reuse"
+        metric_ylabel = "Memory Reuse (Bytes)"
     elif metric == "avg_accel_parallelism":
-        metric_ylabel = "Average Accelerator Parallelism"
+        metric_ylabel = "Avg ALP"
     elif metric == "local_bus_avg_actual_bandwidth":
-        metric_ylabel = "Link Bandwidth"
+        metric_ylabel = "Link Bandwidth (Bytes/s)"
+    elif metric == "local_memory_total_area":
+        metric_ylabel = "Local Memory Area (mm2)"
+    elif metric == "local_total_traffic":
+        metric_ylabel = "Local Total Traffic (Bytes)"
     """
     Ying: adding finished
     """
@@ -2840,8 +2869,9 @@ def pandas_plots_for_paper(input_dir_names, all_results_files, metric):
             "area",
     ]
 
-    axis_font = {'size': "20"}
-    fig, ax = plt.subplots(1, figsize=(7, 7))   # Ying: add the figure size
+    axis_font = {'size': "26"}
+    fig, ax = plt.subplots(1, figsize=(6.8, 6.4))   # Ying: add the figure size
+    plt.figure(figsize=(6.8, 6.4))
     grouped_barplot_varying_x_for_paper(
             df,
             metric, metric_ylabel,
@@ -3513,9 +3543,9 @@ if __name__ == "__main__":
     case_studies["heterogeneity_var_system_compleixty"] = [
         "local_channel_count_per_bus_coeff_var",
         "loop_itr_ratio_var",
-        "cluster_pe_cnt_coeff_var"
+        # "cluster_pe_cnt_coeff_var"
     ]
-   
+    """
     case_studies["heterogeneity_std_system_compleixty"] = [
         "local_channel_count_per_bus_std",
         "loop_itr_ratio_std", "cluster_pe_cnt_std"
@@ -3588,7 +3618,7 @@ if __name__ == "__main__":
     case_studies["heterogenity_std_freq"] =[
         "local_memory_freq_std",
         "local_bus_freq_std",
-]
+    ]
 
 
 
@@ -3640,7 +3670,7 @@ if __name__ == "__main__":
 
         get_budget_optimality(experiment_full_addr_list, all_results_files, summary_res_column_name_number, a_e_h_summary_res_column_name_number)
 
-    if "cross_workloads" in config_plotting.plot_list:  # Ying: from for_paper/workload_awareness
+    if "cross_workloads" in config_plotting.plot_list:  # Ying: from for_paper/workload_awareness; or blind_study_smart_krnel_selection/blind_vs_arch_ware; or blind_study_dumb_kernel_selection/blind_vs_arch_aware
         # get column orders (assumption is that the column order doesn't change between experiments)
         if config_plotting.draw_for_paper:
             column_column_value_experiment_frequency_dict = plot_codesign_nav_breakdown_cross_workload_for_paper(
