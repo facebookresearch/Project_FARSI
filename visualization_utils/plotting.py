@@ -1269,14 +1269,14 @@ def plot_convergence_cross_workloads_for_paper(input_dir_names, res_column_name_
         for experiment_name, values in column_experiment_value[y_column_name].items():
             x_values = [el[0] for el in values[:-10]]
             y_values = [el[1] for el in values[:-10]]
-            print(experiment_name[-6:])
+            print(experiment_name)
             # Ying: hardcode here
-            if experiment_name[-6:] == "random":
-                labelName = "Blind"
-            else:
-                labelName = "Arch-aware"
+            # if experiment_name[-6:] == "random":
+            #     labelName = "Blind"
+            # else:
+            #     labelName = "Arch-aware"
             # Ying: hardcode finished
-            ax.scatter(x_values, y_values, label=labelName)
+            ax.scatter(x_values, y_values, label=experiment_name)
 
         #ax.set_title("experiment vs system implicaction")
         ax.set_yscale('log')
@@ -2746,7 +2746,7 @@ def grouped_barplot_varying_x_for_paper(df, metric, metric_ylabel, varying_x, va
 
     # print(grouped_bar_locs_list)  # Ying: comment out for WTF
 
-    color = ["red", "orange", "green"]
+    color = ["ForestGreen", "SkyBlue", "Plum"]
     legendLabel = ["Scale 1", "2", "4"]
     ctr = 0
     coloredLocList=[[], [], []]
@@ -2803,15 +2803,15 @@ def grouped_barplot_varying_x_for_paper(df, metric, metric_ylabel, varying_x, va
         cat_xticks.append(xticks_cat_mid)
         cat_xticklabels.append(varying_x_labels[x_i])   # Ying: the original code was: "\n\n" + varying_x_labels[x_i])
 
-    fontSize = 26
-    axis_font = {'size': '26'}
+    fontSize = 28
+    axis_font = {'size': '28'}
     xticks.extend(cat_xticks)
     xticklabels.extend(cat_xticklabels)
 
     ax.set_ylabel(metric_ylabel, fontsize=fontSize) # Ying: add fontsize
     #ax.set_xlabel(xlabel)
     ax.set_xticks(xticks)
-    ax.legend(legendLabel, bbox_to_anchor=(0.5, 1.25), loc="upper center", fontsize=fontSize, ncol=3) # Ying: test the way to add legends
+    ax.legend(legendLabel, bbox_to_anchor=(0.5, 1.35), loc="upper center", fontsize=fontSize-4, ncol=3) # Ying: test the way to add legends
     ax.set_xticklabels(xticklabels, fontsize=fontSize)  # Ying: add fontsize
 
     return ax
@@ -2869,7 +2869,8 @@ def pandas_plots_for_paper(input_dir_names, all_results_files, metric):
             "area",
     ]
 
-    axis_font = {'size': "26"}
+    axis_font = {'size': "28"}
+    plt.figure(figsize=(7, 6.4))
     fig, ax = plt.subplots(1, figsize=(7, 6.4))   # Ying: add the figure size
     grouped_barplot_varying_x_for_paper(
             df,
@@ -3584,7 +3585,7 @@ if __name__ == "__main__":
         "parallelism_first_speed_up_full_system",
         "parallelism_second_speed_up_full_system",
     ]
-    
+
 
 
 
@@ -3671,7 +3672,7 @@ if __name__ == "__main__":
 
         get_budget_optimality(experiment_full_addr_list, all_results_files, summary_res_column_name_number, a_e_h_summary_res_column_name_number)
 
-    if "cross_workloads" in config_plotting.plot_list:  # Ying: from for_paper/workload_awareness; or blind_study_smart_krnel_selection/blind_vs_arch_ware; or blind_study_dumb_kernel_selection/blind_vs_arch_aware
+    if "cross_workloads" in config_plotting.plot_list:  # Ying: from for_paper/workload_awareness; or blind_study_smart_krnel_selection/blind_vs_arch_ware; or blind_study_dumb_kernel_selection/blind_vs_arch_aware; or blind_study_all_dumb_versions/blind_vs_arch_aware
         # get column orders (assumption is that the column order doesn't change between experiments)
         if config_plotting.draw_for_paper:
             column_column_value_experiment_frequency_dict = plot_codesign_nav_breakdown_cross_workload_for_paper(
@@ -3684,7 +3685,7 @@ if __name__ == "__main__":
 
         for key, val in case_studies.items():
             case_study = {key:val}
-            plot_system_implication_analysis(experiment_full_addr_list, summary_res_column_name_number, case_study)
+            # plot_system_implication_analysis(experiment_full_addr_list, summary_res_column_name_number, case_study)
         plot_co_design_nav_breakdown_post_processing(experiment_full_addr_list, column_column_value_experiment_frequency_dict)
         if config_plotting.draw_for_paper:
             plot_codesign_rate_efficacy_cross_workloads_updated_for_paper(experiment_full_addr_list, all_res_column_name_number)
