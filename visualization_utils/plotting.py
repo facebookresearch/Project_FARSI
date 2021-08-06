@@ -1155,6 +1155,7 @@ def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
         # get all possible the values of interest
         y_column_number = res_column_name_number[y_column_name]
         #x_column_number = res_column_name_number[x_column_name]
+        ctr = 0
 
         column_experiment_value[y_column_name] = {}
         # initialize the dictionary
@@ -1162,7 +1163,7 @@ def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
         for file_full_addr in file_full_addr_list:
             with open(file_full_addr, newline='') as csvfile:
                 resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
-                experiment_name = get_experiments_name( file_full_addr, res_column_name_number)
+                experiment_name = get_experiments_name( file_full_addr, res_column_name_number) +str(ctr)
                 column_experiment_value[y_column_name][experiment_name] = []
 
                 for i, row in enumerate(resultReader):
@@ -1171,6 +1172,7 @@ def plot_convergence_cross_workloads(input_dir_names, res_column_name_number):
                     if i >= 1:
                         value_to_add = (i, max(float(row[y_column_number]),.01))
                         column_experiment_value[y_column_name][experiment_name].append(value_to_add)
+            ctr +=1
 
         # prepare for plotting and plot
         fig = plt.figure()
