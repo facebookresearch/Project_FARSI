@@ -6,6 +6,7 @@ import copy
 import csv
 import os
 import matplotlib.pyplot as plt
+import matplotlib
 import pandas as pd
 import numpy as np
 import shutil
@@ -959,6 +960,14 @@ def plot_3d(input_dir_names, res_column_name_number):
 
 
 def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
+    budget_alpha = 1
+    non_optimization_alpha = .1
+    budget_marker = "_"
+    regu_marker = "."
+    budget_marker_size = 4
+    regu_marker_size = 1
+
+
     #itrColNum = all_res_column_name_number["iteration cnt"]
     #distColNum = all_res_column_name_number["dist_to_goal_non_cost"]
     trueNum  =  all_res_column_name_number["move validity"]
@@ -974,34 +983,54 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
         experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
         experiment_names.append(experiment_name)
 
-    color_values = ["r","b","y","black","brown","purple"]
+    #color_values = ["r","b","y","black","brown","purple"]
+    color_values = {}
+    color_values["latency_edge_detection"] = color_values["best_des_so_far_latency_edge_detection"] =color_values["latency_budget_edge_detection"] = matplotlib.colors.to_rgba("red")
+    color_values["latency_hpvm_cava"] =color_values["best_des_so_far_latency_hpvm_cava"] = color_values["latency_budget_hpvm_cava"] = matplotlib.colors.to_rgba("magenta")
+    color_values["latency_audio_decoder"] = color_values["best_des_so_far_latency_audio_decoder"] =color_values["latency_budget_audio_decoder"] = matplotlib.colors.to_rgba("orange")
+    color_values["area_non_dram"] =color_values["best_des_so_far_area_non_dram"] = color_values["area_budget"] =  matplotlib.colors.to_rgba("forestgreen")
+    color_values["brown"] = (1,0,0,1)
+    color_values["power"] = color_values["best_des_so_far_power"] =color_values["power_budget"] = matplotlib.colors.to_rgba("mediumblue")
+
+    color_values["latency_budget_edge_detection"] = matplotlib.colors.to_rgba("white")
+    color_values["latency_budget_hpvm_cava"] = matplotlib.colors.to_rgba("white")
+    color_values["latency_budget_audio_decoder"] = matplotlib.colors.to_rgba("white")
+    color_values["area_budget"] =  matplotlib.colors.to_rgba("white")
+    color_values["power_budget"] = matplotlib.colors.to_rgba("white")
+
+
+
     column_name_color_val_dict = {"best_des_so_far_power":"purple", "power_budget":"purple","best_des_so_far_area_non_dram":"blue", "area_budget":"blue",
                                   "latency_budget_hpvm_cava":"orange", "latency_budget_audio_decoder":"yellow", "latency_budget_edge_detection":"red",
                                   "best_des_so_far_latency_hpvm_cava":"orange", "best_des_so_far_latency_audio_decoder": "yellow","best_des_so_far_latency_edge_detection": "red",
                                   "latency_budget":"white"
                                   }
 
+
+
+    """
     column_name_color_val_dict = {"power":"purple", "power_budget":"purple","area_non_dram":"blue", "area_budget":"blue",
                                   "latency_budget_hpvm_cava":"orange", "latency_budget_audio_decoder":"yellow", "latency_budget_edge_detection":"red",
                                   "latency_hpvm_cava":"orange", "latency_audio_decoder": "yellow","latency_edge_detection": "red",
                                   "latency_budget":"white"
                                   }
-
+    """
 
     axis_font = {'size': '20'}
     fontSize = 20
     x_column_name = "iteration cnt"
-    y_column_name_list = ["power", "area_non_dram", "latency", "latency_budget", "power_budget","area_budget"]
+    #y_column_name_list = ["power", "area_non_dram", "latency", "latency_budget", "power_budget","area_budget"]
+    y_column_name_list = ["power", "area_non_dram", "latency"]
 
     experiment_column_value = {}
     for file_full_addr in file_full_addr_list:
         experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
         experiment_column_value[experiment_name] = {}
         for y_column_name in y_column_name_list:
-            if "budget"  in y_column_name or True:
+            if "budget"  in y_column_name :
                 prefix = ""
             else:
-                prefix = "des_so_far_"
+                prefix = "best_des_so_far_"
             y_column_name = prefix+y_column_name
             y_column_number = res_column_name_number[y_column_name]
             x_column_number = res_column_name_number[x_column_name]
@@ -1020,10 +1049,12 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
                             continue
                         metric_chosen  = row[res_column_name_number["transformation_metric"]]
                         workload_chosen  = row[res_column_name_number["workload"]]
-                        if metric_chosen in y_column_name and "budget" not in y_column_name:
+                        if "budget" in y_column_name:
+                            alpha = budget_alpha
+                        elif metric_chosen in y_column_name :
                             alpha = 1
                         else:
-                            alpha = .3
+                            alpha = non_optimization_alpha
 
                         col_value = row[y_column_number]
                         if ";" in col_value:
@@ -1031,10 +1062,12 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
                         col_values = col_value.split(";")
                         for col_val in col_values:
                             if "=" in col_val:
-                                if workload_chosen in col_val:
+                                if "budget" in y_column_name:
+                                    alpha = budget_alpha
+                                elif workload_chosen in col_val:
                                     alpha = 1
                                 else:
-                                    alpha = .3
+                                    alpha = non_optimization_alpha
                                 val_splitted = col_val.split("=")
                                 value_to_add = (float(row[x_column_number]), (val_splitted[0], val_splitted[1]), alpha)
                             else:
@@ -1056,18 +1089,33 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
             fig = plt.figure(figsize=(15, 8))
             ax = fig.add_subplot(111)
             for column, values in experiment_column_value[experiment_name].items():
+                if "budget" in column:
+                    marker = budget_marker
+                    marker_size = budget_marker_size
+                else:
+                    marker = regu_marker
+                    marker_size =regu_marker_size
+
                 x_values = [el[0] for el in values]
                 y_values = [el[1] for el in values]
-                alphas = [el[2] for el in values]
+                colors = []
+                for el in values:
+                    color_ = list(color_values[column])
+                    color_[-1] = el[2]
+                    colors.append(tuple(color_))
+                #alphas = [el[2] for el in values]
                 ax.set_yscale('log')
 
                 if "budget" in column:
-                    marker = 'x'
+                    marker = '_'
                     #alpha_ = .3
                 else:
-                    marker = "."
+                    marker = "x"
                     #alpha_ = 1
-                ax.plot(x_values, y_values, label=column, c=column_name_color_val_dict[column], marker=marker, alpha=alphas)
+                for i,x in enumerate(x_values):
+
+                    ax.plot(x_values[i], y_values[i], label=column, color=colors[i], marker=marker, markersize=marker_size)
+
 
             #ax.set_title("experiment vs system implicaction")
             ax.set_xlabel(x_column_name, fontsize=fontSize)
