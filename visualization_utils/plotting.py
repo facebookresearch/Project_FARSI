@@ -1155,7 +1155,7 @@ def plot_convergence_vs_time(input_dir_names, res_column_name_number):
                 ax.scatter(x_values, y_values, label="PA time to completion", marker="*")
                 ax.set_xscale('log')
 
-               #ax.set_title("experiment vs system implicaction")
+                #ax.set_title("experiment vs system implicaction")
                 ax.legend(loc="upper right")#bbox_to_anchor=(1, 1), loc="upper left")
                 ax.set_xlabel(x_column_name, fontsize=fontSize)
                 ax.set_ylabel(y_column_name, fontsize=fontSize)
@@ -1380,7 +1380,7 @@ def plot_convergence_cross_workloads_for_paper(input_dir_names, res_column_name_
 
             ctr +=1
         # prepare for plotting and plot
-        fig = plt.figure(figsize=(6.4, 6.4))
+        fig = plt.figure(figsize=(7.5, 6.4))
         plt.rc('font', **axis_font)
         ax = fig.add_subplot(111)
         #plt.tight_layout()
@@ -1790,7 +1790,7 @@ def plot_codesign_nav_breakdown_cross_workload_for_paper(input_dir_names, input_
             """
             if column_name == "transformation_block_type":
                 if column == "ic":
-                    column = "IC"
+                    column = "NoC"
                 elif column == "mem":
                     column = "Mem"
                 elif column == "pe":
@@ -1803,6 +1803,8 @@ def plot_codesign_nav_breakdown_cross_workload_for_paper(input_dir_names, input_
                     column = "TLP"
                 elif column == "loop_level_parallelism":
                     column = "LLP"
+                elif column == "customization":
+                    column = "Customization"
             """
             Ying: adding finished
             """
@@ -1831,7 +1833,7 @@ def plot_codesign_nav_breakdown_cross_workload_for_paper(input_dir_names, input_
                     """
                     if column_name == "transformation_block_type":
                         if column_value == "ic":
-                            column_value = "IC"
+                            column_value = "NoC"
                         elif column_value == "mem":
                             column_value = "Mem"
                         elif column_value == "pe":
@@ -1844,6 +1846,8 @@ def plot_codesign_nav_breakdown_cross_workload_for_paper(input_dir_names, input_
                             column_value = "TLP"
                         elif column_value == "loop_level_parallelism":
                             column_value = "LLP"
+                        elif column_value == "customization":
+                            column_value = "Customization"
                     """
                     Ying: adding finished
                     """
@@ -1874,7 +1878,7 @@ def plot_codesign_nav_breakdown_cross_workload_for_paper(input_dir_names, input_
                                     """
                                     if column_name == "transformation_block_type":
                                         if col_val == "ic":
-                                            col_val = "IC"
+                                            col_val = "NoC"
                                         elif col_val == "mem":
                                             col_val = "Mem"
                                         elif col_val == "pe":
@@ -1887,6 +1891,8 @@ def plot_codesign_nav_breakdown_cross_workload_for_paper(input_dir_names, input_
                                             col_val = "TLP"
                                         elif col_val == "loop_level_parallelism":
                                             col_val = "LLP"
+                                        elif col_val == "customization":
+                                            col_val = "Customization"
                                     """
                                     Ying: adding finished
                                     """
@@ -1911,26 +1917,27 @@ def plot_codesign_nav_breakdown_cross_workload_for_paper(input_dir_names, input_
         # plt.figure(figsize=(6, 6))
         index = experiment_names
         plotdata = pd.DataFrame(column_value_experiment_frequency_dict, index=index)
-        plotdata.plot(kind='bar', stacked=True, figsize=(8, 8))
+        plotdata.plot(kind='bar', stacked=True, figsize=(6, 6.6)) # Ying: (6, 7) for arch principle
         plt.rc('font', **axis_font)
         plt.xlabel("Workloads", **axis_font)
         # plt.ylabel(column_name, **axis_font)  # Ying: replace with the following lines
         """
         Ying: set the ylabel acordingly
         """
-        if column_name != "comm_comp":
-            if column_name == "architectural principle" or column_name == "comm_comp":
-                plt.ylabel("Iteration Count", **axis_font)
-            else:
-                plt.ylabel("Normalized Iteration Portion", **axis_font)
+        if column_name == "architectural principle" or column_name == "comm_comp":
+            plt.ylabel("Iteration Count", **axis_font)
+        else:
+            plt.ylabel("Normalized Iteration Portion", **axis_font)
         """
         Ying: adding finished
         """
         plt.xticks(fontsize=fontSize, rotation=0)   # Ying: the original one was 45)
         plt.yticks(fontsize=fontSize)
+        if column_name == "architectural principle" or column_name == "comm_comp":
+            plt.yticks(np.arange(0, 200, 25.0), fontsize=fontSize)  # Ying: change according to the graph ("architectural principle", "comm_comp")
         # plt.title("experiment vs " + column_name, **axis_font)    # Ying: comment it out as discussed
         # plt.legend(bbox_to_anchor=(1, 1), loc='upper left', fontsize=fontSize)    # Ying: replaced with the following line
-        plt.legend(bbox_to_anchor=(0.5, 1.15), loc='upper center', fontsize=fontSize, ncol=3)
+        plt.legend(bbox_to_anchor=(0.45, 1.3), loc='upper center', fontsize=fontSize, ncol=2, borderpad=0) # Ying: change according to the graph ("architectural principle", "comm_comp", "Normalized Iteration Portion")
         # dump in the top folder
         output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
         output_dir = os.path.join(output_base_dir, "cross_workloads/nav_breakdown")
@@ -3621,6 +3628,388 @@ def get_budget_optimality(input_dir_names,all_result_files, reg_summary_res_colu
     #plt.show()
     plt.close('all')
 
+def get_budget_optimality_for_paper(input_dir_names,all_result_files, reg_summary_res_column_name_number, a_e_h_summary_res_column_name_number):
+    #methodology 1:
+    e = {"power":0.00211483379112716, "area":0.00000652737916}
+    a = {"power": 0.00133071013064968, "area":0.0000048380066802}
+    hc = {"power": 0.000471573339922609, "area":0.0000019979449678}
+    e_budget = {"power":0.00190575, "area":0.0000038115}
+    a_budget = {"power":0.0015485, "area":0.0000030975}
+    hc_budget = {"power":0.001005, "area":0.00000201}
+
+
+    e_dis_budget = {"power":0, "area":0}
+    a_dis_budget = {"power":0, "area":0}
+    hc_dis_budget = {"power":0, "area":0}
+
+    for el in e_dis_budget.keys():
+        e_dis_budget[el] = (e_budget[el]-e[el])/e[el]
+
+    for el in a_dis_budget.keys():
+        a_dis_budget[el] = (a_budget[el]-a[el])/a[el]
+
+    for el in hc_dis_budget.keys():
+        hc_dis_budget[el] = (hc_budget[el]-hc[el])/hc[el]
+
+
+
+
+
+    combined_design_methodology_A = {"power":0, "area":0}
+    for el in e.keys() :
+        combined_design_methodology_A[el] += e[el]
+    for el in a.keys() :
+        combined_design_methodology_A[el] += e[el]
+    for el in hc.keys() :
+        combined_design_methodology_A[el] += e[el]
+
+
+    def get_equivalent_total(charac):
+        if charac == "ips_avg_freq":
+            return "ip_cnt"
+        if charac == "cluster_pe_cnt_avg":
+            return "ip_cnt"
+        elif charac == "avg_accel_parallelism":
+            return "ip_cnt"
+        elif charac in ["local_memory_avg_freq"]:
+            return "local_mem_cnt"
+        elif charac in ["local_bus_avg_actual_bandwidth", "local_bus_avg_theoretical_bandwidth", "local_bus_avg_bus_width", "avg_freq"]:
+            return "local_bus_count"
+        else:
+            return charac
+
+    def find_sys_char(power,area, results_with_sys_char):
+        for vals in results_with_sys_char:
+            for power_area , sys_chars in vals.items():
+                power_ = power_area[0]
+                area_ = power_area[1]
+                if power == power_ and area_ == area:
+                    return sys_chars
+
+    def points_exceed_one_of_the_budgets(point, base_budget, budget_scaling_to_consider):
+        power = point[0]
+        area = point[1]
+        if power > base_budgets["power"] * budget_scale_to_consider and area > base_budgets[
+            "area"] * budget_scale_to_consider:
+            return True
+        return False
+
+
+    workload_results = {}
+    results_with_sys_char = []
+
+    system_char_to_keep_track_of = {"memory_total_area", "local_memory_total_area","pe_total_area", "ip_cnt","ips_total_area", "ips_avg_freq",  "local_mem_cnt",
+                                    "local_bus_avg_actual_bandwidth", "local_bus_avg_theoretical_bandwidth", "local_memory_avg_freq", "local_bus_count", "local_bus_avg_bus_width", "avg_freq", "local_total_traffic",
+                                    "global_total_traffic","local_memory_avg_freq", "global_memory_avg_freq", "gpps_total_area", "avg_gpp_parallelism", "avg_accel_parallelism", "channel_cnt",
+                                   "local_total_traffic_reuse_with_read_in_bytes",
+                                    }
+    system_char_to_keep_track_of = {"ip_cnt"
+                                    }
+    #system_char_to_show = ["local_memory_total_area"]
+    #system_char_to_show = ["avg_accel_parallelism"]
+    #system_char_to_show = ["avg_gpp_parallelism"]
+    #system_char_to_show = ["local_bus_avg_actual_bandwidth"]
+    #system_char_to_show = ["avg_freq"]  # really is buses avg freq
+    #system_char_to_show = ["local_memory_avg_freq"]  # really is buses avg freq
+    #system_char_to_show = ["ips_avg_freq"]
+    #system_char_to_show = ["gpps_total_area"]
+    #system_char_to_show = ["local_bus_avg_bus_width"]
+    #system_char_to_show = ["local_memory_avg_freq"]
+    #system_char_to_show = ["ips_total_area"]
+    system_char_to_show = ["ip_cnt"]
+    #system_char_to_show = ["local_mem_cnt"]
+    #system_char_to_show = ["global_memory_avg_freq"]
+    #system_char_to_show = ["local_bus_avg_theoretical_bandwidth"]
+    #system_char_to_show = ["local_memory_avg_freq"]
+    #system_char_to_show = ["local_total_traffic"]
+    #system_char_to_show = ["global_total_traffic"]
+    #system_char_to_show = ["local_total_traffic_reuse_with_read_in_bytes"]
+    #system_char_to_show = ["local_bus_count"]
+    #system_char_to_show = ["cluster_pe_cnt_avg"]
+    #system_char_to_show = ["ip_cnt"]
+    #system_char_to_show = ["channel_cnt"]
+
+    # budget scaling to consider
+    budget_scale_to_consider = .5
+    # get budget first
+    base_budgets = {}
+    """
+    for file in all_result_files:
+        with open(file, newline='') as csvfile:
+            if not ("a_e_h"  in file and "lat_1__pow_1__area_1" in file):
+                continue
+            resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+            for i, row in enumerate(resultReader):
+                if i == 1:
+                    print("file"+file)
+                    if float(row[reg_summary_res_column_name_number["budget_scaling_latency"]]) == 1 and\
+                            float(row[reg_summary_res_column_name_number["budget_scaling_power"]]) == 1 and \
+                            float(row[reg_summary_res_column_name_number["budget_scaling_area"]]) == 1:
+                        base_budgets["power"] = float(row[summary_res_column_name_number["power_budget"]])
+                        base_budgets["area"] = float(row[summary_res_column_name_number["area_budget"]])
+                        break
+    """
+    base_budgets = {"power":.008738,"area":.000017475}
+
+    for file in all_result_files:
+        if "a_e_h" in file and "lat_1__pow_1__area_1" in file:
+            continue
+        if ("a_e_h" in file):
+            summary_res_column_name_number = a_e_h_summary_res_column_name_number
+        else:
+            summary_res_column_name_number = reg_summary_res_column_name_number
+
+        with open(file, newline='') as csvfile:
+            resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+            for i, row in enumerate(resultReader):
+                if i == 1:
+                    workload_set_name = row[summary_res_column_name_number["workload_set"]]
+                    if workload_set_name not in workload_results.keys():
+                        workload_results[workload_set_name] = []
+                    latency = ((row[summary_res_column_name_number["latency"]].split(";"))[0].split("="))[1]
+                    latency_budget = ((row[summary_res_column_name_number["latency_budget"]].split(";"))[0].split("="))[1]
+                    if float(latency)  > float(latency_budget):
+                        continue
+
+                    power = float(row[summary_res_column_name_number["power"]])
+                    area = float(row[summary_res_column_name_number["area"]])
+
+                    system_complexity = row[summary_res_column_name_number["ip_cnt"]] # + row[summary_res_column_name_number["gpp_cnt"]]
+                    #workload_results[workload_set_name].append((float(power),float(area), float(system_complexity)))
+                    workload_results[workload_set_name].append((power,area))
+                    system_char = {}
+                    for el in system_char_to_keep_track_of:
+                        #if "latency" == el:
+                        #    system_char[el] = row[summary_res_column_name_number[el]]
+                        #else:
+                        system_char[el] = float(row[summary_res_column_name_number[el]])
+                        system_char["file"] = file
+                    point_system_char = {(power, area): system_char}
+                    results_with_sys_char.append(point_system_char)
+
+
+
+    workload_pareto_points = {}
+    for workload, points in workload_results.items():
+        workload_pareto_points[workload] = find_pareto_points(list(set(points)))
+
+    """" 
+    # combine the results
+    combined_area_power = []
+    for results_combined in itertools.product(*list(workload_pareto_points.values())):
+        combined_power_area_tuple = [0,0]
+        for el in results_combined:
+            combined_power_area_tuple[0] += el[0]
+            combined_power_area_tuple[1] += el[1]
+        combined_area_power.append(combined_power_area_tuple[:])
+    """
+
+
+    all_points_in_isolation = []
+    all_points_cross_workloads = []
+
+    workload_in_isolation = {}
+    for workload, points in workload_results.items():
+        if "cava" in workload and "audio" in workload and "edge_detection" in workload:
+            for point in points:
+                all_points_cross_workloads.append(point)
+        else:
+            workload_in_isolation[workload] = points
+
+
+    ctr = 0
+    workload_in_isolation_pareto = {}
+    for workload, points in workload_in_isolation.items():
+        optimal_points = find_pareto_points(list(set(points)))
+        workload_in_isolation_pareto[workload] = optimal_points
+        #workload_in_isolation_pareto[workload] = points  # show all points instead
+
+
+    combined_area_power_in_isolation= []
+    combined_area_power_in_isolation_with_sys_char = []
+
+    s = time.time()
+    for results_combined in itertools.product(*list(workload_in_isolation_pareto.values())):
+        # add up all the charactersitics
+        combined_sys_chars = {}
+
+        system_char_to_keep_track_of.add("file")
+        for el in system_char_to_keep_track_of:
+            if el =="file":
+                combined_sys_chars[el] = []
+            else:
+                combined_sys_chars[el] = (0,0)
+
+        # add up area,power
+        combined_power_area_tuple = [0,0]
+        for el in results_combined:
+            combined_power_area_tuple[0] += el[0]
+            combined_power_area_tuple[1] += el[1]
+
+            sys_char = find_sys_char(el[0], el[1], results_with_sys_char)
+            for el_,val_ in sys_char.items():
+                if el_ == "file":
+                    combined_sys_chars[el_].append(val_)
+                    continue
+
+                if "avg" in el_:
+                    total = sys_char[get_equivalent_total(el_)]
+                    coeff = total
+                else:
+                    coeff = 1
+                #if "latency" in el_:
+                #    combined_sys_chars[el_] = (combined_sys_chars[el_][0]+coeff, str(combined_sys_chars[el_][1])+"_"+val_)
+                #else:
+                combined_sys_chars[el_] = (combined_sys_chars[el_][0]+coeff, combined_sys_chars[el_][1]+coeff*float(val_))
+
+        for key, values in combined_sys_chars.items():
+            if "avg" in key:
+                combined_sys_chars[key] = values[1] /max(values[0],.00000000000000000000000000000001)
+            elif "file" in key:
+                combined_sys_chars[key] = values
+            else:
+                combined_sys_chars[key] = values[1]
+
+        if float(combined_sys_chars[system_char_to_show[0]]) == 53675449.0:
+            for f in  combined_sys_chars["file"]:
+                print("/".join(f.split("/")[:-2])+"./runs/0/system_image.dot")
+        #if float(combined_sys_chars[system_char_to_show[0]]) == 53008113:
+
+        #combined_area_power_in_isolation.append((combined_power_area_tuple[0],combined_power_area_tuple[1], combined_power_area_tuple[2]))
+        combined_area_power_in_isolation.append((combined_power_area_tuple[0],combined_power_area_tuple[1]))
+        combined_area_power_in_isolation_with_sys_char.append({(combined_power_area_tuple[0],combined_power_area_tuple[1]): combined_sys_chars})
+
+        #if len(combined_area_power_in_isolation)%100000 == 0:
+        #    print("time passed is" + str(time.time()-s))
+
+    combined_area_power_in_isolation_filtered = []
+    for point in combined_area_power_in_isolation:
+        if not points_exceed_one_of_the_budgets(point, base_budgets, budget_scale_to_consider):
+            combined_area_power_in_isolation_filtered.append(point)
+    combined_area_power_pareto = find_pareto_points(list(set(combined_area_power_in_isolation_filtered)))
+
+
+    all_points_cross_workloads_filtered = []
+    for point in all_points_cross_workloads:
+        if not points_exceed_one_of_the_budgets(point, base_budgets, budget_scale_to_consider):
+            all_points_cross_workloads_filtered.append(point)
+    all_points_cross_workloads_area_power_pareto = find_pareto_points(list(set(all_points_cross_workloads_filtered)))
+
+
+    # prepare for plotting and plot
+    fig = plt.figure(figsize=(7.5, 7.5))
+    axis_font = {'size':'30'}
+    fontSize = 30
+    plt.rc('font', **axis_font)
+    ax = fig.add_subplot(111)
+    # ax.set_xscale('log')
+
+    x_values = [(el[0]) for el in combined_area_power_in_isolation_filtered]
+    y_values = [(el[1]) for el in combined_area_power_in_isolation_filtered]
+    x_values.reverse()
+    y_values.reverse()
+    ax.scatter(x_values, y_values, label="Myopic Opt",marker="+", color='gold', alpha=1, s=700)
+
+
+    # plt.tight_layout()
+    x_values = [(el[0]) for el in combined_area_power_pareto]
+    y_values = [(el[1]) for el in combined_area_power_pareto]
+    x_values.reverse()
+    y_values.reverse()
+    ax.scatter(x_values, y_values, label="Myopic Opt Pareto Front",marker="+", color='darkorange', alpha=0.8, s=700)
+    # for idx, _ in enumerate(x_values) :
+    #     power= x_values[idx]
+    #     area = y_values[idx]
+    #     sys_char = find_sys_char(power, area, combined_area_power_in_isolation_with_sys_char)
+    #
+    #     value_to_show = 0
+    #     value_to_show  = sys_char[system_char_to_show[0]]
+    #     #for el in system_char_to_show:
+    #     #    value_to_show += sys_char[el]
+    #
+    #     #if system_char_to_show[0] == "latency":
+    #     #    value_in_scientific_notation = value_to_show
+    #     #else:
+    #     #value_to_show = sys_char["local_total_traffic"]/(sys_char["local_memory_total_area"]*4*10**12)
+    #     value_in_scientific_notation = "{:.10e}".format(value_to_show)
+    #     value_in_scientific_notation = value_to_show
+    #     #if idx ==0:
+    #
+    #     #plt.text(power,area, value_in_scientific_notation)
+
+
+    x_values = [(el[0]) for el in all_points_cross_workloads_filtered]
+    y_values = [(el[1]) for el in all_points_cross_workloads_filtered]
+    x_values.reverse()
+    y_values.reverse()
+    ax.scatter(x_values, y_values, label="FARSI",marker="*", color='limegreen', alpha=1, s=700)
+    # ax.legend(loc="upper right")  # bbox_to_anchor=(1, 1), loc="upper left")
+    # for idx, _ in enumerate(x_values) :
+    #     power= x_values[idx]
+    #     area = y_values[idx]
+    #     sys_char = find_sys_char(power, area, results_with_sys_char)
+    #
+    #     value_to_show = 0
+    #     value_to_show  = sys_char[system_char_to_show[0]]
+    #     #for el in system_char_to_show:
+    #     #    value_to_show += sys_char[el]
+    #
+    #     #if system_char_to_show[0] == "latency":
+    #     #    value_in_scientific_notation = value_to_show
+    #     #else:
+    #     #value_to_show = sys_char["local_total_traffic"]/(sys_char["local_memory_total_area"]*4*10**12)
+    #     value_in_scientific_notation = "{:.2e}".format(value_to_show)
+    #
+    #     #plt.text(power,area, value_in_scientific_notation)
+    #     #plt.text(power,area, value_in_scientific_notation)
+
+
+
+    x_values = [(el[0]) for el in all_points_cross_workloads_area_power_pareto]
+    y_values = [(el[1]) for el in all_points_cross_workloads_area_power_pareto]
+    x_values.reverse()
+    y_values.reverse()
+    ax.scatter(x_values, y_values, label="FARSI Pareto Front",marker="*", color='darkgreen', alpha=0.8, s=700)
+
+    # for idx, _ in enumerate(x_values) :
+    #     # power= x_values[idx]
+    #     # area = y_values[idx]
+    #     # sys_char = find_sys_char(power, area, results_with_sys_char)
+    #     #
+    #     # value_to_show = sys_char[system_char_to_show[0]]
+    #     #
+    #     # #if system_char_to_show[0] == "latency":
+    #     # #    value_in_scientific_notation = value_to_show
+    #     # #else:
+    #     # #value_to_show = sys_char["local_total_traffic"]/sys_char["local_memory_total_area"]
+    #     # #value_to_show = sys_char["local_total_traffic"]/(sys_char["local_memory_total_area"]*4*10**12)
+    #     # value_in_scientific_notation = "{:.2e}".format(value_to_show)
+    #     #
+    #     # #plt.text(power,area, value_in_scientific_notation)
+
+    # ax.set_xticks(np.arange(0.002, 0.009, 0.002))
+
+    ax.set_xlabel("Power (W)", fontsize=fontSize)
+    ax.set_ylabel("Area (mm2)", fontsize=fontSize)
+
+
+    # dump in the top folder
+    output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+    output_dir = os.path.join(output_base_dir, "budget_optimality/")
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+
+    ax.scatter(combined_design_methodology_A["power"], combined_design_methodology_A["area"], label="Myopic Budgetting",marker="x", color='red', s=700)
+    ax.legend(loc="upper left", fontsize=fontSize-2, bbox_to_anchor=(0.98, 0.98), borderpad=0)  # bbox_to_anchor=(1, 1), loc="upper left")
+    # ax.set_title(system_char_to_show[0] +" for FARSI vs in isolation")
+    #ax.set_title("memory_reuse for FARSI vs in isolation")
+    plt.tight_layout()
+    fig.savefig(os.path.join(output_dir, system_char_to_show[0] + "_budget_optimality.png"), bbox_inches='tight')
+
+
+    #plt.show()
+    plt.close('all')
 
 def find_pareto_points(points):
     efficients = is_pareto_efficient_dumb(np.array(points))
@@ -3841,16 +4230,19 @@ if __name__ == "__main__":
 
 
 
-    if "budget_optimality" in config_plotting.plot_list:
+    if "budget_optimality" in config_plotting.plot_list:    # Ying: optimal_budgetting_problem_08_1
         #get_budget_optimality_advanced(experiment_full_addr_list, all_results_files, summary_res_column_name_number)
 
         for el in  experiment_full_addr_list:
             if "a_e_h" in el and not "lat_1__pow_1__area_1" in el:
                 a_e_h_summary_res_column_name_number = get_column_name_number(el, "simple")
 
-        get_budget_optimality(experiment_full_addr_list, all_results_files, summary_res_column_name_number, a_e_h_summary_res_column_name_number)
+        if config_plotting.draw_for_paper:
+            get_budget_optimality_for_paper(experiment_full_addr_list, all_results_files, summary_res_column_name_number, a_e_h_summary_res_column_name_number)
+        else:
+            get_budget_optimality(experiment_full_addr_list, all_results_files, summary_res_column_name_number, a_e_h_summary_res_column_name_number)
 
-    if "cross_workloads" in config_plotting.plot_list:  # Ying: from for_paper/workload_awareness; or blind_study_smart_krnel_selection/blind_vs_arch_ware; or blind_study_dumb_kernel_selection/blind_vs_arch_aware; or blind_study_all_dumb_versions/blind_vs_arch_aware
+    if "cross_workloads" in config_plotting.plot_list:  # Ying: from for_paper/workload_awareness (PE, Mem, IC, TLP, comm_comp); or blind_study_smart_krnel_selection/blind_vs_arch_ware; or blind_study_dumb_kernel_selection/blind_vs_arch_aware; or blind_study_all_dumb_versions/blind_vs_arch_aware (T.B.M blind)
         # get column orders (assumption is that the column order doesn't change between experiments)
         if config_plotting.draw_for_paper:
             column_column_value_experiment_frequency_dict = plot_codesign_nav_breakdown_cross_workload_for_paper(
