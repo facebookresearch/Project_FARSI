@@ -1133,7 +1133,87 @@ def plot_convergence_per_workloads_for_paper(input_dir_names, res_column_name_nu
             # plt.show()
             plt.close('all')
 
+
+def get_budget_values(input_dir_names, res_column_name_number):
+    experiment_names = []
+    file_full_addr_list = []
+    for dir_name in input_dir_names:
+        file_full_addr = os.path.join(dir_name, "result_summary/FARSI_simple_run_0_1_all_reults.csv")
+        file_full_addr_list.append(file_full_addr)
+        experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
+        experiment_names.append(experiment_name)
+
+    x_column_name = "iteration cnt"
+    trueNum = all_res_column_name_number["move validity"]
+    move_name_number = all_res_column_name_number["move name"]
+
+    y_column_name_list = ["latency_budget", "power_budget","area_budget"]
+    experiment_column_value = {}
+    budgets = {}
+    for file_full_addr in file_full_addr_list:
+        experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
+        experiment_column_value[experiment_name] = {}
+        for y_column_name in y_column_name_list:
+            if "budget"  in y_column_name :
+                prefix = ""
+            else:
+                prefix = "best_des_so_far_"
+            y_column_name = prefix+y_column_name
+            y_column_number = res_column_name_number[y_column_name]
+            x_column_number = res_column_name_number[x_column_name]
+            #dis_to_goal_column_number = res_column_name_number["dist_to_goal_non_cost"]
+            #ref_des_dis_to_goal_column_number = res_column_name_number["ref_des_dist_to_goal_non_cost"]
+
+            if not y_column_name == prefix+"latency":
+                experiment_column_value[experiment_name][y_column_name] = []
+
+
+            with open(file_full_addr, newline='') as csvfile:
+                resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+                for i, row in enumerate(resultReader):
+                    if i > 1:
+                        if row[trueNum] == "FALSE" or row[move_name_number]=="identity":
+                            continue
+                        metric_chosen  = row[res_column_name_number["transformation_metric"]]
+                        workload_chosen  = row[res_column_name_number["workload"]]
+
+                        col_value = row[y_column_number]
+                        if ";" in col_value:
+                            col_value = col_value[:-1]
+                        col_values = col_value.split(";")
+                        for col_val in col_values:
+                            alpha = 1
+                            if "=" in col_val:
+                                val_splitted = col_val.split("=")
+                                value_to_add = (float(row[x_column_number]), (val_splitted[0], val_splitted[1]), alpha)
+                            else:
+                                value_to_add = (float(row[x_column_number]), col_val, alpha)
+
+                            if y_column_name in [prefix+"latency", prefix+"latency_budget"] :
+                                new_tuple = (value_to_add[0], 1000*float(value_to_add[1][1]), value_to_add[2])
+                                if y_column_name+"_"+value_to_add[1][0] not in experiment_column_value[experiment_name].keys():
+                                    experiment_column_value[experiment_name][y_column_name + "_" + value_to_add[1][0]] = []
+                                experiment_column_value[experiment_name][y_column_name+"_"+value_to_add[1][0]].append(new_tuple)
+                            if y_column_name in [prefix+"power", prefix+"power_budget"]:
+                               new_tuple = (value_to_add[0], float(value_to_add[1])*1000, value_to_add[2])
+                               experiment_column_value[experiment_name][y_column_name].append(new_tuple)
+                            elif y_column_name in [prefix+"area_non_dram", prefix+"area_budget"]:
+                                new_tuple = (value_to_add[0], float(value_to_add[1]) * 1000000, value_to_add[2])
+                                experiment_column_value[experiment_name][y_column_name].append(new_tuple)
+
+            for column, values in experiment_column_value[experiment_name].items():
+                if len(values) == 0:
+                    continue
+                x_values = [el[0] for el in values]
+                budgets[column] = values[1][1]
+
+        return budgets
+
+
 def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
+
+    budgets = get_budget_values(input_dir_names, res_column_name_number)
+
     budget_alpha = 1
     non_optimization_alpha = .1
     budget_marker = "_"
@@ -1248,15 +1328,18 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
                                 value_to_add = (float(row[x_column_number]), col_val, alpha)
 
                             if y_column_name in [prefix+"latency", prefix+"latency_budget"] :
-                                new_tuple = (value_to_add[0], 1000*float(value_to_add[1][1]), value_to_add[2])
+                                budget = budgets["latency_budget"+"_"+value_to_add[1][0]]
+                                new_tuple = (value_to_add[0], (-budget + 1000*float(value_to_add[1][1]))/budget, value_to_add[2])
                                 if y_column_name+"_"+value_to_add[1][0] not in experiment_column_value[experiment_name].keys():
                                     experiment_column_value[experiment_name][y_column_name + "_" + value_to_add[1][0]] = []
                                 experiment_column_value[experiment_name][y_column_name+"_"+value_to_add[1][0]].append(new_tuple)
                             if y_column_name in [prefix+"power", prefix+"power_budget"]:
-                               new_tuple = (value_to_add[0], float(value_to_add[1])*1000, value_to_add[2])
-                               experiment_column_value[experiment_name][y_column_name].append(new_tuple)
+                                budget = budgets["power_budget"]
+                                new_tuple = (value_to_add[0], (-budget + float(value_to_add[1])*1000)/budget, value_to_add[2])
+                                experiment_column_value[experiment_name][y_column_name].append(new_tuple)
                             elif y_column_name in [prefix+"area_non_dram", prefix+"area_budget"]:
-                                new_tuple = (value_to_add[0], float(value_to_add[1]) * 1000000, value_to_add[2])
+                                budget = budgets["area_budget"]
+                                new_tuple = (value_to_add[0], (-budget + float(value_to_add[1]) * 1000000)/budget, value_to_add[2])
                                 experiment_column_value[experiment_name][y_column_name].append(new_tuple)
 
             # prepare for plotting and plot
@@ -1287,8 +1370,7 @@ def plot_convergence_per_workloads(input_dir_names, res_column_name_number):
                     marker = "x"
                     #alpha_ = 1
                 for i,x in enumerate(x_values):
-
-                    ax.plot(x_values[i], y_values[i], label=column, color=colors[i], marker=marker, markersize=marker_size)
+                    ax.plot(x_values[i], y_values[i]+10, label=column, color=colors[i], marker=marker, markersize=marker_size)
 
 
             #ax.set_title("experiment vs system implicaction")
