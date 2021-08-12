@@ -471,7 +471,10 @@ def plot_codesign_rate_efficacy_cross_workloads_updated_for_paper(input_dir_name
     column_co_design_improvement = {}
     experiment_name_list = []
     last_col_val = ""
+    ctr_ = 0
     for file_full_addr in file_full_addr_list:
+        if ctr_ == 1:
+            continue
         experiment_name = get_experiments_name(file_full_addr, res_column_name_number)
         experiment_name_list.append(experiment_name)
         column_co_design_dist_avg[experiment_name] = {}
@@ -550,7 +553,7 @@ def plot_codesign_rate_efficacy_cross_workloads_updated_for_paper(input_dir_name
             column_co_design_improvement = {}
             column_co_design_dist_avg[experiment_name][y_column_name]= co_design_dist_sum/avg_ctr
             column_co_design_efficacy_avg[experiment_name][y_column_name] = co_design_efficacy_sum/avg_ctr
-
+        ctr_ +=1
         #result = {"rate":{}, "efficacy":{}}
         #rate_column_co_design = {}
 
