@@ -559,17 +559,20 @@ def plot_codesign_rate_efficacy_cross_workloads_updated_for_paper(input_dir_name
     y_column_name_list_rep_rep = [re.sub("(.{5})", "\\1\n", label, 0, re.DOTALL) for label in y_column_name_list_rep]
     plotdata = pd.DataFrame(column_co_design_dist_avg, index=y_column_name_list)
     fontSize = 26
-    ax = plotdata.plot(kind='bar', fontsize=fontSize, figsize=(6.6, 6.6))
+    # print(plotdata)
+    # print(y_column_name_list)
+    color_list={'a0.021_e0.034_h0.034_0.008737_1.7475e-05_arch-aware': 'green', 'a0.021_e0.034_h0.034_0.008737_1.7475e-05_random': 'red'} # Ying: uncomment for blind_study_all_dumb_versions/blind_vs_arch_aware (T.B.M), also the one below
+    ax = plotdata.plot(kind='bar', fontsize=fontSize, figsize=(6.6, 6.6), color=color_list)   # Ying: uncomment for blind_study_all_dumb_versions/blind_vs_arch_aware (T.B.M), also the one below
     ax.set_xticklabels(y_column_name_list_rep_rep, rotation=0)
     # Ying: hardcode here
-    ax.set_xlabel("Co-design Parameter", fontsize=fontSize)
-    ax.set_ylabel("Co-design Index", fontsize=fontSize)
+    ax.set_xlabel("Co-design Parameter", fontsize=fontSize, labelpad=-25)
+    ax.set_ylabel("Co-design Rate", fontsize=fontSize)
     for experiment_name, value in column_co_design_dist_avg.items():
         # print(experiment_name[-6:])
         if experiment_name[-6:] == "random":
-            ax.legend(['Blind', 'Arch-aware'], bbox_to_anchor=(0.45, 1.23), loc="upper center", fontsize=fontSize - 2, ncol=2)
+            ax.legend(['SA', 'FARSI'], bbox_to_anchor=(0.5, 1.23), loc="upper center", fontsize=fontSize - 2, ncol=2)
         else:
-            ax.legend(['Arch-aware', 'Blind'], bbox_to_anchor=(0.45, 1.23), loc="upper center", fontsize=fontSize - 2, ncol=2)
+            ax.legend(['FARSI', 'SA'], bbox_to_anchor=(0.5, 1.23), loc="upper center", fontsize=fontSize - 2, ncol=2)
         break
     # Ying: hardcode finished
     plt.tight_layout()
@@ -588,17 +591,17 @@ def plot_codesign_rate_efficacy_cross_workloads_updated_for_paper(input_dir_name
     plt.figure()
     plotdata = pd.DataFrame(column_co_design_efficacy_avg, index=y_column_name_list)
     fontSize = 26
-    ax = plotdata.plot(kind='bar', fontsize=fontSize, figsize=(6.6, 6.6))
+    ax = plotdata.plot(kind='bar', fontsize=fontSize, figsize=(6.6, 6.6), color=color_list)   # Ying: uncomment for blind_study_all_dumb_versions/blind_vs_arch_aware (T.B.M), also the one above
     ax.set_xticklabels(y_column_name_list_rep_rep, rotation=0)
     # Ying: hardcode here
-    ax.set_xlabel("Co-design Parameter", fontsize=fontSize)
-    ax.set_ylabel("Co-design Efficacy Rate", fontsize=fontSize)
+    ax.set_xlabel("Co-design Parameter", fontsize=fontSize, labelpad=-25)
+    ax.set_ylabel("Co-design Improvement", fontsize=fontSize)
     for experiment_name, value in column_co_design_dist_avg.items():
         # print(experiment_name[-6:])
         if experiment_name[-6:] == "random":
-            ax.legend(['Blind', 'Arch-aware'], bbox_to_anchor=(0.45, 1.23), loc="upper center", fontsize=fontSize - 2, ncol=2)
+            ax.legend(['SA', 'FARSI'], bbox_to_anchor=(0.5, 1.23), loc="upper center", fontsize=fontSize - 2, ncol=2)
         else:
-            ax.legend(['Arch-aware', 'Blind'], bbox_to_anchor=(0.45, 1.23), loc="upper center", fontsize=fontSize - 2, ncol=2)
+            ax.legend(['FARSI', 'SA'], bbox_to_anchor=(0.5, 1.23), loc="upper center", fontsize=fontSize - 2, ncol=2)
         break
     # Ying: hardcode finished
     plt.tight_layout()
@@ -1455,21 +1458,21 @@ def plot_convergence_vs_time_for_paper(input_dir_names, res_column_name_number):
                 y_values = [(float(el[1]) * 100 // 1 / 100.0) for el in FARSI_column_experiment_value[y_column_name]]
                 x_values.reverse()
                 y_values.reverse()
-                ax.scatter(x_values, y_values, label="FARSI", marker="*")
+                ax.scatter(x_values, y_values, label="FARSI", marker="*", color="green", s=10)
                 # ax.set_yscale('log')
 
                 x_values = [el[0] for el in PA_column_experiment_value[y_column_name]]
                 y_values = [(float(el[1]) * 100 // 1 / 100.0) for el in PA_column_experiment_value[y_column_name]]
                 x_values.reverse()
                 y_values.reverse()
-                ax.scatter(x_values, y_values, label="PA", marker="*")
+                ax.scatter(x_values, y_values, label="PA", marker="*", color="hotpink", s=10)
                 ax.set_xscale('log')
                 ax.set_yscale('log')
                 # ax.set_yscale('linear') # Ying: by default, the y ticks are strange
                 ax.set_ylim([np.power(10.0, -2), np.power(10.0, 3.5)])
 
                 #ax.set_title("experiment vs system implicaction")
-                ax.legend(bbox_to_anchor=(0.5, 1.15), loc="upper center", fontsize=fontSize, ncol=2, borderpad=0)#bbox_to_anchor=(1, 1), loc="upper left")
+                ax.legend(bbox_to_anchor=(0.5, 1.15), loc="upper center", fontsize=fontSize, ncol=2, borderpad=0, markerscale=6)#bbox_to_anchor=(1, 1), loc="upper left")
                 ax.set_xlabel("Time to Completion (s)", fontsize=fontSize)
                 ax.set_ylabel("Norm Distance to Goal", fontsize=fontSize)
                 # floatY = [float(i) for i in y_values]
@@ -1603,7 +1606,7 @@ def plot_convergence_cross_workloads_for_paper(input_dir_names, res_column_name_
 
             ctr +=1
         # prepare for plotting and plot
-        fig = plt.figure(figsize=(7.5, 6.4))
+        fig = plt.figure(figsize=(8, 6.5))
         plt.rc('font', **axis_font)
         ax = fig.add_subplot(111)
         #plt.tight_layout()
@@ -1614,23 +1617,23 @@ def plot_convergence_cross_workloads_for_paper(input_dir_names, res_column_name_
             y_values = [el[1] for el in values[:-10]]
             # Ying: hardcode here
             if experiment_name[-1] == "3":
-                labelName = "T.B.M. blind"
+                labelName = "SA"
                 color = (1, 0, 0, 1) # "Red"
             if experiment_name[-1] == "2":
                 labelName = "FARSI"
                 color = (0, 0.6, 0, 1) # "ForestGreen"
             if experiment_name[-1] == "1":
-                labelName = "B.M. blind"
+                labelName = "Task-aware"
                 color = (1, 0.5, 0.0, 1) # "DarkOrange"
             if experiment_name[-1] == "0":
-                labelName = "M. blind"
+                labelName = "Task&Block-aware"
                 color = (0.5, 0.5, 0, 1) # "Olive"
             # Ying: hardcode finished
-            ax.scatter(x_values, y_values, label=labelName, color=color)
+            ax.scatter(x_values, y_values, label=labelName, color=color, marker='*', s=5)
 
         #ax.set_title("experiment vs system implicaction")
         ax.set_yscale('log')
-        ax.legend(bbox_to_anchor=(0.5, 1.3), loc="upper center", fontsize=fontSize-2, ncol=2, borderpad=0)
+        ax.legend(bbox_to_anchor=(0.5, 1.25), loc="upper center", fontsize=fontSize-2, ncol=2, borderpad=0, markerscale=6)
         ax.set_xlabel(x_column_name, fontsize=fontSize)
         # Ying: hardcode here
         if y_column_name == "dist_to_goal_non_cost":
@@ -1994,6 +1997,7 @@ def plot_codesign_nav_breakdown_cross_workload_for_paper(input_dir_names, input_
         Ying: adding finished
         """
         experiment_names.append(experiment_name)
+    experiment_names.sort()
 
     axis_font = {'size': '25'}
     fontSize = 25
@@ -2006,7 +2010,7 @@ def plot_codesign_nav_breakdown_cross_workload_for_paper(input_dir_names, input_
         column_value_experiment_frequency_dict = {}
         # get all possible the values of interest
         all_values = get_all_col_values_of_a_folders(input_dir_names, input_all_res_column_name_number, column_name)
-        columne_number = all_res_column_name_number[column_name]
+        columne_number = input_all_res_column_name_number[column_name]
         for column in all_values:
             """
             Ying: the following lines are added for "IC", "Mem", and "PE"
@@ -2077,17 +2081,14 @@ def plot_codesign_nav_breakdown_cross_workload_for_paper(input_dir_names, input_
                     column_value_experiment_frequency_dict[column_value][experiment_name] = 0
 
                 for i, row in enumerate(resultReader):
-                    #if row[trueNum] != "True":
-                    #    continue
+                    if row[trueNum] != "True":
+                        continue
                     if i > 1:
                         try:
 
                             # the following for workload awareness
-                            #if row[all_res_column_name_number["move name"]] == "identity":
-                            #    continue
-                            #if row[all_res_column_name_number["architectural principle"]] == "spatial_locality":
-                            #    continue
-
+                            if row[input_all_res_column_name_number["architectural principle"]] == "spatial_locality" or row[all_res_column_name_number["architectural principle"]] == "identity":
+                                continue
 
                             col_value = row[columne_number]
                             col_values = col_value.split(";")
@@ -2139,8 +2140,16 @@ def plot_codesign_nav_breakdown_cross_workload_for_paper(input_dir_names, input_
         # prepare for plotting and plot
         # plt.figure(figsize=(6, 6))
         index = experiment_names
+        column_value_experiment_frequency_dict = dict(sorted(column_value_experiment_frequency_dict.items(), key=lambda x: x[0].lower()))
+        print(column_value_experiment_frequency_dict)
         plotdata = pd.DataFrame(column_value_experiment_frequency_dict, index=index)
-        plotdata.plot(kind='bar', stacked=True, figsize=(6, 6.6)) # Ying: (6, 7) for arch principle
+        # tempC, tempE, tempA= plotdata.iloc[0].copy(), plotdata.iloc[1].copy(), plotdata.iloc[2].copy()
+        # plotdata.iloc[0] = tempA
+        # plotdata.iloc[1] = tempC
+        # plotdata.iloc[2] = tempE
+        print(plotdata)
+        color_list = ["mediumseagreen", "gold", "tomato"]
+        plotdata.plot(kind='bar', stacked=True, figsize=(6, 6.6), color=color_list) # Ying: (6, 7) for arch principle
         plt.rc('font', **axis_font)
         plt.xlabel("Workloads", **axis_font)
         # plt.ylabel(column_name, **axis_font)  # Ying: replace with the following lines
@@ -2160,7 +2169,7 @@ def plot_codesign_nav_breakdown_cross_workload_for_paper(input_dir_names, input_
             plt.yticks(np.arange(0, 200, 25.0), fontsize=fontSize)  # Ying: change according to the graph ("architectural principle", "comm_comp")
         # plt.title("experiment vs " + column_name, **axis_font)    # Ying: comment it out as discussed
         # plt.legend(bbox_to_anchor=(1, 1), loc='upper left', fontsize=fontSize)    # Ying: replaced with the following line
-        plt.legend(bbox_to_anchor=(0.45, 1.3), loc='upper center', fontsize=fontSize, ncol=2, borderpad=0) # Ying: change according to the graph ("architectural principle", "comm_comp", "Normalized Iteration Portion")
+        plt.legend(bbox_to_anchor=(0.5, 1.3), loc='upper center', fontsize=fontSize, ncol=2, borderpad=0) # Ying: change according to the graph ("architectural principle", "comm_comp", "Normalized Iteration Portion")
         # dump in the top folder
         output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
         output_dir = os.path.join(output_base_dir, "cross_workloads/nav_breakdown")
@@ -2884,7 +2893,7 @@ def grouped_barplot_varying_x(df, metric, metric_ylabel, varying_x, varying_x_la
        print (metric+":"+el.index.name +" : "+ str(diff))
     """
 
-    if metric in ["loop_unrolling_parallelism_speed_up_full_system", "customization_speed_up_full_system",
+    if metric in [# "loop_unrolling_parallelism_speed_up_full_system", "customization_speed_up_full_system",
                   "task_level_parallelism_speed_up_full_system",
                   "interference_degradation_avg"]:
 
@@ -3101,8 +3110,8 @@ def grouped_barplot_varying_x_for_paper(df, metric, metric_ylabel, varying_x, va
 
     # print(grouped_bar_locs_list)  # Ying: comment out for WTF
 
-    color = ["ForestGreen", "SkyBlue", "Plum"]
-    legendLabel = ["Scale 1", "2", "4"]
+    color = ["mediumseagreen", "gold", "tomato"]
+    legendLabel = ["1X", "2X", "4X"]
     ctr = 0
     coloredLocList=[[], [], []]
     coloredStatsValueList = [[], [], []]
@@ -3164,9 +3173,10 @@ def grouped_barplot_varying_x_for_paper(df, metric, metric_ylabel, varying_x, va
     xticklabels.extend(cat_xticklabels)
 
     ax.set_ylabel(metric_ylabel, fontsize=fontSize) # Ying: add fontsize
+    ax.yaxis.set_label_coords(-0.15, 0.6)
     #ax.set_xlabel(xlabel)
     ax.set_xticks(xticks)
-    ax.legend(legendLabel, bbox_to_anchor=(0.5, 1.35), loc="upper center", fontsize=fontSize-4, ncol=3) # Ying: test the way to add legends
+    ax.legend(legendLabel, bbox_to_anchor=(0.5, 1.35), loc="upper center", fontsize=fontSize-4, ncol=3) # Ying: test the way to add legends  # 1.35 for the figures with 1e8, etc., 1.2 for the figures without that
     ax.set_xticklabels(xticklabels, fontsize=fontSize)  # Ying: add fontsize
 
     return ax
@@ -4120,7 +4130,7 @@ def get_budget_optimality_for_paper(input_dir_names,all_result_files, reg_summar
 
 
     # prepare for plotting and plot
-    fig = plt.figure(figsize=(7.5, 7.5))
+    fig = plt.figure(figsize=(7, 7))    # Ying: (7.5, 7.5) for the main paper, (5, 5) for the extended abstract
     axis_font = {'size':'30'}
     fontSize = 30
     plt.rc('font', **axis_font)
@@ -4223,8 +4233,8 @@ def get_budget_optimality_for_paper(input_dir_names,all_result_files, reg_summar
         os.makedirs(output_dir)
 
 
-    ax.scatter(combined_design_methodology_A["power"], combined_design_methodology_A["area"], label="Myopic Budgetting",marker="x", color='red', s=700)
-    ax.legend(loc="upper left", fontsize=fontSize-2, bbox_to_anchor=(0.98, 0.98), borderpad=0)  # bbox_to_anchor=(1, 1), loc="upper left")
+    ax.scatter(combined_design_methodology_A["power"], combined_design_methodology_A["area"], label="Myopic Budgetting",marker="x", color='red', s=700)   # Ying: comment out for the extended abstract
+    ax.legend(loc="upper left", fontsize=fontSize, bbox_to_anchor=(1, 1.1), borderpad=1) # , borderpad=0)  # bbox_to_anchor=(1, 1), loc="upper left")
     # ax.set_title(system_char_to_show[0] +" for FARSI vs in isolation")
     #ax.set_title("memory_reuse for FARSI vs in isolation")
     plt.tight_layout()
@@ -4346,16 +4356,17 @@ if __name__ == "__main__":
     
     case_studies["heterogeneity_std_system_compleixty"] = [
         "local_channel_count_per_bus_std",
-        "loop_itr_ratio_std", "cluster_pe_cnt_std"
+        "loop_itr_ratio_std"    # , "cluster_pe_cnt_std"
     ]
 
+    """
     case_studies["speedup"] = [
         # "customization_speed_up_full_system",
-        "loop_unrolling_parallelism_speed_up_full_system",
+        # "loop_unrolling_parallelism_speed_up_full_system",
         "customization_speed_up_full_system",
         "task_level_parallelism_speed_up_full_system",
         "interference_degradation_avg"]
-
+    """
     """
       [ 
         "customization_first_speed_up_avg",
@@ -4465,7 +4476,7 @@ if __name__ == "__main__":
         else:
             get_budget_optimality(experiment_full_addr_list, all_results_files, summary_res_column_name_number, a_e_h_summary_res_column_name_number)
 
-    if "cross_workloads" in config_plotting.plot_list:  # Ying: from for_paper/workload_awareness (PE, Mem, IC, TLP, comm_comp); or blind_study_smart_krnel_selection/blind_vs_arch_ware; or blind_study_dumb_kernel_selection/blind_vs_arch_aware; or blind_study_all_dumb_versions/blind_vs_arch_aware (T.B.M blind)
+    if "cross_workloads" in config_plotting.plot_list:  # Ying: from for_paper/workload_awareness (PE, Mem, IC, TLP, comm_comp); or blind_study_smart_krnel_selection/blind_vs_arch_ware; or blind_study_dumb_kernel_selection/blind_vs_arch_aware; or blind_study_all_dumb_versions/blind_vs_arch_aware (SA and other aware)
         # get column orders (assumption is that the column order doesn't change between experiments)
         if config_plotting.draw_for_paper:
             column_column_value_experiment_frequency_dict = plot_codesign_nav_breakdown_cross_workload_for_paper(
@@ -4492,7 +4503,7 @@ if __name__ == "__main__":
         _ = plot_codesign_nav_breakdown_per_workload(experiment_full_addr_list, all_res_column_name_number)
 
         if config_plotting.draw_for_paper:
-            plot_convergence_per_workloads_for_paper(experiment_full_addr_list, all_res_column_name_number)
+            # plot_convergence_per_workloads_for_paper(experiment_full_addr_list, all_res_column_name_number)
             plot_convergence_vs_time_for_paper(experiment_full_addr_list, all_res_column_name_number)
         else:
             plot_convergence_per_workloads(experiment_full_addr_list, all_res_column_name_number)
@@ -4515,7 +4526,7 @@ if __name__ == "__main__":
             else:
                 pie_chart(experiment_full_addr_list, all_res_column_name_number, case_study_)
 
-    if "pandas_plots" in config_plotting.plot_list: # Ying: from scaling_of_1_2_4_07-31
+    if "pandas_plots" in config_plotting.plot_list: # Ying: from scaling_of_1_2_4_across_all_budgets_07-31
         #pandas_case_studies = {}
         case_studies["system_complexity"] = ["system block count", "routing complexity", "system PE count",
                                              "local_mem_cnt", "local_bus_cnt" , "channel_cnt", "ip_cnt", "gpp_cnt"]
