@@ -139,13 +139,13 @@ def plot_sim_time_vs_system_char_minimal_for_paper(output_dir, csv_file_addr):
 
     axis_font = {'size': '20'}
     fontSize = 20
-    sns.set(font_scale=2, rc={'figure.figsize': (5, 4)})
+    sns.set(font_scale=2, rc={'figure.figsize': (6, 4)})
     sns.set_style("white")
-    splot = sns.scatterplot(data=df_avg, x="Block Counts", y="Simulation Time", hue="FARSI or PA", sizes=(6, 6))
+    color_per_hue = {'PA': 'hotpink', 'FARSI': 'green'}
+    splot = sns.scatterplot(data=df_avg, x="Block Counts", y="Simulation Time", hue="FARSI or PA", sizes=(6, 6), palette=color_per_hue)
     splot.set(yscale="log")
     splot.legend(title="", fontsize=fontSize, loc="center right")
 
-    color_per_hue = {"FARSI" : "green", "PA" : "orange"}
     hues = set(list(df_avg["FARSI or PA"]))
     for hue in hues:
        #x required to be in matrix format in sklearn
@@ -165,6 +165,7 @@ def plot_sim_time_vs_system_char_minimal_for_paper(output_dir, csv_file_addr):
 
     plt.xticks(np.arange(0, 30, 10.0))
     plt.yticks(np.power(10.0, [-1, 0, 1, 2, 3]))
+    plt.xlabel("Block Counts")
     plt.ylabel("Simulation Time (s)")
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir,'block_counts_vs_simtime.png'), bbox_inches='tight')
@@ -310,7 +311,7 @@ def plot_error_vs_system_char_for_paper(output_dir, csv_file_addr):
     #df_avg = df_avg.loc[df_avg["ArchParam"] != "Bus Counts"]
     axis_font = {'size': '20'}
     fontSize = 20
-    sns.set(font_scale=2, rc={'figure.figsize': (5, 4.5)})
+    sns.set(font_scale=2, rc={'figure.figsize': (6, 4.2)})
     sns.set_style("white")
     splot = sns.scatterplot(data=df_avg, y = "Error", x = "Counts", hue = "ArchParam", palette = color_per_hue, hue_order= ["NoC Counts", "Memory Counts", "PE Counts", "Block Counts"], sizes=(8, 8))
     #splot.set(yscale = "log")
@@ -460,13 +461,13 @@ def plot_latency_vs_sim_time_for_paper(output_dir, csv_file_addr):
 
     axis_font = {'size': '20'}
     fontSize = 20
-    sns.set(font_scale=2, rc={'figure.figsize': (4.5, 4)})
+    sns.set(font_scale=2, rc={'figure.figsize': (6, 4)})
     sns.set_style("white")
-    splot = sns.scatterplot(data=df_avg, x="PA _predicted_latencys", y="Simulation Time", hue="FARSI or PA")
+    color_per_hue = {'PA': 'hotpink', 'FARSI': 'green'}
+    splot = sns.scatterplot(data=df_avg, x="PA _predicted_latencys", y="Simulation Time", hue="FARSI or PA", palette=color_per_hue)
     splot.set(yscale="log")
     splot.legend(title="", fontsize=fontSize, loc="center right")
 
-    color_per_hue = {"FARSI": "green", "PA": "orange"}
     hues = set(list(df_avg["FARSI or PA"]))
     for hue in hues:
         # x required to be in matrix format in sklearn
@@ -489,21 +490,21 @@ def plot_latency_vs_sim_time_for_paper(output_dir, csv_file_addr):
     plt.xticks(np.arange(0, 60, 10.0))
     plt.yticks(np.power(10.0, [-1, 0, 1, 2, 3]))
     plt.xlabel("Execution latency")
-    plt.ylabel("")
+    plt.ylabel("Simulation Time (s)")
     plt.tight_layout()
     #plt.savefig(os.path.join(output_dir, 'block_counts_vs_simtime.png'))
     plt.savefig(os.path.join(output_dir,'latency_vs_sim_time.png'), bbox_inches='tight')
     # plt.show()
     plt.close("all")
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # Ying: for aggregate_data
     run_folder_name = config_plotting.run_folder_name
     csv_file_addr = os.path.join(run_folder_name, "input_data","aggregate_data.csv")
     output_dir = os.path.join(run_folder_name, "validation")
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    if config_plotting.draw_for_paper:  # Ying: aggregate_data
+    if config_plotting.draw_for_paper:  # Ying: "cross_workloads", from aggregate_data
         plot_error_vs_system_char_for_paper(output_dir, csv_file_addr)
         plot_sim_time_vs_system_char_minimal_for_paper(output_dir, csv_file_addr)
         plot_latency_vs_sim_time_for_paper(output_dir, csv_file_addr)
