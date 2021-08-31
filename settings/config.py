@@ -295,3 +295,6 @@ min_mem_size = {"sram": 256000, "dram":256000}
 dram_stacked = True
 parallelism_analysis = "dynamic" # choose from ["dynamic", "static"]  # at the moment static is not working, something to do with the task and task sync
                                  # and read to being present after unloading
+
+cmd_queue_size = 16
+data_queue_size = 16

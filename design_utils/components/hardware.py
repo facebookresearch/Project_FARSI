@@ -72,7 +72,8 @@ class Block:
     block_numbers_seen = []
     def __init__(self, db_input, hw_sampling, instance_name, type, subtype,
                  peak_work_rate_distribution, work_over_energy_distribution, work_over_area_distribution,
-                 one_over_area_distribution, clock_freq, bus_width, loop_itr_cnt, loop_max_possible_itr_cnt, leakage_power="", power_knobs="",
+                 one_over_area_distribution, clock_freq, bus_width, loop_itr_cnt, loop_max_possible_itr_cnt, hop_latency, pipe_line_depth,
+                 leakage_power="", power_knobs="",
                  SOC_type="", SOC_id=""):
         self.db_input = db_input  # data base input
         self.__instance_name = instance_name  # name of the block instance
@@ -84,6 +85,8 @@ class Block:
                                                                          # is different depending on the block.
                                                                          # concretely, for PE work rate is IPC
                                                                          # and for memory/buses its Bandwidth
+        self.hop_latency = hop_latency
+        self.pipe_line_depth = pipe_line_depth
         self.clock_freq = clock_freq
         self.bus_width = bus_width
         self.loop_itr_cnt = loop_itr_cnt
@@ -150,6 +153,13 @@ class Block:
 
     def get_block_freq(self):
         return self.clock_freq
+
+    def get_hop_latency(self):
+        return self.hop_latency
+
+    def get_pipe_line_depth(self):
+        return self.pipe_line_depth
+
     # ---------------
     # Functionality:
     #   Return peak_work_rate. Note that work-rate definition varies based on the
@@ -1069,12 +1079,26 @@ class pathlet:
 
 # A pipe is a queue that connects blocks
 class pipe:
-    def __init__(self, master, slave, dir_, number):
+    def __init__(self, master, slave, dir_, number, cmd_queue_size, data_queue_size):
         self.traffics = []  # traffic on the pipe
         self.dir = dir_  # direction of the traffic
         self.master = master  # master block
         self.slave = slave  # slave block
         self.number = number  # an assigned id
+        self.cmd_queue_size = cmd_queue_size
+        self.data_queue_size = data_queue_size
+
+    def get_cmd_queue_size(self):
+        return self.cmd_queue_size
+
+    def set_cmd_queue_size(self, size):
+        self.size = size
+
+    def get_data_queue_size(self):
+        return self.data_queue_size
+
+    def set_data_queue_size(self, size):
+        self.data_queue_size = size
 
     def get_dir(self):
         return self.dir
@@ -1604,6 +1628,11 @@ class HardwareGraph:
 
         pass
 
+    def size_queues(self):
+        for pipe in self.pipes:
+            pipe.set_cmd_queue_size(config.cmd_queue_size)
+            pipe.set_data_queue_size(config.data_queue_size)
+
     def generate_pipes(self):
         # assign number to pipes
         self.last_pipe_assigned_number = 0
@@ -1628,7 +1657,7 @@ class HardwareGraph:
                     block_master = master_to_slave_path[idx]
                     block_slave = master_to_slave_path[idx + 1]
                     for dir_ in ["write", "read"]:
-                        pipe_ = pipe(block_master, block_slave, dir_, self.last_pipe_assigned_number)
+                        pipe_ = pipe(block_master, block_slave, dir_, self.last_pipe_assigned_number, 1, 1)
                         if not seen_pipe(pipe_):
                             self.pipes.append(pipe_)
                             self.last_pipe_assigned_number +=1
@@ -1649,6 +1678,7 @@ class HardwareGraph:
 
         # generate pipes everywhere
         self.generate_pipes()
+        self.size_queues()
         # assign tasks
         self.task_all_the_pipes()
         # filter pipes without tasks

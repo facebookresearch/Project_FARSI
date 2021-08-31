@@ -102,8 +102,10 @@ class DataBase:
                          obj.bus_width,
                          obj.loop_itr_cnt,
                          obj.loop_max_possible_itr_cnt,
+                         obj.hop_latency,
+                         obj.pipe_line_depth,
                          self.get_block_leakage_power(obj),
-                         self.get_block_power_knobs(obj))
+                         self.get_block_power_knobs(obj),)
         elif len(argv) == 0 and isinstance(obj, TaskL):
             return Task(obj.task_name, self.get_task_work(obj))
         elif len(argv) == 3 and isinstance(obj, Task) and isinstance(argv[0], Block):
