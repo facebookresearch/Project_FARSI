@@ -1,6 +1,7 @@
 #Copyright (c) Facebook, Inc. and its affiliates.
 #This source code is licensed under the MIT license found in the
 #LICENSE file in the root directory of this source tree.
+import math
 
 import numpy as np
 import copy
@@ -706,6 +707,21 @@ class Kernel:
         blocks_family_members = self.__task_to_blocks_map.get_block_family_members_allocated(block.instance_name)
         return blocks_family_members
 
+    def get_queue_impact(self, block, pipe_cluster):
+        queue_impact = 1
+        if block.type == "pe":
+            queue_impact = 1
+        else:
+            incoming_pipes= pipe_cluster.get_incoming_pipes()
+            # use a  random pipe for now. TODO: fix later
+            queue_size_for_default_pipe = incoming_pipes[0].get_data_queue_size()
+            block_pipe_line_depth = block.get_pipe_line_depth()
+            queue_impact = math.ceil(block_pipe_line_depth/queue_size_for_default_pipe)
+
+        return queue_impact
+
+
+
     # get each blocks work-rate while considering sharing the block across the active kernels
     # Normalization is the process of normalizing the work_rate of each block with respect of the
     # reference work (work done by the PE). This then allows us to easily find the bottleneck
@@ -740,7 +756,10 @@ class Kernel:
                         block.instance_name, self.get_block_family_tasks_in_use(block), dir)
 
 
-                work_rate =  float(block.get_peak_work_rate(self.get_power_knob_id()))*allocated_work_rate_relative_to_other_kernels/work_ratio
+                # queue impact
+                queue_impact = self.get_queue_impact(block, pipe_cluster)
+
+                work_rate =  queue_impact*float(block.get_peak_work_rate(self.get_power_knob_id()))*allocated_work_rate_relative_to_other_kernels/work_ratio
                 block_work_rate_norm_dict[block][pipe_cluster] = float(block.get_peak_work_rate(self.get_power_knob_id()))*allocated_work_rate_relative_to_other_kernels/work_ratio
                 if block_work_rate_norm_dict[block][pipe_cluster] == 0:
                     print("what")
