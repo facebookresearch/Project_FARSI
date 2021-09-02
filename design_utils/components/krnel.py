@@ -718,7 +718,7 @@ class Kernel:
             block_pipe_line_depth = block.get_pipe_line_depth()
             queue_impact = math.ceil(block_pipe_line_depth/queue_size_for_default_pipe)
 
-        return queue_impact
+        return 1/queue_impact
 
 
 
@@ -760,7 +760,7 @@ class Kernel:
                 queue_impact = self.get_queue_impact(block, pipe_cluster)
 
                 work_rate =  queue_impact*float(block.get_peak_work_rate(self.get_power_knob_id()))*allocated_work_rate_relative_to_other_kernels/work_ratio
-                block_work_rate_norm_dict[block][pipe_cluster] = float(block.get_peak_work_rate(self.get_power_knob_id()))*allocated_work_rate_relative_to_other_kernels/work_ratio
+                block_work_rate_norm_dict[block][pipe_cluster] = work_rate
                 if block_work_rate_norm_dict[block][pipe_cluster] == 0:
                     print("what")
 
