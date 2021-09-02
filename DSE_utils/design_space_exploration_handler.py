@@ -310,6 +310,8 @@ class DSEHandler:
             sim_dp_pickled_file.close()
             vis_hardware.vis_hardware(self.dse.so_far_best_ex_dp, config.hw_graphing_mode, result_folder)
 
+        for key, val in self.dse.so_far_best_sim_dp.dp_stats.SOC_metric_dict["latency"]["glass"][0].items():
+            print("lat is {} for {}".format(val, key))
         self.dse.write_data_log(list(self.dse.get_log_data()), self.dse.reason_to_terminate, "", result_folder, self.check_point_ctr,
                       config.FARSI_simple_run_prefix)
         self.check_point_ctr +=1
