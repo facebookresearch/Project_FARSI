@@ -4,4 +4,8 @@ edge_detection,rejectZeroCrossings
 hpvm_cava,descale_fxp_cloned
 simple_all_parallel,siink
 SOC_example,siink
+SOC_example_2p,siink
+SOC_example_1p,siink
+SOC_example_8p,siink
+SOC_example_4p,siink
 partial_SOC_example_hard,siink
