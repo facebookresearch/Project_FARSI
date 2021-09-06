@@ -90,10 +90,10 @@ all_metrics = ["latency",  "power", "area", "energy", "cost"]    # all the metri
 budgetted_metrics = ["latency",  "power", "area"]
 other_metrics = ["cost"]
 
-#budget_dict = {}
-#budget_dict["glass"] = {}
-#budget_dict["glass"]["power"] = .05
-#budget_dict["glass"]["area"] = .000005
+budget_dict = {}
+budget_dict["glass"] = {}
+budget_dict["glass"]["power"] = .05
+budget_dict["glass"]["area"] = .000005
 
 home_dir = home_settings.home_dir
 #home_dir = os.getcwd()+"/../../"
@@ -170,7 +170,7 @@ WARN = False
 data_folder = "data"
 PA_output_folder = data_folder+"/"+"PA_output"
 sim_progress_folder = data_folder+"/"+"sim_progress"
-RUN_VERIFICATION_PER_GEN = False# every new desi, generate the verification data
+RUN_VERIFICATION_PER_GEN = True# every new desi, generate the verification data
 RUN_VERIFICATION_PER_NEW_CONFIG = False
 RUN_VERIFICATION_PER_IMPROVMENT = False and not (RUN_VERIFICATION_PER_GEN or RUN_VERIFICATION_PER_NEW_CONFIG) # every improvement, generate verification
                                                                          # don't want to double generate, hence the second
