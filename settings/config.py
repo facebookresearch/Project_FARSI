@@ -251,6 +251,7 @@ budget_fitting_coeff = .9999 # used to make sure the slack values are uses in a 
 # soource, sink
 #souurce_memory_work = 81920 # in bytes
 proj_name = "SLAM"
+proj_name = "simple_multiple_hops"
 
 # PA (platform) conversion files
 hw_yaml = "hw.yml"

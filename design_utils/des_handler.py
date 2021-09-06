@@ -1126,8 +1126,9 @@ class DesignHandler:
     def gen_specific_hardcoded_ex_dp(self, database):
         lib_relative_addr = config.database_data_dir.replace(config.home_dir, "")
         lib_relative_addr_pythony_fied = lib_relative_addr.replace("/", ".")
-        # only supporting SLAM at the moment
-        files_to_import = [lib_relative_addr_pythony_fied + ".hardcoded." + workload + ".input" for workload in ["SLAM"]]
+        # only supporting SLAM at the moment -> Iulian: starting to support any hardcoded design
+        workload_name = list(database.db_input.sw_hw_database_population["workloads"])[0] #supporting only one hardcoded workload
+        files_to_import = [lib_relative_addr_pythony_fied + ".hardcoded." + workload + ".input" for workload in [workload_name]]
         imported_databases = [importlib.import_module(el) for el in files_to_import][0]
         ex_dp = imported_databases.gen_hardcoded_design(database)
         self.load_tasks_to_read_mem_and_ic(ex_dp)
