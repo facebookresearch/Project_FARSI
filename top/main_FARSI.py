@@ -23,7 +23,7 @@ def run_FARSI(result_folder, unique_number, db_input, hw_sampling, starting_expl
 
     with warnings.catch_warnings():
         warnings.simplefilter(config.warning_mode)
-        assert starting_exploration_mode in ["generated_from_scratch", "generated_from_check_point", "parse"]
+        assert starting_exploration_mode in ["generated_from_scratch", "generated_from_check_point", "parse", "hardcoded"]
 
         config.dse_type = "hill_climbing"
         if not (config.dse_type == "hill_climbing"):

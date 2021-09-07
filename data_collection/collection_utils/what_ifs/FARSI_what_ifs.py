@@ -5,7 +5,7 @@
 import sys
 import os
 sys.path.append(os.path.abspath('./../'))
-import home_settings
+#import home_settings
 from top.main_FARSI import run_FARSI
 from settings import config
 import os
@@ -644,10 +644,10 @@ if __name__ == "__main__":
     #workloads = {"edge_detection"}
     #workloads = {"hpvm_cava"}
     #workloads = {"audio_decoder"}
-    #workloads = {"SLAM"}
     #workloads ={"edge_detection","hpvm_cava", "audio_decoder"}
     workloads ={"edge_detection", "audio_decoder"}
-
+    workloads = {"SLAM"}
+    workloads = {"simple_multiple_hops"}
     #workloads = {"partial_SOC_example_hard"}
     #workloads = {"simple_all_parallel"}
 
@@ -656,6 +656,8 @@ if __name__ == "__main__":
     result_home_dir_default = os.path.join(os.getcwd(), "data_collection/data/" + study_type)
     result_home_dir = os.path.join(config.home_dir, "data_collection/data/" + study_type)
     date_time = datetime.now().strftime('%m-%d_%H-%M_%S')
+    #config_obj = config
+    #config_obj_budg_dict = config_obj.budget_dict
     budget_values = "pow_"+str(config.budget_dict["glass"]["power"]) + "__area_"+str(config.budget_dict["glass"]["area"])
     result_folder = os.path.join(result_home_dir,
                                  date_time + "____"+ budget_values+"___workloads_"+workloads_first_letter)
@@ -680,11 +682,11 @@ if __name__ == "__main__":
 
     # set software hardware database population
     # for SLAM
-    #sw_hw_database_population = {"db_mode": "hardcoded", "hw_graph_mode": "generated_from_scratch",
-    #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
-    # for paper workloads
-    sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_scratch",
+    sw_hw_database_population = {"db_mode": "hardcoded", "hw_graph_mode": "hardcoded",
                                  "workloads": workloads, "misc_knobs": db_population_misc_knobs}
+    # for paper workloads
+    #sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_scratch",
+    #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
     # for check pointed
     #sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_check_point",
     #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}

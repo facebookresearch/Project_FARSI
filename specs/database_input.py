@@ -73,7 +73,7 @@ class database_input_class():
                                             "workloads":{},"misc_knobs":{}}):
         # some sanity checks first
         assert(sw_hw_database_population["db_mode"] in ["hardcoded", "generate", "parse"])
-        assert(sw_hw_database_population["hw_graph_mode"] in ["generated_from_scratch", "generated_from_check_point", "parse"])
+        assert(sw_hw_database_population["hw_graph_mode"] in ["generated_from_scratch", "generated_from_check_point", "parse", "hardcoded"])
         if sw_hw_database_population["hw_graph_mode"] == "parse":
             assert(sw_hw_database_population["db_mode"] == "parse")
 

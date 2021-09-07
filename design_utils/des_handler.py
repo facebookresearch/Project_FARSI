@@ -1124,7 +1124,7 @@ class DesignHandler:
     #       generate initial design from the hardcoded specified design
     # ------------------------------
     def gen_specific_hardcoded_ex_dp(self, database):
-        lib_relative_addr = config.database_data_dir.replace(config.home_dir, "")[1:]
+        lib_relative_addr = config.database_data_dir.replace(config.home_dir, "")
         lib_relative_addr_pythony_fied = lib_relative_addr.replace("/", ".")
         # only supporting SLAM at the moment
         files_to_import = [lib_relative_addr_pythony_fied + ".hardcoded." + workload + ".input" for workload in ["SLAM"]]
