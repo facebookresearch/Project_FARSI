@@ -77,7 +77,9 @@ def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, trans_
                                 "mem_spawn": {"mem_freq_range":mem_freq_range},
                                 "ic_spawn": {"ic_freq_range":ic_freq_range},
                                 "tech_node_SF":tech_node_SF,
-                                "base_budget_scaling":base_budget_scaling}
+                                "base_budget_scaling":base_budget_scaling,
+                                "queue_available_size":[1, 2, 4, 8, 16],
+                                "burst_size_options":[128, 256, 512]}
 
     # set software hardware database population
     # for SLAM
@@ -133,9 +135,9 @@ if __name__ == "__main__":
     check_points_top_folder = "/media/reddi-rtx/KINGSTON/FARSI_results/scaling_of_1_2_4_across_all_budgets_07-31"
 
     # fast run
-    workloads = [{"audio_decoder"}]
-    workloads = [{"hpvm_cava"}]
-    #workloads = [{"edge_detection"}]
+    #workloads = [{"audio_decoder"}]
+    #workloads = [{"hpvm_cava"}]
+    workloads = [{"edge_detection"}]
 
 
     #workloads =[{"audio_decoder", "hpvm_cava"}]
@@ -143,7 +145,7 @@ if __name__ == "__main__":
     #workloads =[{"audio_decoder"}, {"edge_detection"}, {"hpvm_cava"}]
 
     # all workloads togethe
-    workloads =[{"audio_decoder", "edge_detection", "hpvm_cava"}]
+    #workloads =[{"audio_decoder", "edge_detection", "hpvm_cava"}]
 
     # entire workload set
     #workloads = [{"hpvm_cava"}, {"audio_decoder"}, {"edge_detection"}, {"edge_detection", "audio_decoder"}, {"hpvm_cava", "audio_decoder"}, {"hpvm_cava", "edge_detection"} , {"audio_decoder", "edge_detection", "hpvm_cava"}]

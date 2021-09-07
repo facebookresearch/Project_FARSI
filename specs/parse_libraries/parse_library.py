@@ -174,8 +174,14 @@ def gen_task_graph(library_dir, prefix, misc_knobs):
     exit(0)
     """
 
+    if "burst_size_options" in misc_knobs:
+        universal_burst_size = misc_knobs["burst_size_options"][0] # this will be tuned by the DSE
+    else:
+        universal_burst_size = config.default_burst_size
+
     for task_name_, values in task_graph_dict.items():
         task_ = TaskL(task_name=task_name_, work=work_dict[task_name_])
+        task_.set_burst_size(universal_burst_size)
         task_.add_task_work_distribution([(work_dict[task_name_], 1)])
         tasksL.append(task_)
 

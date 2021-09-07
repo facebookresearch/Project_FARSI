@@ -53,6 +53,7 @@ class TaskL:  # task light weight
         self.__self_task_work_distribution = [] # amount of work for this task as a distribution (for jitter modeling).
         self.__self_to_child_task_work_distribution = {}   # amount of bytes passed from this task to its children (as a distribution).
         self.__children_nature_dict = dict()
+        self.burst_size = 64
 
     # ------------------------------
     # Functionality:
@@ -68,6 +69,12 @@ class TaskL:  # task light weight
 
     def get_child_nature(self, taskL):
         return self.__children_nature_dict[taskL]
+
+    def set_burst_size(self, burst_size):
+        self.burst_size = burst_size
+
+    def get_burst_size(self):
+        return self.burst_size
 
     def get_children_nature(self):
         return self.__children_nature_dict

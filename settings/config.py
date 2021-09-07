@@ -272,7 +272,7 @@ transaction_base_simulation = False   # do not set to true. It doesn't work
 
 # CACTI
 #use_cacti = True and not RUN_VERIFICATION_AT_ALL # if True, use cacti. You have to have cacti installed.j
-use_cacti = False
+use_cacti = True
 cact_bin_addr = CC.cact_bin_addr
 cacti_param_addr = CC.cacti_param_addr
 cacti_data_log_file = CC.cacti_data_log_file
@@ -298,3 +298,4 @@ parallelism_analysis = "dynamic" # choose from ["dynamic", "static"]  # at the m
 
 cmd_queue_size = 16
 data_queue_size = 16
+default_burst_size = 64

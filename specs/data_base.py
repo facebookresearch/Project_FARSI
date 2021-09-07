@@ -343,6 +343,7 @@ class DataBase:
                 child_task =  self.get_tasks_from_taskL(taskL_child, tasks)
                 taskL__ = self.get_taskL_from_task_name(task.name)
                 task.add_child(child_task, taskL__.get_self_to_child_work(taskL_child), corresponding_taskL.get_child_nature(taskL_child))
+                task.set_burst_size(taskL__.get_burst_size())
                 if config.eval_mode == "statistical":
                     task.add_task_to_child_work_distribution(child_task, taskL__.get_task_to_child_task_work_distribution(taskL_child))
 
