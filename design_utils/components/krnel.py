@@ -707,22 +707,34 @@ class Kernel:
         blocks_family_members = self.__task_to_blocks_map.get_block_family_members_allocated(block.instance_name)
         return blocks_family_members
 
-    def get_queue_impact(self, block, pipe_cluster):
+
+    def get_queue_impact(self, block, pipe_cluster, schedulued_krnels):
+        def get_fleet_count_on_pipe(block, pipe, schedulued_krnels):
+            work_unit_total = 0
+            for krnl in schedulued_krnels:
+                work_unit_total += pipe.get_task_work_unit(self.get_task())
+
+            flit_cnt = math.ceil(work_unit_total/block.get_block_bus_width())
+            return  flit_cnt
+
+
         queue_impact = 1
         if block.type == "pe":
             queue_impact = 1
         else:
             incoming_pipes = pipe_cluster.get_incoming_pipes()
             # use a  random pipe for now. TODO: fix later
-            queue_size_for_default_pipe = incoming_pipes[0].get_data_queue_size()
-            block_pipe_line_depth = block.get_pipe_line_depth()
             bus_width = block.get_block_bus_width()
-            flit_cnt_for_default_pipe = math.ceil(incoming_pipes[0].get_task_work_unit(self.get_task())/bus_width)
-            flit_cnt = flit_cnt_for_default_pipe
-            queue_size = queue_size_for_default_pipe
+            block_pipe_line_depth = block.get_pipe_line_depth()
+
+            default_pipe = incoming_pipes[0]
+            pipe = default_pipe
+
+            queue_size = pipe.get_data_queue_size()
+            flit_cnt = get_fleet_count_on_pipe(block, pipe, schedulued_krnels)
 
             # calculate queue impact
-            queue_occupancy = min(queue_size , flit_cnt) # measured in number of occupied cells
+            queue_occupancy = min(queue_size, flit_cnt)  # measured in number of occupied cells
             pipe_line_utilization = math.floor(queue_occupancy/block_pipe_line_depth)
             pipe_line_utilization = min(pipe_line_utilization, 1) # can't be above one
             queue_impact = pipe_line_utilization
@@ -766,7 +778,7 @@ class Kernel:
 
 
                 # queue impact
-                queue_impact = self.get_queue_impact(block, pipe_cluster)
+                queue_impact = self.get_queue_impact(block, pipe_cluster, scheduled_kernels)
 
                 work_rate =  queue_impact*float(block.get_peak_work_rate(self.get_power_knob_id()))*allocated_work_rate_relative_to_other_kernels/work_ratio
                 block_work_rate_norm_dict[block][pipe_cluster] = work_rate
