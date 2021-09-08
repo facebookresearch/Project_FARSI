@@ -44,6 +44,14 @@ class Task:
         self.__task_to_family_task_work_unit = {}  # task to family task unit of work. For example
                                                    # work unit from bus and memory perspective is the burst size
                                                    # (in bytes)
+        self.burst_size = config.default_burst_size
+
+    def set_burst_size(self, burst_size):
+        self.burst_size = burst_size
+
+    def get_burst_size(self):
+        return self.burst_size
+
     def get_name(self):
         return self.name
     # ---------------
@@ -311,8 +319,8 @@ class Task:
 
     # based on the some reference work unit (same as block_size) determine the rest of the
     # work units.
-    def calc_work_unit(self, block_size):
-        dice_factor = self.set_dice_factor(block_size)
+    def calc_work_unit(self):
+        dice_factor = self.set_dice_factor(self.burst_size)
         for family in self.get_family():
             self.__task_to_family_task_work_unit[family] = int(self.get_self_to_family_task_work(family)/dice_factor)
             assert(self.get_self_to_family_task_work(family)/dice_factor > .1)
@@ -436,7 +444,7 @@ class Task:
 class TaskGraph:
     def __init__(self, tasks):
         self.__tasks = tasks
-        _ = [task_.calc_work_unit(1024) for task_ in self.__tasks]
+        _ = [task_.calc_work_unit() for task_ in self.__tasks]
 
     # -----------
     # Functionality:
