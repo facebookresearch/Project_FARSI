@@ -645,7 +645,7 @@ if __name__ == "__main__":
     #workloads = {"hpvm_cava"}
     #workloads = {"audio_decoder"}
     #workloads ={"edge_detection","hpvm_cava", "audio_decoder"}
-    workloads ={"edge_detection", "audio_decoder"}
+    workloads = {"edge_detection", "audio_decoder"}
     workloads = {"SLAM"}
     workloads = {"simple_multiple_hops"}
     workloads = {"simple_serial_tg"}
