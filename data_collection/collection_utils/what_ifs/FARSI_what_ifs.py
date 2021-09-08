@@ -648,6 +648,7 @@ if __name__ == "__main__":
     workloads ={"edge_detection", "audio_decoder"}
     workloads = {"SLAM"}
     workloads = {"simple_multiple_hops"}
+    workloads = {"simple_serial_tg"}
     #workloads = {"partial_SOC_example_hard"}
     #workloads = {"simple_all_parallel"}
 
@@ -681,9 +682,13 @@ if __name__ == "__main__":
                                 "base_budget_scaling":{"latency":.5, "power":1, "area":1}}
 
     # set software hardware database population
-    # for SLAM
-    sw_hw_database_population = {"db_mode": "hardcoded", "hw_graph_mode": "hardcoded",
+    # for SLAM, and serial experiment
+    sw_hw_database_population = {"db_mode": "hardcoded", "hw_graph_mode": "generated_from_scratch",
                                  "workloads": workloads, "misc_knobs": db_population_misc_knobs}
+
+    #for multiple hops experiment
+    #sw_hw_database_population = {"db_mode": "hardcoded", "hw_graph_mode": "hardcoded",
+    #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
     # for paper workloads
     #sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_scratch",
     #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
