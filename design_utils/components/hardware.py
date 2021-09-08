@@ -1630,8 +1630,9 @@ class HardwareGraph:
 
     def size_queues(self):
         for pipe in self.pipes:
-            pipe.set_cmd_queue_size(config.cmd_queue_size)
-            pipe.set_data_queue_size(config.data_queue_size)
+            # by default set the cmd/data size to master queue size
+            pipe.set_cmd_queue_size(config.default_data_queue_size)
+            pipe.set_data_queue_size(config.default_data_queue_size)
 
     def generate_pipes(self):
         # assign number to pipes

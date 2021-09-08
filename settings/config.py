@@ -278,7 +278,7 @@ cacti_param_addr = CC.cacti_param_addr
 cacti_data_log_file = CC.cacti_data_log_file
 cacti_input_col_order = ["mem_subtype", "mem_size"]
 cacti_output_col_order = ["read_energy_per_byte", "write_energy_per_byte", "area"]
-cacti_min_memory_size_in_bytes =  2048 # bellow this value cacti errors out. We can play with burst size and page size to fix this though
+cacti_min_memory_size_in_bytes = 2048 # bellow this value cacti errors out. We can play with burst size and page size to fix this though
 
 #ACC_coeff = 128  # comparing to what we have parsed, how much to modify. This is just for some exploration purposes
 	       # It should almost always set to 1
@@ -296,6 +296,6 @@ dram_stacked = True
 parallelism_analysis = "dynamic" # choose from ["dynamic", "static"]  # at the moment static is not working, something to do with the task and task sync
                                  # and read to being present after unloading
 
-cmd_queue_size = 16
-data_queue_size = 16
+default_cmd_queue_size = 16
+default_data_queue_size = 16
 default_burst_size = 64

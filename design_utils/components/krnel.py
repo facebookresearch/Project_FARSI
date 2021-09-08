@@ -712,13 +712,22 @@ class Kernel:
         if block.type == "pe":
             queue_impact = 1
         else:
-            incoming_pipes= pipe_cluster.get_incoming_pipes()
+            incoming_pipes = pipe_cluster.get_incoming_pipes()
             # use a  random pipe for now. TODO: fix later
             queue_size_for_default_pipe = incoming_pipes[0].get_data_queue_size()
             block_pipe_line_depth = block.get_pipe_line_depth()
-            queue_impact = math.ceil(block_pipe_line_depth/queue_size_for_default_pipe)
+            bus_width = block.get_block_bus_width()
+            flit_cnt_for_default_pipe = math.ceil(incoming_pipes[0].get_task_work_unit(self.get_task())/bus_width)
+            flit_cnt = flit_cnt_for_default_pipe
+            queue_size = queue_size_for_default_pipe
 
-        return 1/queue_impact
+            # calculate queue impact
+            queue_occupancy = min(queue_size , flit_cnt) # measured in number of occupied cells
+            pipe_line_utilization = math.floor(queue_occupancy/block_pipe_line_depth)
+            pipe_line_utilization = min(pipe_line_utilization, 1) # can't be above one
+            queue_impact = pipe_line_utilization
+
+        return queue_impact
 
 
 
