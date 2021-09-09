@@ -712,7 +712,8 @@ class Kernel:
         def get_fleet_count_on_pipe(block, pipe, schedulued_krnels):
             work_unit_total = 0
             for krnl in schedulued_krnels:
-                work_unit_total += pipe.get_task_work_unit(self.get_task())
+                if pipe.is_task_present(krnl.get_task()):
+                    work_unit_total += pipe.get_task_work_unit(krnl.get_task())
 
             flit_cnt = math.ceil(work_unit_total/block.get_block_bus_width())
             return  flit_cnt
@@ -724,10 +725,16 @@ class Kernel:
         else:
             incoming_pipes = pipe_cluster.get_incoming_pipes()
             # use a  random pipe for now. TODO: fix later
+
             bus_width = block.get_block_bus_width()
             block_pipe_line_depth = block.get_pipe_line_depth()
 
-            default_pipe = incoming_pipes[0]
+            # select an incoming pipe
+            for pipe_ in incoming_pipes:
+                for krnl in schedulued_krnels:
+                    if pipe_.is_task_present(krnl.get_task()):
+                        default_pipe = pipe_
+            #default_pipe = incoming_pipes[0]
             pipe = default_pipe
 
             queue_size = pipe.get_data_queue_size()
