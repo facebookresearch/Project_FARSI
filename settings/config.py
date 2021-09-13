@@ -298,8 +298,8 @@ parallelism_analysis = "dynamic" # choose from ["dynamic", "static"]  # at the m
                                  # and read to being present after unloading
 
 #<<<<<<< HEAD
-default_cmd_queue_size = 1
-default_data_queue_size = 1
+default_cmd_queue_size = 2
+default_data_queue_size = 2
 default_burst_size = 64
 #=======
 #default_cmd_queue_size = 16
