@@ -719,6 +719,35 @@ class Kernel:
             return  flit_cnt
 
 
+
+        def get_flit_count_on_pipe_by_type(block, pipe, schedulued_krnels):
+            work_unit_total = 0
+            for krnl in schedulued_krnels:
+                if pipe.is_task_present(krnl.get_task()):
+                    work_unit_total += pipe.get_task_work_unit(krnl.get_task())
+
+            flit_cnt = math.ceil(work_unit_total/block.get_block_bus_width())
+            queue_size = pipe.get_data_queue_size()
+
+            flit_cnt_to_prime_with = min(queue_size, flit_cnt)
+            if flit_cnt > queue_size:
+                flit_cnt_after_priming = (math.floor(flit_cnt/queue_size) - 1)*queue_size
+                flit_cnt_for_draining = flit_cnt - flit_cnt_to_prime_with - flit_cnt_after_priming
+            else:
+                flit_cnt_after_priming = 0
+                flit_cnt_for_draining = 0
+
+            assert(flit_cnt_for_draining >= 0), "flit cnt draining needs to be greater or equal to zero"
+            assert(flit_cnt_after_priming >= 0), "flit count after priming needs to be greater or equal to zero"
+            assert(flit_cnt_to_prime_with >= 0), "flit count to prime with needs to be greater or equal to zero"
+
+            flit_cnt_type = {"to_prime_with": flit_cnt_to_prime_with, "after_priming":flit_cnt_after_priming, "draining":flit_cnt_for_draining}
+            return  flit_cnt_type
+
+
+
+
+
         queue_impact = 1
         if block.type == "pe":
             queue_impact = 1
@@ -740,11 +769,52 @@ class Kernel:
             queue_size = pipe.get_data_queue_size()
             flit_cnt = get_flit_count_on_pipe(block, pipe, schedulued_krnels)
 
+
+            flit_cnt_by_type = get_flit_count_on_pipe_by_type(block, pipe, schedulued_krnels)
+
+            # what portion of bandwidth would be curbed due to queuing impact
+            # while the pipeline is being primed
+            modeling_quanta = flit_cnt_by_type["to_prime_with"]
+            number_of_quanta = 1
+            quanta_over_all_percentage = (modeling_quanta*number_of_quanta)/flit_cnt
+            if not quanta_over_all_percentage == 0:
+                cycles_spent_on_quanta = block_pipe_line_depth + (modeling_quanta - 1)
+                quanta_curbing_coeff = modeling_quanta/cycles_spent_on_quanta   # quanta is "to_prime_with"
+                flits_to_prime_with_impact = quanta_over_all_percentage *  quanta_curbing_coeff
+            else:
+                flits_to_prime_with_impact = 0
+
+            # after the pipeline is primed
+            modeling_quanta = queue_size
+            number_of_quanta = (flit_cnt_by_type["after_priming"]/queue_size)
+            quanta_over_all_percentage = (modeling_quanta*number_of_quanta)/flit_cnt
+            if not quanta_over_all_percentage == 0:
+                cycles_spent_on_quanta = max(block_pipe_line_depth - (queue_size - 1),1) + (modeling_quanta - 1)  # quanta is queue size
+                quanta_curbing_coeff = modeling_quanta/cycles_spent_on_quanta
+                flits_after_priming_impact = quanta_over_all_percentage * quanta_curbing_coeff
+            else:
+                flits_after_priming_impact = 0
+
+            # pipeline drainage
+            modeling_quanta = flit_cnt_by_type["draining"]
+            number_of_quanta = 1
+            quanta_over_all_percentage = (modeling_quanta*number_of_quanta)/flit_cnt
+            if not quanta_over_all_percentage == 0:
+                cycles_spent_on_quanta = max(block_pipe_line_depth - (queue_size - 1),1) + (modeling_quanta - 1)  # quanta is queue size
+                quanta_curbing_coeff = modeling_quanta / cycles_spent_on_quanta
+                flits_for_draining_impact =  quanta_over_all_percentage* quanta_curbing_coeff
+            else:
+                flits_for_draining_impact =  0
+
+
             # calculate queue impact
+            """ 
             queue_occupancy = min(queue_size, flit_cnt)  # measured in number of occupied cells
             pipe_line_utilization = queue_occupancy/block_pipe_line_depth
             pipe_line_utilization = min(pipe_line_utilization, 1) # can't be above one
             queue_impact = pipe_line_utilization
+            """
+            queue_impact = flits_after_priming_impact + flits_to_prime_with_impact + flits_for_draining_impact
 
         return queue_impact
 
