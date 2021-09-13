@@ -778,7 +778,7 @@ class Kernel:
             number_of_quanta = 1
             quanta_over_all_percentage = (modeling_quanta*number_of_quanta)/flit_cnt
             if not quanta_over_all_percentage == 0:
-                cycles_spent_on_quanta = block_pipe_line_depth + (modeling_quanta - 1)
+                cycles_spent_on_quanta = block_pipe_line_depth + (modeling_quanta - 1) + 1
                 quanta_curbing_coeff = modeling_quanta/cycles_spent_on_quanta   # quanta is "to_prime_with"
                 flits_to_prime_with_impact = quanta_over_all_percentage *  quanta_curbing_coeff
             else:
