@@ -171,8 +171,8 @@ data_folder = "data"
 PA_output_folder = data_folder+"/"+"PA_output"
 sim_progress_folder = data_folder+"/"+"sim_progress"
 RUN_VERIFICATION_PER_GEN = True# every new desi, generate the verification data
-RUN_VERIFICATION_PER_NEW_CONFIG = False
-RUN_VERIFICATION_PER_IMPROVMENT = False and not (RUN_VERIFICATION_PER_GEN or RUN_VERIFICATION_PER_NEW_CONFIG) # every improvement, generate verification
+RUN_VERIFICATION_PER_NEW_CONFIG = True
+RUN_VERIFICATION_PER_IMPROVMENT = True and not (RUN_VERIFICATION_PER_GEN or RUN_VERIFICATION_PER_NEW_CONFIG) # every improvement, generate verification
                                                                          # don't want to double generate, hence the second
                                                                          # predicate clause
 RUN_VERIFICATION_AT_ALL = RUN_VERIFICATION_PER_IMPROVMENT or RUN_VERIFICATION_PER_NEW_CONFIG or RUN_VERIFICATION_PER_GEN
@@ -297,12 +297,12 @@ dram_stacked = True
 parallelism_analysis = "dynamic" # choose from ["dynamic", "static"]  # at the moment static is not working, something to do with the task and task sync
                                  # and read to being present after unloading
 
-<<<<<<< HEAD
-cmd_queue_size = 2
-data_queue_size = 2
-default_burst_size = 512
-=======
-default_cmd_queue_size = 16
-default_data_queue_size = 16
+#<<<<<<< HEAD
+default_cmd_queue_size = 1
+default_data_queue_size = 1
 default_burst_size = 64
->>>>>>> eb9248faba83127d944eb851741cfd2335ad81ce
+#=======
+#default_cmd_queue_size = 16
+#default_data_queue_size = 16
+#default_burst_size = 64
+#>>>>>>> eb9248faba83127d944eb851741cfd2335ad81ce

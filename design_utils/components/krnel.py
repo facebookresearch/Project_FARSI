@@ -742,8 +742,8 @@ class Kernel:
 
             # calculate queue impact
             queue_occupancy = min(queue_size, flit_cnt)  # measured in number of occupied cells
-            pipe_line_utilization = math.floor(queue_occupancy/block_pipe_line_depth)
-            pipe_line_utilization = min(pipe_line_utilization, 1) # can't be above one
+            pipe_line_utilization = queue_occupancy/block_pipe_line_depth
+            pipe_line_utilization = min(pipe_line_utilization, 1.0) # can't be above one
             queue_impact = pipe_line_utilization
 
         return queue_impact
@@ -785,8 +785,8 @@ class Kernel:
 
 
                 # queue impact
-                queue_impact = self.get_queue_impact(block, pipe_cluster, scheduled_kernels)
 
+                queue_impact = self.get_queue_impact(block, pipe_cluster, scheduled_kernels)
                 work_rate =  queue_impact*float(block.get_peak_work_rate(self.get_power_knob_id()))*allocated_work_rate_relative_to_other_kernels/work_ratio
                 block_work_rate_norm_dict[block][pipe_cluster] = work_rate
                 if block_work_rate_norm_dict[block][pipe_cluster] == 0:
