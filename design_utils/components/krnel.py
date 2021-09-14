@@ -772,17 +772,20 @@ class Kernel:
 
             flit_cnt_by_type = get_flit_count_on_pipe_by_type(block, pipe, schedulued_krnels)
 
+            total_cycles_spent_on_all_flits = 0
             # what portion of bandwidth would be curbed due to queuing impact
             # while the pipeline is being primed
             modeling_quanta = flit_cnt_by_type["to_prime_with"]
             number_of_quanta = 1
             quanta_over_all_percentage = (modeling_quanta*number_of_quanta)/flit_cnt
             if not quanta_over_all_percentage == 0:
-                cycles_spent_on_quanta = block_pipe_line_depth + (modeling_quanta - 1) + 1
+                cycles_spent_on_quanta = block_pipe_line_depth + (modeling_quanta - 1) + 1 + 3*block.get_pipe_line_depth()
                 quanta_curbing_coeff = modeling_quanta/cycles_spent_on_quanta   # quanta is "to_prime_with"
-                flits_to_prime_with_impact = quanta_over_all_percentage *  quanta_curbing_coeff
+                flits_to_prime_with_impact = quanta_over_all_percentage * quanta_curbing_coeff
+                total_cycles_spent_on_all_flits+= number_of_quanta*cycles_spent_on_quanta
             else:
                 flits_to_prime_with_impact = 0
+
 
             # after the pipeline is primed
             modeling_quanta = queue_size
@@ -792,6 +795,7 @@ class Kernel:
                 cycles_spent_on_quanta = max(block_pipe_line_depth - (queue_size - 1),1) + (modeling_quanta - 1)  # quanta is queue size
                 quanta_curbing_coeff = modeling_quanta/cycles_spent_on_quanta
                 flits_after_priming_impact = quanta_over_all_percentage * quanta_curbing_coeff
+                total_cycles_spent_on_all_flits += number_of_quanta*cycles_spent_on_quanta
             else:
                 flits_after_priming_impact = 0
 
@@ -802,7 +806,8 @@ class Kernel:
             if not quanta_over_all_percentage == 0:
                 cycles_spent_on_quanta = max(block_pipe_line_depth - (queue_size - 1),1) + (modeling_quanta - 1)  # quanta is queue size
                 quanta_curbing_coeff = modeling_quanta / cycles_spent_on_quanta
-                flits_for_draining_impact =  quanta_over_all_percentage* quanta_curbing_coeff
+                flits_for_draining_impact = quanta_over_all_percentage* quanta_curbing_coeff
+                total_cycles_spent_on_all_flits += number_of_quanta*cycles_spent_on_quanta
             else:
                 flits_for_draining_impact =  0
 
@@ -815,6 +820,7 @@ class Kernel:
             queue_impact = pipe_line_utilization
             """
             queue_impact = flits_after_priming_impact + flits_to_prime_with_impact + flits_for_draining_impact
+            queue_impact = flit_cnt/total_cycles_spent_on_all_flits
 
         return queue_impact
 
