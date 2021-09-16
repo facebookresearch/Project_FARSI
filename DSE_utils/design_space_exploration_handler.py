@@ -312,6 +312,11 @@ class DSEHandler:
 
         for key, val in self.dse.so_far_best_sim_dp.dp_stats.SOC_metric_dict["latency"]["glass"][0].items():
             print("lat is {} for {}".format(val, key))
-        self.dse.write_data_log(list(self.dse.get_log_data()), self.dse.reason_to_terminate, "", result_folder, self.check_point_ctr,
-                      config.FARSI_simple_run_prefix)
+            burst_size = config.default_burst_size
+            queue_size = config.default_data_queue_size
+            print("burst size is {}".format(burst_size))
+            print("queue size is {}".format(queue_size))
+
+        #self.dse.write_data_log(list(self.dse.get_log_data()), self.dse.reason_to_terminate, "", result_folder, self.check_point_ctr,
+        #              config.FARSI_simple_run_prefix)
         self.check_point_ctr +=1
