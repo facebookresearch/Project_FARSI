@@ -94,32 +94,32 @@ if __name__ == "__main__":
 
 
 
-
-    db_input = database_input_class(sw_hw_database_population)
-    print("hw_sampling:" + str(hw_sampling))
-    print("budget set to:" + str(db_input.get_budget_dict("glass")))
-    unique_suffix = str(total_process_cnt) + "_" + str(current_process_id) + "_" + str(run_ctr)
     burst_sizes = [64, 128, 256]
     queue_sizes = [1, 2, 4, 8]
     for burst_size in burst_sizes:
-      for queue_size in queue_sizes:
-        config.default_cmd_queue_size = queue_size
-        config.default_data_queue_size = queue_size
-        config.default_burst_size = burst_size
-        dse_hndlr = run_FARSI_only_simulation(result_folder, unique_suffix, db_input, hw_sampling, sw_hw_database_population["hw_graph_mode"])
-        run_ctr += 1
+        for queue_size in queue_sizes:
 
-        # write the results in the general folder
-        result_dir_specific = os.path.join(result_folder, "result_summary")
-        reason_to_terminate = "simple_sim_run"
-#        wf.write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse, reason_to_terminate, case_study, result_dir_specific,
-#                  unique_suffix,
-#                  file_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
+            db_input = database_input_class(sw_hw_database_population)
+            print("hw_sampling:" + str(hw_sampling))
+            print("budget set to:" + str(db_input.get_budget_dict("glass")))
+            unique_suffix = str(total_process_cnt) + "_" + str(current_process_id) + "_" + str(run_ctr)
+            config.default_cmd_queue_size = queue_size
+            config.default_data_queue_size = queue_size
+            config.default_burst_size = burst_size
+            dse_hndlr = run_FARSI_only_simulation(result_folder, unique_suffix, db_input, hw_sampling, sw_hw_database_population["hw_graph_mode"])
+            run_ctr += 1
 
-        # write the results in the specific folder
-        result_folder_modified = result_folder + "/runs/" + str(run_ctr) + "/"
-        os.system("mkdir -p " + result_folder_modified)
-        wf.copy_DSE_data(result_folder_modified)
-#        wf.write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse, reason_to_terminate, case_study,
-#                  result_folder_modified, unique_suffix,
-#                  file_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
+            # write the results in the general folder
+            result_dir_specific = os.path.join(result_folder, "result_summary")
+            reason_to_terminate = "simple_sim_run"
+    #        wf.write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse, reason_to_terminate, case_study, result_dir_specific,
+    #                  unique_suffix,
+    #                  file_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
+
+            # write the results in the specific folder
+            result_folder_modified = result_folder + "/runs/" + str(run_ctr) + "/"
+            os.system("mkdir -p " + result_folder_modified)
+            wf.copy_DSE_data(result_folder_modified)
+    #        wf.write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse, reason_to_terminate, case_study,
+    #                  result_folder_modified, unique_suffix,
+    #                  file_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
