@@ -63,7 +63,7 @@ if __name__ == "__main__":
     #workloads = {"edge_detection"}
     #workloads = {"hpvm_cava"}
     workloads = {"partial_SOC_example_hard"}
-    workloads = {"SOC_example_1p"}
+    workloads = {"SOC_example_8p"}
     tech_node_SF = {"perf":1, "energy":{"non_gpp":.064, "gpp":1}, "area":{"non_mem":.0374 , "mem":.079, "gpp":1}}   # technology node scaling factor
     db_population_misc_knobs = {"ip_freq_correction_ratio": 1, "gpp_freq_correction_ratio": 1,
                                 "tech_node_SF":tech_node_SF,
@@ -119,6 +119,19 @@ if __name__ == "__main__":
             # write the results in the specific folder
             result_folder_modified = result_folder + "/runs/" + str(run_ctr) + "/"
             os.system("mkdir -p " + result_folder_modified)
+
+            for key, val in dse_hndlr.dse.so_far_best_sim_dp.dp_stats.SOC_metric_dict["latency"]["glass"][0].items():
+                print("lat is {} for {}".format(val, key))
+                lat = val
+                burst_size = config.default_burst_size
+                queue_size = config.default_data_queue_size
+                print("burst size is {}".format(burst_size))
+                print("queue size is {}".format(queue_size))
+
+            with open(result_folder+"/latency_in_us.txt", "a") as f:
+               f.write("burst_size={}, queue_size={}, farsi_simtime={}\n".format(burst_size,
+                                                                            queue_size,
+                                                                            lat*1000000))
             wf.copy_DSE_data(result_folder_modified)
     #        wf.write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse, reason_to_terminate, case_study,
     #                  result_folder_modified, unique_suffix,
