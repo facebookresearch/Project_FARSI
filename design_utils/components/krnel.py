@@ -779,7 +779,7 @@ class Kernel:
             number_of_quanta = 1
             quanta_over_all_percentage = (modeling_quanta*number_of_quanta)/flit_cnt
             if not quanta_over_all_percentage == 0:
-                cycles_spent_on_quanta = block_pipe_line_depth + (modeling_quanta - 1) + 1 + 3*block.get_pipe_line_depth()
+                cycles_spent_on_quanta = (modeling_quanta - 1) + 1
                 quanta_curbing_coeff = modeling_quanta/cycles_spent_on_quanta   # quanta is "to_prime_with"
                 flits_to_prime_with_impact = quanta_over_all_percentage * quanta_curbing_coeff
                 total_cycles_spent_on_all_flits+= number_of_quanta*cycles_spent_on_quanta
@@ -820,6 +820,15 @@ class Kernel:
             queue_impact = pipe_line_utilization
             """
             queue_impact = flits_after_priming_impact + flits_to_prime_with_impact + flits_for_draining_impact
+
+            hop_latency = 4 * block_pipe_line_depth
+            if len(schedulued_krnels) > 1:
+                unhidden_latency =  max(hop_latency - (len(schedulued_krnels)-1)*total_cycles_spent_on_all_flits, 0)
+                total_cycles_spent_on_all_flits += unhidden_latency
+            else:
+                unhidden_latency = hop_latency
+
+            total_cycles_spent_on_all_flits += hop_latency
             queue_impact = flit_cnt/total_cycles_spent_on_all_flits
 
         return queue_impact
