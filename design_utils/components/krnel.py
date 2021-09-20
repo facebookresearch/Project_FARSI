@@ -822,13 +822,13 @@ class Kernel:
             queue_impact = flits_after_priming_impact + flits_to_prime_with_impact + flits_for_draining_impact
 
             hop_latency = 4 * block_pipe_line_depth
-            if len(schedulued_krnels) > 1:
+            if len(schedulued_krnels) > 1 or True:
                 unhidden_latency =  max(hop_latency - (len(schedulued_krnels)-1)*total_cycles_spent_on_all_flits, 0)
-                total_cycles_spent_on_all_flits += unhidden_latency
+                #total_cycles_spent_on_all_flits += unhidden_latency
             else:
                 unhidden_latency = hop_latency
 
-            total_cycles_spent_on_all_flits += hop_latency
+            total_cycles_spent_on_all_flits += unhidden_latency
             queue_impact = flit_cnt/total_cycles_spent_on_all_flits
 
         return queue_impact
