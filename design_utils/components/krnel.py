@@ -745,9 +745,7 @@ class Kernel:
             return  flit_cnt_type
 
 
-
-
-
+        # calculate the queue impact
         queue_impact = 1
         if block.type == "pe":
             queue_impact = 1
@@ -772,6 +770,8 @@ class Kernel:
 
             flit_cnt_by_type = get_flit_count_on_pipe_by_type(block, pipe, schedulued_krnels)
 
+            # spend all the flits to 3,
+            # flits that prime the pipeline, flits after priming, flits for draining
             total_cycles_spent_on_all_flits = 0
             # what portion of bandwidth would be curbed due to queuing impact
             # while the pipeline is being primed
@@ -779,13 +779,13 @@ class Kernel:
             number_of_quanta = 1
             quanta_over_all_percentage = (modeling_quanta*number_of_quanta)/flit_cnt
             if not quanta_over_all_percentage == 0:
-                cycles_spent_on_quanta = (modeling_quanta - 1) + 1
+                cycles_spent_on_quanta = max(block_pipe_line_depth - (queue_size - 1),1) + (modeling_quanta - 1)
+                #cycles_spent_on_quanta = (modeling_quanta - 1) + 1
                 quanta_curbing_coeff = modeling_quanta/cycles_spent_on_quanta   # quanta is "to_prime_with"
                 flits_to_prime_with_impact = quanta_over_all_percentage * quanta_curbing_coeff
                 total_cycles_spent_on_all_flits+= number_of_quanta*cycles_spent_on_quanta
             else:
                 flits_to_prime_with_impact = 0
-
 
             # after the pipeline is primed
             modeling_quanta = queue_size
@@ -818,15 +818,24 @@ class Kernel:
             pipe_line_utilization = queue_occupancy/block_pipe_line_depth
             pipe_line_utilization = min(pipe_line_utilization, 1) # can't be above one
             queue_impact = pipe_line_utilization
+            #queue_impact = flits_after_priming_impact + flits_to_prime_with_impact + flits_for_draining_impact
             """
-            queue_impact = flits_after_priming_impact + flits_to_prime_with_impact + flits_for_draining_impact
 
-            hop_latency = 4 * block_pipe_line_depth
-            if len(schedulued_krnels) > 1 or True:
-                unhidden_latency =  max(hop_latency - (len(schedulued_krnels)-1)*total_cycles_spent_on_all_flits, 0)
-                #total_cycles_spent_on_all_flits += unhidden_latency
+            fw_latency =  block_pipe_line_depth + (queue_size - 1)
+            bw_latency = 2 * block_pipe_line_depth
+            total_hop_latency = fw_latency + bw_latency
+
+            # add the hop latency
+            if len(schedulued_krnels) > 1:
+                krnls_running_cnt = len(schedulued_krnels)
+                #krnls_running_cnt = 8
+                unhidden_latency = total_hop_latency - (krnls_running_cnt - 1) * total_cycles_spent_on_all_flits
+                if unhidden_latency > 0:
+                    unhidden_latency = (unhidden_latency)/krnls_running_cnt
+                else:
+                    unhidden_latency = 0
             else:
-                unhidden_latency = hop_latency
+                unhidden_latency = total_hop_latency
 
             total_cycles_spent_on_all_flits += unhidden_latency
             queue_impact = flit_cnt/total_cycles_spent_on_all_flits
