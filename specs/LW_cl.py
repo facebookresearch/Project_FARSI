@@ -44,7 +44,7 @@ class BlockL:  # block light weight
 # light weight class that directory talks to the database. This is later used by the Task class which is much more
 # involved.
 class TaskL:  # task light weight
-    def __init__(self, task_name: str, work: float):
+    def __init__(self, task_name: str, work: float, iteration=1):
         self.task_name = task_name
         self.work = work   #  the amount of work associated with task (at the mement, this is expressed for PEs (as the
                            # reference block). so work = number of instructions.
@@ -54,6 +54,8 @@ class TaskL:  # task light weight
         self.__self_to_child_task_work_distribution = {}   # amount of bytes passed from this task to its children (as a distribution).
         self.__children_nature_dict = dict()
         self.burst_size = 64
+        #self.iteration = 2
+        self.iteration = iteration
 
     # ------------------------------
     # Functionality:

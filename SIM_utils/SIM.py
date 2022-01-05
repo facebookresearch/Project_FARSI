@@ -45,7 +45,7 @@ class OSASimulator:
         self.cur_tick_time = self.next_tick_time
 
     # ------------------------------
-    # Functionality:
+    # Functionality
     #   progress the simulation for clock_time forward
     # ------------------------------
     def step(self, clock_time):

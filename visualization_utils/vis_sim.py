@@ -171,6 +171,42 @@ def plot_sim_data(dp_stats, ex_dp, result_folder):
         kernel_end_time_dict = {}
         for kernel in kernel__metrtic_value.keys():
             name__start_width_metric_unit_dict[kernel.get_task_name()] = []
+
+
+        phase_latency_dict = dp_stats.get_phase_latency()
+        phase_start_end_dict = {}
+        start = 0
+        for phase, duration in phase_latency_dict.items():
+            phase_start_end_dict[phase] = [start, start + duration]
+            start += duration
+
+        for kernel, values in kernel__metrtic_value.items():
+            for value in values:
+                metric = value[2]
+                unit = value[3]
+                break
+            break
+
+
+        for kernel,phases_operating_state in dp_stats.dp.krnl_phase_present_operating_state.items():
+            last_phase_number = 9999
+            last_operating_state = "na"
+            starting_phase = True
+            for phase, operating_state in phases_operating_state:
+                start, end = phase_start_end_dict[phase]
+                if last_phase_number == phase - 1 and last_operating_state == operating_state:
+                    start = (name__start_width_metric_unit_dict[kernel.get_task_name()][-1])[0]
+                    label = operating_state[0]+":"+str("{:.4f}".format(end))
+                    name__start_width_metric_unit_dict[kernel.get_task_name()][-1] = (start, end - start, label, "")
+                else:
+                    label = operating_state[0]+":"+str("{:.4f}".format(end))
+                    name__start_width_metric_unit_dict[kernel.get_task_name()].append((start, end-start, label, ""))
+                if starting_phase:
+                    kernel_end_time_dict[kernel.get_task_name()] = start
+                    starting_phase = False
+                last_phase_number = phase
+                last_operating_state = operating_state
+        """
         for kernel, values in kernel__metrtic_value.items():
             first_start_time = values[0][0]
             for value in values:
@@ -182,6 +218,7 @@ def plot_sim_data(dp_stats, ex_dp, result_folder):
                 last_start = start
                 last_width = width
             kernel_end_time_dict[kernel.get_task_name()] = first_start_time
+        """
         # now sort it based on end time
         sorted_kernel_end_time = sorted(kernel_end_time_dict.items(),
                           key=operator.itemgetter(1), reverse=True)

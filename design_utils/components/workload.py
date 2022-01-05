@@ -17,7 +17,8 @@ import math
 # This class is to model a task, that is the smallest software execution unit.
 class Task:
     task_id_for_debugging_static = 0
-    def __init__(self, name, work):
+    def __init__(self, name, work, iteration_ctr =1):
+        self.iteration_ctr = iteration_ctr
         self.name = name
         self.progress = 0  # progress percentage (how much of the task has been finished)
         self.task_fraction = 1  # TODO: right now always set to 1
@@ -45,6 +46,10 @@ class Task:
                                                    # work unit from bus and memory perspective is the burst size
                                                    # (in bytes)
         self.burst_size = config.default_burst_size
+
+
+    def get_iteration_cnt(self):
+        return self.iteration_ctr
 
     def set_burst_size(self, burst_size):
         self.burst_size = burst_size
@@ -288,6 +293,19 @@ class Task:
         else:
             print(family_task.name + " is not a family task of " + self.name)
             exit(0)
+
+    def get_self_total_work(self, mode):
+        total_work = 0
+        if mode == "execute":
+            total_work = self.__task_to_family_task_work[self]
+        if mode == "read":
+            for family_task in self.get_parents():
+                total_work += family_task.get_self_to_family_task_work(self)
+        if mode == "write":
+            for family_task in self.get_children():
+                total_work += self.__task_to_family_task_work[family_task]
+        return total_work
+
 
     # return self to family task unit of work. For example
     # work unit from bus and memory perspective is the burst size

@@ -417,14 +417,20 @@ class Kernel:
     def __init__(self, task_to_blocks_map: TaskToBlocksMap): #, task_to_pe_block_schedule: TaskToPEBlockSchedule):
         # constructor argument vars, any changes to these need to initiate a reset
         self.__task_to_blocks_map = task_to_blocks_map  # mapping of the task to blocks
-        self.kernel_total_work = self.__task_to_blocks_map.task.get_self_task_work()  # work (number of instructions for the task)
-
+        self.kernel_total_work = {}
+        #self.kernel_total_work = self.__task_to_blocks_map.task.get_self_task_work()  # work (number of instructions for the task)
+        self.kernel_total_work["execute"] =  self.__task_to_blocks_map.task.get_self_total_work("execute")
+        self.kernel_total_work["read"] = self.__task_to_blocks_map.task.get_self_total_work("read")
+        self.kernel_total_work["write"] =self.__task_to_blocks_map.task.get_self_total_work("write")
+        self.data_work_left = {}
+        self.max_iteration_ctr = self.iteration_ctr = self.__task_to_blocks_map.task.iteration_ctr
         # status vars
         self.cur_phase_bottleneck = ""  # which phase does the bottleneck occurs
         self.block_att_work_rate_dict = defaultdict(dict)  # for the kernel, block and their attainable work rate.
                                                            # attainable work rate is peak work rate (BW or IPC) of the block
                                                            # but attenuated as it is being shared among multiple kernels/fronts
 
+        self.operating_state = "none"
         self.block_path_dir_phase_latency = {}
         self.path_dir_phase_latency = {}
         self.pathlet_phase_latency_dict = {}
@@ -458,6 +464,7 @@ class Kernel:
                                                                                          # to be done.
         self.path_structural_latency = {}
 
+
     # This function is used for the power knobs simulator; After each run the stats
     #  gathered for each kernel is removed to avoid conflicting with past simulations
     def reset_sim_stats(self):
@@ -484,6 +491,7 @@ class Kernel:
         self.completion_time = 0
         self.kernel_phase_bottleneck_blocks_dict = defaultdict(dict)
         self.block_num_shared_blocks_dict = {}
+        self.operating_state = "none"
 
     # populate the statistics
     def set_stats(self):
@@ -500,6 +508,13 @@ class Kernel:
         self.SOC_type = SOC[0]
         self.SOC_id = SOC[1]
 
+
+    def update_krnl_iteration_ctr(self):
+        if self.iteration_ctr == -1:
+            pass
+        else:
+            self.iteration_ctr = max(0, self.iteration_ctr -1)
+
     # --------------
     # getters
     # --------------
@@ -511,7 +526,7 @@ class Kernel:
 
     # work here is PE's work, so specified in terms of number of instructions
     def get_total_work(self):
-        return self.kernel_total_work
+        return self.kernel_total_work["execute"]
 
     # get the list of blocks the kernel uses
     def get_block_list_names(self):
@@ -821,12 +836,12 @@ class Kernel:
             #queue_impact = flits_after_priming_impact + flits_to_prime_with_impact + flits_for_draining_impact
             """
 
-            fw_latency =  block_pipe_line_depth + (queue_size - 1)
-            bw_latency = 2 * block_pipe_line_depth
+            fw_latency =  2*block_pipe_line_depth + (queue_size - 1)
+            bw_latency = 3 * block_pipe_line_depth
             total_hop_latency = fw_latency + bw_latency
 
             # add the hop latency
-            if len(schedulued_krnels) > 1:
+            if len(schedulued_krnels) > 1 :
                 krnls_running_cnt = len(schedulued_krnels)
                 #krnls_running_cnt = 8
                 unhidden_latency = total_hop_latency - (krnls_running_cnt - 1) * total_cycles_spent_on_all_flits
@@ -869,8 +884,17 @@ class Kernel:
 
                 # get work ratio (so you can normalize to it)
                 dir = pipe_cluster.get_dir()
-                work_ratio = self.__task_to_blocks_map.get_workRatio_by_block_name_and_family_member_names_and_channel_eliminating_fake(
-                    block.instance_name, self.get_block_family_tasks_in_use(block), dir)
+
+                if config.sw_model == "sequential":
+                    # filter blocks based on the stage
+                    if block.type == "pe" and not self.operating_state == "execute":
+                        continue
+                    elif not block.type == "pe" and not dir == self.operating_state:
+                        continue
+                    work_ratio = 1
+                else:
+                    work_ratio = self.__task_to_blocks_map.get_workRatio_by_block_name_and_family_member_names_and_channel_eliminating_fake(
+                        block.instance_name, self.get_block_family_tasks_in_use(block), dir)
 
                 if work_ratio == 0:
                     print("this should be looked at")
@@ -881,10 +905,11 @@ class Kernel:
                 # queue impact
 
                 queue_impact = self.get_queue_impact(block, pipe_cluster, scheduled_kernels)
+                queue_impact = 1
                 work_rate =  queue_impact*float(block.get_peak_work_rate(self.get_power_knob_id()))*allocated_work_rate_relative_to_other_kernels/work_ratio
                 block_work_rate_norm_dict[block][pipe_cluster] = work_rate
-                if block_work_rate_norm_dict[block][pipe_cluster] == 0:
-                    print("what")
+                #if block_work_rate_norm_dict[block][pipe_cluster] == 0:
+                #    print("what")
 
         return block_work_rate_norm_dict
 
@@ -954,7 +979,7 @@ class Kernel:
                 work_ratio = self.__task_to_blocks_map.get_workRatio_by_block_name_and_family_member_names_and_channel_eliminating_fake(
                     block.instance_name, self.get_block_family_tasks_in_use(block), dir)
 
-                if "souurce" in self.get_task_name() or "siink" in self.get_task_name():
+                if "souurce" in self.get_task_name() or "siink" in self.get_task_name() or config.sw_model == "sequential":
                     work_ratio = 1
                 block_att_work_rate_dict[block][pipe_cluster] = bottleneck_work_rate*work_ratio
                 #self.update_pipe_cluster_work_rate(pipe_cluster, bottleneck_work_rate)
@@ -1285,13 +1310,15 @@ class Kernel:
     # that DMA might serialize read/writes.
     def consolidate_channels(self, block_normalized_work_rate):
         block_normalized_work_rate_consolidated = defaultdict(dict)
+        """
         assert config.DMA_mode in ["serialized_read_write", "parallelized_read_write"]
         if config.DMA_mode == "serialized_read_write":
             for block, pipe_cluster_work_rate in block_normalized_work_rate.items():
                 for pipe_cluster, work_rate in pipe_cluster_work_rate.items():
                     block_normalized_work_rate_consolidated[block][pipe_cluster] = 1/sum([1/norm_wr for  norm_wr in pipe_cluster_work_rate.values()])
         elif config.DMA_mode == "parallelized_read_write":
-            block_normalized_work_rate_consolidated = block_normalized_work_rate
+        """
+        block_normalized_work_rate_consolidated = block_normalized_work_rate
 
         return block_normalized_work_rate_consolidated
 
@@ -1299,6 +1326,9 @@ class Kernel:
     def get_latency_if_krnel_run_in_isolation(self):
         if self.get_task().is_task_dummy():
             return 0
+        if config.sw_model == "sequential":
+            print("can not do kerel calculation in isolation for sequential mode yet")
+            return .1
         block_att_work_rate_dict = self.update_block_att_work_rate_in_isolation()
         time_to_completion_in_isolation = self.get_total_work()/block_att_work_rate_dict[self.get_ref_block()][self.get_ref_block().get_pipe_clusters()[0]]
         return time_to_completion_in_isolation
@@ -1332,6 +1362,14 @@ class Kernel:
 
     # calculate the attainable work rate of the block
     def update_block_att_work_rate(self, scheduled_kernels):
+
+        #
+        scheduled_kernels_tmp = []
+        if config.sw_model == "sequential":
+            krnls_operating_state = self.operating_state
+            scheduled_kernels_tmp = [krnl_ for krnl_ in scheduled_kernels if krnl_.operating_state == krnls_operating_state]
+            scheduled_kernels = scheduled_kernels_tmp
+
         # get block work rate. In this step we calculate the normalized work rate.
         # normalized work rate is actual work rate normalized to the work rate of
         # the ref block (which is usally PE) work rate. Normalizing allows us
@@ -1358,15 +1396,38 @@ class Kernel:
         self.block_dir_att_work_rate_dict = self.calc_unnormalize_work_rate_by_dir(self.block_normalized_work_rate, cur_phase_dir_bottleneck_work_rate)
 
 
+    def get_completion_time(self):
+        return self.completion_time
+
     # calculate the completion time for the kernel
     def calc_kernel_completion_time(self):
-        return self.pe_s_work_left/self.block_att_work_rate_dict[self.get_ref_block()][self.get_ref_block().get_pipe_clusters()[0]]
+        if config.sw_model == "sequential":
+            if self.operating_state == "execute":
+                return self.pe_s_work_left / self.block_att_work_rate_dict[self.get_ref_block()][self.get_ref_block().get_pipe_clusters()[0]]
+            else:
+                if self.get_task().is_task_dummy():
+                    return 0
+                mem = self.get_a_mem_by_dir(self.operating_state)
+                mem_pipe_cluster = None
+                for pipe_cluster in mem.get_pipe_clusters():
+                    if pipe_cluster.get_dir() == self.operating_state:
+                        mem_pipe_cluster = pipe_cluster
+                        break
+                if pipe_cluster == None:
+                    print("something went wrong since there is not pipe cluster associated with this memory")
+                    exit(0)
+                return self.data_work_left[self.operating_state]/self.block_att_work_rate_dict[mem][mem_pipe_cluster]
+        else:
+            return self.pe_s_work_left/self.block_att_work_rate_dict[self.get_ref_block()][self.get_ref_block().get_pipe_clusters()[0]]
 
     # launch the kernel
     # Variables:
     #       cur_time: current time (s)
     def launch(self, cur_time):
-        self.pe_s_work_left = self.kernel_total_work
+        self.pe_s_work_left = self.kernel_total_work["execute"]
+        self.data_work_left["read"] = self.kernel_total_work["read"]
+        self.data_work_left["write"] = self.kernel_total_work["write"]
+        self.operating_state = "read"
         # keeping track of how much work left for every block
         for block_dir_work_ratio in self.__task_to_blocks_map.block_dir_workRatio_dict.keys():
             if block_dir_work_ratio not in self.block_dir_work_left.keys():
@@ -1375,7 +1436,9 @@ class Kernel:
                 self.block_dir_work_left[block_dir_work_ratio][task] = (self.pe_s_work_left*ratio)
 
         self.status = "in_progress"
-        self.starting_time = cur_time
+        if self.iteration_ctr == self.max_iteration_ctr:
+            self.starting_time = cur_time
+        self.update_krnl_iteration_ctr()
 
     # has kernel completed already
     def has_completed(self):
@@ -1385,16 +1448,32 @@ class Kernel:
     def has_started(self):
         return self.status == "in_progress"
 
+    def get_operating_state(self):
+        return self.operating_state
+
     # update the status of the kernel to specify whether it's done or not
-    def update_status(self, time_step_size):
-        if self.kernel_total_work == 0:  self.progress = 1  # for dummy tasks (with the suffix of souurce and siink)
-        else: self.progress = 1 - float(self.pe_s_work_left/self.kernel_total_work)
+    def update_status(self, time_step_size, clock=0):
+        if config.sw_model == "sequential":
+            if self.operating_state == "read" and self.data_work_left["read"] <.001:
+                self.operating_state = "execute"
+                self.progress = .5
+            elif self.operating_state == "execute" and self.pe_s_work_left <.001:
+                self.operating_state = "write"
+                self.progress= .5
+            elif  self.operating_state == "write" and self.data_work_left["write"] < .001:
+                self.progress = 1
+            else:
+                self.progress = .3
+        else:
+            if self.kernel_total_work["execute"] == 0:  self.progress = 1  # for dummy tasks (with the suffix of souurce and siink)
+            else: self.progress = 1 - float(self.pe_s_work_left/self.kernel_total_work)
 
         self.stats.latency += time_step_size
 
         if self.progress >= .99:
             self.status = "completed"
-            self.completion_time = self.stats.latency + self.starting_time
+            #self.completion_time = self.stats.latency + self.starting_time
+            self.completion_time = clock
         elif self.progress == 0:
             self.status = "not_scheduled"
         else:
@@ -1402,11 +1481,23 @@ class Kernel:
 
         self.update_stats(time_step_size)
 
+    def get_a_mem_by_dir(self, dir_):
+        for block in self.get_blocks():
+            for pipe_cluster in block.get_pipe_clusters_of_task(self.get_task()):
+                dir = pipe_cluster.get_dir()
+                if dir == dir_ and block.type == "mem":
+                    return block
+
     # given the time (time_step_size) of the tick, calculate how much work has the
     # kernel accomplished. Note that work concept varies depending on the hardware block, i.e.,
     # work = bytes for memory/uses and its instructions for PEs
     def calc_work_consumed(self, time_step_size):
+
         # iterate through each blocks attainable work rate and calculate
+        # initialize
+        for block in self.get_blocks():
+            self.block_phase_work_dict[block][self.phase_num] = 0
+
         # how much work it can do for the kernel of interest
         for block, pipe_clusters_work_rate in self.block_att_work_rate_dict.items():
             read_work = write_work = 0
@@ -1499,7 +1590,7 @@ class Kernel:
         elif "siink" in self.get_task_name():
             memory_total_work = 0
         else:
-            pe_s_total_work = self.kernel_total_work
+            pe_s_total_work = self.kernel_total_work["execute"]
             for mem in mems:
                 #mem_work_ratio = self.__task_to_blocks_map.get_workRatio_by_block_name_and_dir(mem.instance_name, dir_)
                 mem_work_ratio = self.__task_to_blocks_map.get_workRatio_by_block_name_and_dir_eliminating_fake(mem.instance_name, dir_)
@@ -1516,7 +1607,7 @@ class Kernel:
         # the convention is ot provide 1/fixe_area for these blocks
         # DSPs and Processors are among statically sized blocks while accelerators are not among the list
         if pe.subtype in config.statically_sized_blocks: work = 1
-        else: work = self.kernel_total_work
+        else: work = self.kernel_total_work["execute"]
         pe.update_area(work/pe.get_work_over_area(self.get_power_knob_id()), self.get_task_name())
 
     # TODO: need to include ic as well
@@ -1527,16 +1618,34 @@ class Kernel:
     # Note that work concept varies depending on the hardware block, i.e.,
     # work = bytes for memory/uses and its instructions for PEs
     def calc_work_left(self):
-        if not config.transaction_base_simulation:
+        if not config.sw_model == "sequential":
             self.pe_s_work_left -= self.block_phase_work_dict[self.get_ref_block()][self.phase_num]
         else:
             # use the following for phase based simulation
-            self.pe_s_work_left -= self.block_phase_work_dict[self.get_ref_block()][self.phase_num]
-            for block_dir_work_ratio in self.__task_to_blocks_map.block_dir_workRatio_dict.keys():
-                if block_dir_work_ratio not in self.block_dir_work_left.keys():
-                    self.block_dir_work_left[block_dir_work_ratio] = {}
-                for task, ratio in self.__task_to_blocks_map.block_dir_workRatio_dict[block_dir_work_ratio].items():
-                    self.block_dir_work_left[block_dir_work_ratio][task] = (self.pe_s_work_left*ratio)
+            if config.sw_model == "sequential":
+                if self.operating_state == "execute":
+                    self.pe_s_work_left -= self.block_phase_work_dict[self.get_ref_block()][self.phase_num]
+                else:
+                    if self.get_task().is_task_dummy():
+                        self.data_work_left[self.operating_state] = 0
+                    else:
+                        mem = self.get_a_mem_by_dir(self.operating_state)
+                        if self.operating_state == "read":
+                            self.data_work_left[self.operating_state] -= self.block_phase_read_dict[mem][self.phase_num]
+                        elif self.operating_state == "write":
+                            self.data_work_left[self.operating_state] -= self.block_phase_write_dict[mem][self.phase_num]
+                for block_dir_work_ratio in self.__task_to_blocks_map.block_dir_workRatio_dict.keys():
+                    if block_dir_work_ratio not in self.block_dir_work_left.keys():
+                        self.block_dir_work_left[block_dir_work_ratio] = {}
+                    for task, ratio in self.__task_to_blocks_map.block_dir_workRatio_dict[block_dir_work_ratio].items():
+                        self.block_dir_work_left[block_dir_work_ratio][task] = (self.pe_s_work_left * ratio)
+            else:
+                self.pe_s_work_left -= self.block_phase_work_dict[self.get_ref_block()][self.phase_num]
+                for block_dir_work_ratio in self.__task_to_blocks_map.block_dir_workRatio_dict.keys():
+                    if block_dir_work_ratio not in self.block_dir_work_left.keys():
+                        self.block_dir_work_left[block_dir_work_ratio] = {}
+                    for task, ratio in self.__task_to_blocks_map.block_dir_workRatio_dict[block_dir_work_ratio].items():
+                        self.block_dir_work_left[block_dir_work_ratio][task] = (self.pe_s_work_left*ratio)
 
     # accumulate how much area has been used for a phase of execution
     def aggregate_area_of_phase(self):

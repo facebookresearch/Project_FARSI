@@ -1160,6 +1160,13 @@ class pipe:
 
         return result
 
+    def get_tasks(self):
+        if "write" in self.dir:
+            results = set([el.parent.name for el in self.traffics])
+        if "read" in self.dir:
+            results = set([el.child.name for el in self.traffics])
+        return results
+
     def get_traffic(self):
         return self.traffics
 
@@ -1629,10 +1636,26 @@ class HardwareGraph:
         pass
 
     def size_queues(self):
+        # set to the default value
         for pipe in self.pipes:
             # by default set the cmd/data size to master queue size
             pipe.set_cmd_queue_size(config.default_data_queue_size)
             pipe.set_data_queue_size(config.default_data_queue_size)
+
+        # actually size the queues
+        """
+        for pipe in self.pipes:
+            # by default set the cmd/data size to master queue size
+            pipe_slave = pipe.get_slave()
+            # ignore PEs
+            if pipe_slave.type == "pe":
+                continue
+            pipe_line_depth = pipe_slave.get_pipe_line_depth()
+            pipe.set_cmd_queue_size(pipe_line_depth)
+            pipe.set_data_queue_size(pipe_line_depth)
+            pipe_tasks = pipe.get_tasks()
+        """
+
 
     def generate_pipes(self):
         # assign number to pipes
@@ -1679,13 +1702,13 @@ class HardwareGraph:
 
         # generate pipes everywhere
         self.generate_pipes()
-        self.size_queues()
         # assign tasks
         self.task_all_the_pipes()
         # filter pipes without tasks
         self.filter_empty_pipes()
         self.connect_pipes_to_blocks()
         self.cluster_pipes()
+        self.size_queues()
 
     # ---------------------------
     # Functionality:

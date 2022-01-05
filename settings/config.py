@@ -170,7 +170,7 @@ WARN = False
 data_folder = "data"
 PA_output_folder = data_folder+"/"+"PA_output"
 sim_progress_folder = data_folder+"/"+"sim_progress"
-RUN_VERIFICATION_PER_GEN = True# every new desi, generate the verification data
+RUN_VERIFICATION_PER_GEN = False # every new desi, generate the verification data
 RUN_VERIFICATION_PER_NEW_CONFIG = True
 RUN_VERIFICATION_PER_IMPROVMENT = True and not (RUN_VERIFICATION_PER_GEN or RUN_VERIFICATION_PER_NEW_CONFIG) # every improvement, generate verification
                                                                          # don't want to double generate, hence the second
@@ -215,6 +215,7 @@ if hw_sampling["mode"] == "exact":
 #dice_factor_list = range(1, 150, 50)
 #dice_factor_list = [1]
 sw_model = "gables_inspired_exact"  # [gables_inspired_exact, gables_inspired] the diff is that exact replicates the PEs to solve the PA DRVR preemption issue
+sw_model = "sequential"  # read, execute write done in this order instead of simultenously
 #if not sw_model == "gables_inspired":
 #    dice_factor_list = [1]
 
@@ -239,8 +240,8 @@ zero_sized_blocks = ["ic"]         # blocks to ignore for now  # TODO: figure ic
 
 
 
-#DMA_mode = "serialized_read_write"  # [serialized_read_write, parallel_read_write]
-DMA_mode = "parallelized_read_write"  # [serialized_read_write, parallelized_read_write]
+DMA_mode = "serialized_read_write"  # [serialized_read_write, parallel_read_write]
+#DMA_mode = "parallelized_read_write"  # [serialized_read_write, parallelized_read_write]
 
 # power  collection period (how often to divide energy). it's measured in seconds
 #PCP = .0001
@@ -297,12 +298,10 @@ dram_stacked = True
 parallelism_analysis = "dynamic" # choose from ["dynamic", "static"]  # at the moment static is not working, something to do with the task and task sync
                                  # and read to being present after unloading
 
-#<<<<<<< HEAD
-default_cmd_queue_size = 8
-default_data_queue_size = 8
-default_burst_size = 64
-#=======
+default_cmd_queue_size = 2
+default_data_queue_size = 2
+#default_burst_size = 128
+default_burst_size = 1024
 #default_cmd_queue_size = 16
 #default_data_queue_size = 16
 #default_burst_size = 64
-#>>>>>>> eb9248faba83127d944eb851741cfd2335ad81ce

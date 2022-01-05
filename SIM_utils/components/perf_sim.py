@@ -11,9 +11,12 @@ class PerformanceSimulator:
     def __init__(self, sim_design):
         self.design = sim_design  # design to simulate
         self.scheduled_kernels = []   # kernels already scheduled
-        self.completed_kernels = []   # kernels already completed
+        self.waiting_kernels = []   # kernels whose trigger condition is met but can not run for various reasons
+        self.completed_kernels_for_memory_sizing = []   # kernels already completed
         # List of all the kernels that are not scheduled yet (to be launched)
         self.yet_to_schedule_kernels = self.design.get_kernels()[:]  # kernels to be scheduled
+        self.all_kernels = self.yet_to_schedule_kernels[:]
+        self.task_token_queue = []
         self.old_clock_time = self.clock_time = 0
         self.program_status = "idle"  # specifying the status of the program at the current tick
         self.phase_num = -1
@@ -33,7 +36,7 @@ class PerformanceSimulator:
 
     def reset_perf_sim(self):
         self.scheduled_kernels = []
-        self.completed_kernels = []
+        self.completed_kernels_for_memory_sizing = []
         # List of all the kernels that are not scheduled yet (to be launched)
         self.yet_to_schedule_kernels = self.design.get_kernels()[:]
         self.old_clock_time = self.clock_time = 0
@@ -78,7 +81,7 @@ class PerformanceSimulator:
             return min(comp_time_list) + self.clock_time
         else:
             return self.clock_time
-
+    """
     # ------------------------------
     # Functionality:
     #   all the dependencies of a kernel are done or no?
@@ -86,11 +89,91 @@ class PerformanceSimulator:
     def kernel_parents_all_done(self, kernel):
         kernel_s_task = kernel.get_task()
         parents_s_task = self.design.get_hardware_graph().get_task_graph().get_task_s_parents(kernel_s_task)
-        completed_tasks = [kernel.get_task() for kernel in self.completed_kernels]
+        completed_tasks = [kernel.get_task() for kernel in self.completed_kernels_for_memory_sizing]
         for task in parents_s_task:
             if task not in completed_tasks:
                 return False
         return True
+    """
+
+    def krnl_trigger_satisfied(self, krnl):
+        kernel_s_task = krnl.get_task()
+        parents_s_task = self.design.get_hardware_graph().get_task_graph().get_task_s_parents(kernel_s_task)
+        for parent in parents_s_task:
+            if not (parent, kernel_s_task) in self.task_token_queue:
+                return False
+        return True
+
+    def remove_parents_from_token_queue(self, krnl):
+        kernel_s_task = krnl.get_task()
+        parents_s_task = self.design.get_hardware_graph().get_task_graph().get_task_s_parents(kernel_s_task)
+        for parent in parents_s_task:
+            self.task_token_queue.remove((parent, kernel_s_task))
+
+    def krnl_done_iterating(self, krnl):
+        if krnl.iteration_ctr == -1 or krnl.iteration_ctr > 0:
+            return False
+        elif krnl.iteration_ctr == 0:
+            return True
+
+
+    def serialize_DMA(self):
+        # append waiting kernels and to be sch kernels to the already scheduled kernels
+        scheduled_kernels_tmp = []
+        for el in self.scheduled_kernels:
+            scheduled_kernels_tmp.append(el)
+        for kernel in self.waiting_kernels:
+            scheduled_kernels_tmp.append(kernel)
+
+        PE_blocks_used = []
+        scheduled_kernels = []
+        waiting_kernels = []
+        for el in scheduled_kernels_tmp:
+            # only for read/write we serialize
+            if el.get_operating_state() in ["read", "write", "none"]:
+                pe = [blk for blk in el.get_blocks() if blk.type == "pe"][0]
+                if pe in PE_blocks_used:
+                    waiting_kernels.append(el)
+                else:
+                    scheduled_kernels.append(el)
+                    PE_blocks_used.append(pe)
+            else:
+                scheduled_kernels.append(el)
+        return scheduled_kernels, waiting_kernels
+
+    # ------------------------------
+    # Functionality:
+    #   Finds the kernels that are free to be scheduled (their parents are completed)
+    # ------------------------------
+    def schedule_kernels_token_based(self):
+        # find kernels that are ready to be scheduled
+        kernels_to_schedule = []
+        if config.scheduling_policy == "FRFS":
+            for krnl in self.all_kernels:
+                if self.krnl_trigger_satisfied(krnl) and krnl not in self.scheduled_kernels and not self.krnl_done_iterating(krnl):
+                    kernels_to_schedule.append(krnl)
+                    self.remove_parents_from_token_queue(krnl)
+                    #self.update_krnl_iteration_ctr(krnl)
+
+        for kernel in kernels_to_schedule:
+            self.scheduled_kernels.append(kernel)
+            if kernel in self.yet_to_schedule_kernels:
+                self.yet_to_schedule_kernels.remove(kernel)
+            # initialize #insts, tick, and kernel progress status
+            kernel.launch(self.clock_time)
+            # update memory size -> allocate memory regions on different mem blocks
+            kernel.update_mem_size(1)
+            # update pe allocation -> allocate a part of pe quantum for current task
+            # (Hadi Note: allocation looks arbitrary and without any meaning though - just to know that something
+            # is allocated or it is floating)
+            kernel.update_pe_size()
+            # empty function!
+            kernel.update_ic_size()
+
+
+        # filter out kernels based on DMA serialization
+        if config.DMA_mode == "serialized_read_write":
+            self.scheduled_kernels, self.waiting_kernels = self.serialize_DMA()
 
     # ------------------------------
     # Functionality:
@@ -128,7 +211,9 @@ class PerformanceSimulator:
                 continue
             if krnl not in self.design.krnl_phase_present.keys():
                 self.design.krnl_phase_present[krnl] = []
+                self.design.krnl_phase_present_operating_state[krnl] = []
             self.design.krnl_phase_present[krnl].append(self.phase_num)
+            self.design.krnl_phase_present_operating_state[krnl].append((self.phase_num, krnl.operating_state))
             self.design.phase_krnl_present[self.phase_num] = self.scheduled_kernels[:]
 
         """
@@ -156,9 +241,10 @@ class PerformanceSimulator:
         for kernel in scheduled_kernels:
             if kernel.status == "completed":
                 self.scheduled_kernels.remove(kernel)
-                self.completed_kernels.append(kernel)
+                self.completed_kernels_for_memory_sizing.append(kernel)
                 kernel.set_stats()
-
+                for child_task in kernel.get_task().get_children():
+                    self.task_token_queue.append((kernel.get_task(), child_task))
                 # iterate though parents and check if for each parent, all the children are completed.
                 # if so, retract the memory
                 all_parent_kernels = [self.get_kernel_from_task(parent_task) for parent_task in
@@ -167,8 +253,10 @@ class PerformanceSimulator:
                     all_children_kernels = [self.get_kernel_from_task(child_task) for child_task in
                                            parent_kernel.get_task().get_children()]
 
-                    if all([child_kernel in self.completed_kernels for child_kernel in all_children_kernels]):
+                    if all([child_kernel in self.completed_kernels_for_memory_sizing for child_kernel in all_children_kernels]):
                         parent_kernel.update_mem_size(-1)
+                        for child_kernel in all_children_kernels:
+                            self.completed_kernels_for_memory_sizing.remove(child_kernel)
 
     # ------------------------------
     # Functionality:
@@ -180,14 +268,13 @@ class PerformanceSimulator:
         _ = [kernel_.step(self.time_step_size, self.phase_num) for kernel_ in self.scheduled_kernels]
 
         # update kernel's status, sets the progress
-        _ = [kernel_.update_status(self.time_step_size) for kernel_ in self.scheduled_kernels]
+        _ = [kernel_.update_status(self.time_step_size, self.clock_time) for kernel_ in self.scheduled_kernels]
 
     # ------------------------------
     # Functionality:
     #   update the status of the program, i.e., whether it's done or still in progress
     # ------------------------------
     def update_program_status(self):
-
         if len(self.scheduled_kernels) == 0 and len(self.yet_to_schedule_kernels) == 0:
             self.program_status = "done"
         elif len(self.scheduled_kernels) == 0:
@@ -314,15 +401,16 @@ class PerformanceSimulator:
         self.calc_design_utilization()
 
         self.update_scheduled_kernel_list()  # if a kernel is done, schedule it out
-        self.schedule_kernels()  # schedule ready to be scheduled kernels
+        #self.schedule_kernels()  # schedule ready to be scheduled kernels
+        self.schedule_kernels_token_based()
         self.old_clock_time = self.clock_time  # update clock
 
         # check if execution is completed or not!
         self.update_program_status()
         self.update_kernels_kpi_for_next_tick(self.design)  # update each kernels' work rate
 
-        self.update_parallel_tasks()
         self.phase_num += 1
+        self.update_parallel_tasks()
 
         # return the new tick position
         return self.calc_new_tick_position(), self.program_status

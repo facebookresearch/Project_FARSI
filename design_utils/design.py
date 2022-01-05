@@ -1986,6 +1986,7 @@ class SimDesignPoint(ExDesignPoint):
         self.pipe_cluster_path_phase_work_rate_dict = {}
         self.parallel_kernels = {}
         self.krnl_phase_present = {}
+        self.krnl_phase_present_operating_state = {}
         self.phase_krnl_present = {}
         self.iteration_number = 0  # the iteration which the simulation is done
         self.population_observed_number = 0
@@ -2476,7 +2477,7 @@ class DPStats:
         workload_latency_dict = {}
         for workload, last_task in self.database.get_workloads_last_task().items():
             kernel = self.dp.get_kernel_by_task_name(self.dp.get_task_by_name(last_task))
-            workload_latency_dict[workload] = kernel.stats.latency + kernel.starting_time
+            workload_latency_dict[workload] = kernel.get_completion_time() #kernel.stats.latency + kernel.starting_time
         return workload_latency_dict
 
     # calculate SOC energy
@@ -2787,6 +2788,8 @@ class DPStats:
 
 
     def get_sim_progress(self, metric="latency"):
+        #for phase, krnls in self.dp.phase_krnl_present.items():
+        #    accelerators_in_parallel = []
         if metric == "latency":
             return [self.get_SOC_s_latency_sim_progress(type, id, metric) for type, id in self.dp.get_designs_SOCs()]
         if metric == "bytes":
@@ -2794,7 +2797,7 @@ class DPStats:
 
 
     # returns the latency associated with the phases of the system execution
-    def get_phase_latency(self, SOC_type, SOC_id):
+    def get_phase_latency(self, SOC_type=1, SOC_id=1):
         return self.dp.phase_latency_dict
 
     # get utilization associated with the phases of the execution
