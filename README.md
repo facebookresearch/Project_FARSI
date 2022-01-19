@@ -42,7 +42,7 @@ features. Please refer to the in file documentations for more details
 PS: for more advanced studies (e.g., conducting sweep studies and advance plotting) refer to FARSI_what_ifs.py and set the study_type appropriately.
 
 ## Main Contributors
-Behzad Boroujerdian\\
+Behzad Boroujerdian\
 Ying Jing
 
 
