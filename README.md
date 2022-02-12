@@ -41,6 +41,21 @@ features. Please refer to the in file documentations for more details
 
 PS: for more advanced studies (e.g., conducting sweep studies and advance plotting) refer to FARSI_what_ifs.py and set the study_type appropriately.
 
+## Main Contributors
+Behzad Boroujerdian\
+Ying Jing
+
+
+## How to Cite
+@misc{boroujerdian2022farsi,
+      title={FARSI: Facebook AR System Investigator for Agile Domain-Specific System-on-Chip Exploration}, 
+      author={Behzad Boroujerdian and Ying Jing and Amit Kumar and Lavanya Subramanian and Luke Yen and Vincent Lee and Vivek Venkatesan and Amit Jindal and Robert Shearer and Vijay Janapa Reddi},
+      year={2022},
+      eprint={2201.05232},
+      archivePrefix={arXiv},
+      primaryClass={cs.AR}
+}
+
 ## License
 Copyright (c) Facebook, Inc. and its affiliates.
 This source code is licensed under the MIT license found in the
