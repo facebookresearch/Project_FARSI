@@ -1043,6 +1043,11 @@ class HillClimbing:
                 move_dir = -1  # try to reduce the metric value
             sorted_low_to_high_metric_dir[metric] = move_dir
 
+        # Delete later. for now for validation
+        #selected_metric = "latency"
+        #sorted_low_to_high_metric_dir=  {'area':1, 'power':-1, 'latency':-1}
+        #metric_prob_dict_sorted =  {'area':.1, 'power':.1, 'latency':.8}
+
         return selected_metric, metric_prob_dict_sorted, sorted_low_to_high_metric_dir
 
     # select direction for the move
@@ -1954,6 +1959,7 @@ class HillClimbing:
         sim_dp.set_simulation_time(sim_time)
 
         print("sim time" + str(sim_time))
+        #exit(0)
         return sim_dp
 
     # ------------------------------
@@ -2100,8 +2106,12 @@ class HillClimbing:
         # iterate till you can make a directory
         while True:
             date_time = datetime.now().strftime('%m-%d_%H-%M_%S')
-            result_folder = os.path.join(self.result_dir, "data_per_design",
+            #result_folder = os.path.join(self.result_dir, "data_per_design",
+            #                             date_time+"_"+str(self.name_ctr))
+            # one for PA data collection
+            result_folder = os.path.join(self.result_dir+"/../../", "data_per_design",
                                          date_time+"_"+str(self.name_ctr))
+
             if not os.path.isdir(result_folder):
                 os.makedirs(result_folder)
                 collection_ctr = self.name_ctr # used to realize which results to compare
@@ -2330,7 +2340,13 @@ class HillClimbing:
     def explore_one_design(self):
         self.so_far_best_ex_dp = self.init_ex_dp
         self.init_sim_dp = self.so_far_best_sim_dp = self.eval_design(self.so_far_best_ex_dp, self.database)
+        this_itr_ex_sim_dp_dict = {}
+        this_itr_ex_sim_dp_dict[self.so_far_best_ex_dp] = self.so_far_best_sim_dp
         #self.init_sim_dp = self.eval_design(self.so_far_best_ex_dp, self.database)
+
+        # collect statistics about the design
+        self.log_data(this_itr_ex_sim_dp_dict)
+        self.collect_stats(this_itr_ex_sim_dp_dict)
 
         # visualize/checkpoint/PA generation
         vis_hardware.vis_hardware(self.so_far_best_sim_dp.get_dp_rep())
@@ -2523,6 +2539,8 @@ class HillClimbing:
 
             ctr +=1
             self.log_data_list.append(data)
+
+
 
     # ------------------------------
     # Functionality:

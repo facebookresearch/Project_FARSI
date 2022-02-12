@@ -11,7 +11,7 @@ class PerformanceSimulator:
     def __init__(self, sim_design):
         self.design = sim_design  # design to simulate
         self.scheduled_kernels = []   # kernels already scheduled
-        self.waiting_kernels = []   # kernels whose trigger condition is met but can not run for various reasons
+        self.driver_waiting_queue = []   # kernels whose trigger condition is met but can not run for various reasons
         self.completed_kernels_for_memory_sizing = []   # kernels already completed
         # List of all the kernels that are not scheduled yet (to be launched)
         self.yet_to_schedule_kernels = self.design.get_kernels()[:]  # kernels to be scheduled
@@ -23,6 +23,7 @@ class PerformanceSimulator:
         self.krnl_latency_if_run_in_isolation = {}
         self.serial_latency = 0
         self.workload_time_if_each_kernel_run_serially()
+        self.analytical_sim_time_so_far = 0
 
 
     def workload_time_if_each_kernel_run_serially(self):
@@ -77,10 +78,9 @@ class PerformanceSimulator:
         comp_time_list = []  # contains completion time of the running kernels
         for kernel in self.scheduled_kernels:
             comp_time_list.append(kernel.calc_kernel_completion_time())
-        if comp_time_list:
-            return min(comp_time_list) + self.clock_time
-        else:
-            return self.clock_time
+        return min(comp_time_list) + self.clock_time
+        #else:
+        #    return self.clock_time
     """
     # ------------------------------
     # Functionality:
@@ -96,13 +96,27 @@ class PerformanceSimulator:
         return True
     """
 
-    def krnl_trigger_satisfied(self, krnl):
+    def kernel_s_parents_done(self, krnl):
         kernel_s_task = krnl.get_task()
         parents_s_task = self.design.get_hardware_graph().get_task_graph().get_task_s_parents(kernel_s_task)
         for parent in parents_s_task:
             if not (parent, kernel_s_task) in self.task_token_queue:
                 return False
         return True
+
+
+    # launch: Every iteration, we launch the kernel, i.e,
+    # we set the operating state appropriately, and size the hardware accordingly
+    def kernel_ready_to_be_launched(self, krnl):
+        if self.kernel_s_parents_done(krnl) and krnl not in self.scheduled_kernels and not self.krnl_done_iterating(krnl):
+            return True
+        return False
+
+    def kernel_ready_to_fire(self, krnl):
+        if krnl.get_type() == "throughput_based" and krnl.throughput_time_trigger_achieved(self.clock_time):
+           return True
+        else:
+            return False
 
     def remove_parents_from_token_queue(self, krnl):
         kernel_s_task = krnl.get_task()
@@ -117,63 +131,62 @@ class PerformanceSimulator:
             return True
 
 
+    # if multiple kernels running on the same PE's driver,
+    # only one can access it at a time. Thus, this function only keeps one on the PE.
     def serialize_DMA(self):
         # append waiting kernels and to be sch kernels to the already scheduled kernels
         scheduled_kernels_tmp = []
         for el in self.scheduled_kernels:
             scheduled_kernels_tmp.append(el)
-        for kernel in self.waiting_kernels:
+        for kernel in self.driver_waiting_queue:
             scheduled_kernels_tmp.append(kernel)
 
         PE_blocks_used = []
         scheduled_kernels = []
-        waiting_kernels = []
+        driver_waiting_queue = []
         for el in scheduled_kernels_tmp:
             # only for read/write we serialize
             if el.get_operating_state() in ["read", "write", "none"]:
                 pe = [blk for blk in el.get_blocks() if blk.type == "pe"][0]
                 if pe in PE_blocks_used:
-                    waiting_kernels.append(el)
+                    driver_waiting_queue.append(el)
                 else:
                     scheduled_kernels.append(el)
                     PE_blocks_used.append(pe)
             else:
                 scheduled_kernels.append(el)
-        return scheduled_kernels, waiting_kernels
+        return scheduled_kernels, driver_waiting_queue
 
     # ------------------------------
     # Functionality:
     #   Finds the kernels that are free to be scheduled (their parents are completed)
     # ------------------------------
     def schedule_kernels_token_based(self):
-        # find kernels that are ready to be scheduled
-        kernels_to_schedule = []
-        if config.scheduling_policy == "FRFS":
-            for krnl in self.all_kernels:
-                if self.krnl_trigger_satisfied(krnl) and krnl not in self.scheduled_kernels and not self.krnl_done_iterating(krnl):
-                    kernels_to_schedule.append(krnl)
-                    self.remove_parents_from_token_queue(krnl)
-                    #self.update_krnl_iteration_ctr(krnl)
+        for krnl in self.all_kernels:
+            if self.kernel_ready_to_be_launched(krnl):
+                # launch: Every iteration, we launch the kernel, i.e,
+                # we set the operating state appropriately, and size the hardware accordingly
+                self.kernel_s_parents_done(krnl)
+                self.remove_parents_from_token_queue(krnl)
+                self.scheduled_kernels.append(krnl)
+                if krnl in self.yet_to_schedule_kernels:
+                    self.yet_to_schedule_kernels.remove(krnl)
 
-        for kernel in kernels_to_schedule:
-            self.scheduled_kernels.append(kernel)
-            if kernel in self.yet_to_schedule_kernels:
-                self.yet_to_schedule_kernels.remove(kernel)
-            # initialize #insts, tick, and kernel progress status
-            kernel.launch(self.clock_time)
-            # update memory size -> allocate memory regions on different mem blocks
-            kernel.update_mem_size(1)
-            # update pe allocation -> allocate a part of pe quantum for current task
-            # (Hadi Note: allocation looks arbitrary and without any meaning though - just to know that something
-            # is allocated or it is floating)
-            kernel.update_pe_size()
-            # empty function!
-            kernel.update_ic_size()
+                # initialize #insts, tick, and kernel progress status
+                krnl.launch(self.clock_time)
+                # update PE's that host the kernel
+                krnl.update_mem_size(1)
+                krnl.update_pe_size()
+                krnl.update_ic_size()
+            elif krnl.status == "in_progress"  and not krnl.get_task().is_task_dummy() and self.kernel_ready_to_fire(krnl):
+                if krnl in self.scheduled_kernels:
+                    print("a throughput based kernel was scheduled before it met its desired throughput. "
+                          "This can cause issues in the models. Fix Later")
+                self.scheduled_kernels.append(krnl)
 
-
-        # filter out kernels based on DMA serialization
+        # filter out kernels based on DMA serialization, i.e., only keep one kernel using the PE's driver.
         if config.DMA_mode == "serialized_read_write":
-            self.scheduled_kernels, self.waiting_kernels = self.serialize_DMA()
+            self.scheduled_kernels, self.driver_waiting_queue = self.serialize_DMA()
 
     # ------------------------------
     # Functionality:
@@ -258,6 +271,12 @@ class PerformanceSimulator:
                         for child_kernel in all_children_kernels:
                             self.completed_kernels_for_memory_sizing.remove(child_kernel)
 
+            elif kernel.type == "throughput_based" and kernel.throughput_work_achieved():
+                #del kernel.data_work_left_to_meet_throughput[kernel.operating_state][0]
+                del kernel.firing_work_to_meet_throughput[kernel.operating_state][0]
+                self.scheduled_kernels.remove(kernel)
+
+
     # ------------------------------
     # Functionality:
     #   iterate through all kernels and step them
@@ -284,13 +303,44 @@ class PerformanceSimulator:
         else:
             self.program_status = "in_progress"
 
+    def next_throughput_trigger_time(self):
+        throughput_achieved_time_list = []
+        for krnl in self.all_kernels:
+            if krnl.get_type() == "throughput_based" and krnl.status == "in_progress" \
+                    and not krnl.get_task().is_task_dummy() and not krnl.operating_state == "execute":
+                throughput_achieved_time_list.extend(krnl.firing_time_to_meet_throughput[krnl.operating_state])
+
+        throughput_achieved_time_list_filtered = [el for el in throughput_achieved_time_list if el> self.clock_time]
+        #time_sorted = sorted(throughput_achieved_time_list_filtered)
+        return throughput_achieved_time_list_filtered
+
+    def any_throughput_based_kernel(self):
+        for krnl in self.all_kernels:
+            if krnl.get_type()  == "throughput_based":
+                return True
+        return False
+
     # ------------------------------
     # Functionality:
     #   find the next tick time
     # ------------------------------
     def calc_new_tick_position(self):
         if config.scheduling_policy == "FRFS":
-            new_clock = self.next_kernel_to_be_completed_time()
+            new_clock_list = []
+            if len(self.scheduled_kernels) > 0:
+                new_clock_list.append(self.next_kernel_to_be_completed_time())
+
+            if self.any_throughput_based_kernel():
+                trigger_time = self.next_throughput_trigger_time()
+                if len(trigger_time) > 0:
+                    new_clock_list.append(min(trigger_time))
+
+            if len(new_clock_list) == 0:
+                return self.clock_time
+            else:
+                return min(new_clock_list)
+            #new_clock = max(new_clock, min(throughput_achieved_time))
+        """
         elif self.program_status == "in_progress":
             if self.program_status == "in_progress":
                 if config.scheudling_policy == "time_based":
@@ -303,7 +353,9 @@ class PerformanceSimulator:
                 new_clock = self.clock_time
         else:
             raise Exception("scheduling policy:" + config.scheduling_policy + " is not supported")
-        return new_clock
+        """
+
+        #return new_clock
 
     # ------------------------------
     # Functionality:
@@ -319,9 +371,9 @@ class PerformanceSimulator:
         # update each pipe cluster's paths (inpipe-outpipe) latency. Note that latency update must run after path's work-rate
 
         # update as it depends on it
-        #_ = [kernel.update_pipe_clusters_pathlet_latency(self.scheduled_kernels) for kernel in self.scheduled_kernels]
-        _ = [kernel.update_path_latency() for kernel in self.scheduled_kernels]
-        _ = [kernel.update_path_structural_latency(design) for kernel in self.scheduled_kernels]
+        # for fast simulation, ignore this
+        #_ = [kernel.update_path_latency() for kernel in self.scheduled_kernels]
+        #_ = [kernel.update_path_structural_latency(design) for kernel in self.scheduled_kernels]
 
 
     # ------------------------------
@@ -393,12 +445,14 @@ class PerformanceSimulator:
         self.design.phase_latency_dict[self.phase_num] = self.time_step_size
 
         # advance kernels
+        before_time = time.time()
         self.step_kernels()
 
         # Aggregates the energy consumed for current phase over all the blocks
         self.calc_design_energy()   # needs be done after kernels have stepped, to aggregate their energy and divide
         self.calc_design_work()   # calculate how much work does each block do for this phase
         self.calc_design_utilization()
+        self.analytical_sim_time_so_far += (time.time() - before_time)
 
         self.update_scheduled_kernel_list()  # if a kernel is done, schedule it out
         #self.schedule_kernels()  # schedule ready to be scheduled kernels
@@ -407,13 +461,19 @@ class PerformanceSimulator:
 
         # check if execution is completed or not!
         self.update_program_status()
+        before_time = time.time()
         self.update_kernels_kpi_for_next_tick(self.design)  # update each kernels' work rate
+        self.analytical_sim_time_so_far += (time.time() - before_time)
 
         self.phase_num += 1
         self.update_parallel_tasks()
 
         # return the new tick position
-        return self.calc_new_tick_position(), self.program_status
+        before_time = time.time()
+        new_tick_position = self.calc_new_tick_position()
+        self.analytical_sim_time_so_far += (time.time() - before_time)
+
+        return new_tick_position, self.program_status
 
     # ------------------------------
     # Functionality:

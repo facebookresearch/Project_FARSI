@@ -7,6 +7,7 @@ import os
 sys.path.append(os.path.abspath('./../'))
 #import home_settings
 from top.main_FARSI import run_FARSI
+from top.main_FARSI import run_FARSI_only_simulation
 from settings import config
 import os
 import itertools
@@ -371,6 +372,75 @@ def write_one_results(sim_dp, dse, reason_to_terminate, case_study, result_dir_s
     output_fh_minimal.close()
 
 
+
+def simple_run_iterative(result_folder, sw_hw_database_population, system_workers=(1, 1)):
+    case_study = "simple_run_iterative"
+    current_process_id = system_workers[0]
+    total_process_cnt = system_workers[1]
+    starting_exploration_mode = "from_scratch"
+    print('cast study:' + case_study)
+    # -------------------------------------------
+    # set parameters
+    # -------------------------------------------
+    experiment_repetition_cnt = 1
+    reduction = "most_likely"
+
+    # -------------------------------------------
+    #  distribute the work
+    # -------------------------------------------
+    work_per_process = math.ceil(experiment_repetition_cnt / total_process_cnt)
+    run_ctr = 0
+
+    # -------------------------------------------
+    # run the combination and collect the data
+    # -------------------------------------------
+    # get the budget, set them and run FARSI
+    for i in range(0, work_per_process):
+        # -------------------------------------------
+        # collect the exact hw sampling
+        # -------------------------------------------
+        accuracy_percentage = {}
+        accuracy_percentage["sram"] = accuracy_percentage["dram"] = accuracy_percentage["ic"] = accuracy_percentage[
+            "gpp"] = accuracy_percentage["ip"] = \
+            {"latency": 1,
+             "energy": 1,
+             "area": 1,
+             "one_over_area": 1}
+        hw_sampling = {"mode": "exact", "population_size": 1, "reduction": reduction,
+                       "accuracy_percentage": accuracy_percentage}
+        db_input = database_input_class(sw_hw_database_population)
+        print("hw_sampling:" + str(hw_sampling))
+        print("budget set to:" + str(db_input.get_budget_dict("glass")))
+        unique_suffix = str(total_process_cnt) + "_" + str(current_process_id) + "_" + str(run_ctr)
+
+
+        # run FARSI
+        #dse_hndlr = run_FARSI(result_folder, unique_suffix, db_input, hw_sampling,
+        #                      sw_hw_database_population["hw_graph_mode"])
+        for i in [0,1]:
+            dse_hndlr = run_FARSI_only_simulation(result_folder, unique_suffix, db_input, hw_sampling,
+                                  sw_hw_database_population["hw_graph_mode"])
+
+
+        run_ctr += 1
+        # write the results in the general folder
+        result_dir_specific = os.path.join(result_folder, "result_summary")
+        write_one_results(dse_hndlr.dse.so_far_best_sim_dp,  dse_hndlr.dse, dse_hndlr.dse.reason_to_terminate, case_study,
+                          result_dir_specific, unique_suffix,
+                          config.FARSI_simple_run_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
+        dse_hndlr.dse.write_data_log(list(dse_hndlr.dse.get_log_data()), dse_hndlr.dse.reason_to_terminate, case_study, result_dir_specific, unique_suffix,
+                      config.FARSI_simple_run_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
+
+        # write the results in the specific folder
+        result_folder_modified = result_folder+ "/runs/" + str(ctr) + "/"
+        os.system("mkdir -p " + result_folder_modified)
+        copy_DSE_data(result_folder_modified)
+        write_one_results(dse_hndlr.dse.so_far_best_sim_dp, dse_hndlr.dse, dse_hndlr.dse.reason_to_terminate, case_study, result_folder_modified, unique_suffix,
+                      config.FARSI_simple_run_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
+
+        os.system("cp " + config.home_dir+"/settings/config.py"+ " "+ result_folder)
+
+
 # ------------------------------
 # Functionality:
 #  a simple run, where FARSI is run to meet certain budget
@@ -421,6 +491,9 @@ def simple_run(result_folder, sw_hw_database_population, system_workers=(1, 1)):
         # run FARSI
         dse_hndlr = run_FARSI(result_folder, unique_suffix, db_input, hw_sampling,
                               sw_hw_database_population["hw_graph_mode"])
+        #dse_hndlr = run_FARSI_only_simulation(result_folder, unique_suffix, db_input, hw_sampling,
+        #                      sw_hw_database_population["hw_graph_mode"])
+
 
         run_ctr += 1
         # write the results in the general folder

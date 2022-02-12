@@ -56,9 +56,12 @@ class OSASimulator:
     #   simulation
     # ------------------------------
     def simulate(self):
+        blah = time.time()
         while not self.terminate(self.program_status):
             self.tick()
             self.step(self.cur_tick_time)
+        print("analytical simulation time so far:" + str(self.perf_sim.analytical_sim_time_so_far))
+        print("performance simulation time so far:" + str(time.time() - blah))
 
         if config.use_cacti:
             self.dp.correct_power_area_with_cacti(self.database)

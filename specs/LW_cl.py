@@ -17,8 +17,8 @@ from collections import defaultdict
 class BlockL:  # block light weight
     def __init__(self, block_instance_name: str, block_type: str, block_subtype, peak_work_rate_distribution,
                  work_over_energy_distribution, work_over_area_distribution, one_over_area_distribution,
-                 clock_freq, bus_width, loop_itr_cnt, loop_max_possible_itr_cnt,
-                 hop_latency, pipe_line_depth,
+                 clock_freq, bus_width, loop_itr_cnt=1, loop_max_possible_itr_cnt=1,
+                 hop_latency=1, pipe_line_depth=1,
                  leakage_power = "", power_knobs = ""):
         self.block_instance_name = block_instance_name+"_"+block_type  # block instance name
         self.block_instance_name_without_type = block_instance_name  # without type
@@ -44,7 +44,7 @@ class BlockL:  # block light weight
 # light weight class that directory talks to the database. This is later used by the Task class which is much more
 # involved.
 class TaskL:  # task light weight
-    def __init__(self, task_name: str, work: float, iteration=1):
+    def __init__(self, task_name: str, work: float, iteration=1, type = "latency_based", throughput_info = {}):
         self.task_name = task_name
         self.work = work   #  the amount of work associated with task (at the mement, this is expressed for PEs (as the
                            # reference block). so work = number of instructions.
@@ -54,8 +54,24 @@ class TaskL:  # task light weight
         self.__self_to_child_task_work_distribution = {}   # amount of bytes passed from this task to its children (as a distribution).
         self.__children_nature_dict = dict()
         self.burst_size = 64
-        #self.iteration = 2
         self.iteration = iteration
+        self.throughput_info = throughput_info # can be empty if the task is latency based
+        self.type = type
+        # hardcoding for testing
+        #self.iteration = 2
+        """
+        if "Smoothing" in self.task_name:
+            self.type = "throughput_based"
+            self.throughput_info = {"read": 100000000, "write":100000000, "clock_period": 10000}  # clock period in ns
+        else:
+            self.type = "latency_based"
+        """
+
+    def get_throughput_info(self):
+        return self.throughput_info
+
+    def get_type(self):
+        return self.type
 
     # ------------------------------
     # Functionality:

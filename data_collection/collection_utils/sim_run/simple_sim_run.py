@@ -63,7 +63,7 @@ if __name__ == "__main__":
     #workloads = {"edge_detection"}
     #workloads = {"hpvm_cava"}
     workloads = {"partial_SOC_example_hard"}
-    workloads = {"SOC_example_1p"}
+    workloads = {"SOC_example_1p_2r"}
     tech_node_SF = {"perf":1, "energy":{"non_gpp":.064, "gpp":1}, "area":{"non_mem":.0374 , "mem":.079, "gpp":1}}   # technology node scaling factor
     db_population_misc_knobs = {"ip_freq_correction_ratio": 1, "gpp_freq_correction_ratio": 1,
                                 "tech_node_SF":tech_node_SF,

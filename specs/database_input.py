@@ -84,7 +84,7 @@ class database_input_class():
             files_to_import = [lib_relative_addr_pythony_fied+".hardcoded."+workload+".input"  for workload in sw_hw_database_population["workloads"]]
             imported_databases = [importlib.import_module(el) for el in files_to_import]
         elif sw_hw_database_population["db_mode"] == "generate":
-            lib_relative_addr = config.database_data_dir.replace(config.home_dir, "")[1:]
+            lib_relative_addr = config.database_data_dir.replace(config.home_dir, "")
             lib_relative_addr_pythony_fied = lib_relative_addr.replace("/",".")
             files_to_import =   [lib_relative_addr_pythony_fied+".generate."+"input"  for workload in sw_hw_database_population["workloads"]]
             imported_databases = [importlib.import_module(el) for el in files_to_import]
@@ -153,20 +153,23 @@ class database_input_class():
             self.budgets_dict = imported_databases[0].budgets_dict
             self.other_values_dict= imported_databases[0].other_values_dict
 
-            tasksL_, data_movement, task_work_dict = generate_synthetic_task_graphs(self.gen_config["DB_MAX_TASK_CNT"], self.gen_config["DB_MAX_PAR_TASK_CNT"], "memory_intensive")  # memory_intensive, comp_intensive
+            tasksL_, data_movement, task_work_dict = generate_synthetic_task_graphs_for_asymetric_graphs(self.gen_config["DB_MAX_TASK_CNT"], self.gen_config["DB_MAX_PAR_TASK_CNT"], "memory_intensive")  # memory_intensive, comp_intensive
             blocksL_, pe_mapsL_, pe_schedulesL_ = generate_synthetic_hardware_library(task_work_dict, os.path.join(config.database_data_dir, "parsing"), "misc_database - Block Characteristics.csv")
             self.tasksL.extend(tasksL_)
             self.blocksL.extend(copy.deepcopy(blocksL_))
             self.pe_mapsL.extend(pe_mapsL_)
             self.pe_schedeulesL.extend(pe_schedulesL_)
-            self.souurce_memory_work += sum(
-                [sum(list(data_movement[task].values())) for task in data_movement.keys() if task == "synthetic_souurce"])
+            for task in data_movement.keys():
+                if task == "synthetic_souurce":
+                    #self.souurce_memory_work = ["synthetic_souurce"] = sum(list(data_movement[task].values()))
+                    self.souurce_memory_work = data_movement[task]
 
             self.workloads_last_task = {"synthetic" : [taskL.task_name for taskL in tasksL_ if len(taskL.get_children()) == 0][0]}
             self.gen_config["full_potential_tasks_list"] = list(task_work_dict.keys())
             self.misc_data["same_ip_tasks_list"] = []
 
-            self.workload_tasks[sw_hw_database_population["workloads"][0]] = [el.task_name for el in self.tasksL]
+            self.workload_tasks[list(sw_hw_database_population["workloads"])[0]] = [el.task_name for el in self.tasksL]
+            self.sw_hw_database_population = sw_hw_database_population
 
             pass
         else:

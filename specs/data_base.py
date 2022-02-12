@@ -107,7 +107,7 @@ class DataBase:
                          self.get_block_leakage_power(obj),
                          self.get_block_power_knobs(obj),)
         elif len(argv) == 0 and isinstance(obj, TaskL):
-            return Task(obj.task_name, self.get_task_work(obj), self.get_task_iteration(obj))
+            return Task(obj.task_name, self.get_task_work(obj), self.get_task_iteration(obj), self.get_task_type(obj), self.get_task_throughput_info(obj))
         elif len(argv) == 3 and isinstance(obj, Task) and isinstance(argv[0], Block):
             raise Exception("this is case is deprecated")
             task = obj
@@ -552,6 +552,20 @@ class DataBase:
         taskL = list(filter(lambda taskL_: taskL_.task_name == taskL.task_name, self.tasksL))
         assert(len(taskL) == 1)
         return taskL[0].iteration
+
+    def get_task_throughput_info(self, taskL):
+        taskL = list(filter(lambda taskL_: taskL_.task_name == taskL.task_name, self.tasksL))
+        assert(len(taskL) == 1)
+        return taskL[0].get_throughput_info()
+
+    def get_task_type(self, taskL):
+        taskL = list(filter(lambda taskL_: taskL_.task_name == taskL.task_name, self.tasksL))
+        assert(len(taskL) == 1)
+        return taskL[0].get_type()
+
+
+
+
 
 
     """

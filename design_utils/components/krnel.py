@@ -430,6 +430,8 @@ class Kernel:
                                                            # attainable work rate is peak work rate (BW or IPC) of the block
                                                            # but attenuated as it is being shared among multiple kernels/fronts
 
+        self.type = self.__task_to_blocks_map.task.get_type()
+        self.throughput_info = self.__task_to_blocks_map.task.get_throughput_info()
         self.operating_state = "none"
         self.block_path_dir_phase_latency = {}
         self.path_dir_phase_latency = {}
@@ -463,6 +465,10 @@ class Kernel:
         #self.work_unit_dict = self.__task_to_blocks_map.task.__task_to_family_task_work_unit  # determines for each burst how much work needs
                                                                                          # to be done.
         self.path_structural_latency = {}
+
+        self.firing_time_to_meet_throughput = {}
+        self.firing_work_to_meet_throughput = {}
+        self.data_work_left_to_meet_throughput = {}
 
 
     # This function is used for the power knobs simulator; After each run the stats
@@ -903,13 +909,12 @@ class Kernel:
 
 
                 # queue impact
-
-                queue_impact = self.get_queue_impact(block, pipe_cluster, scheduled_kernels)
+                #queue_impact = self.get_queue_impact(block, pipe_cluster, scheduled_kernels)
+                # TODO: change later (for now set to 1).
                 queue_impact = 1
+
                 work_rate =  queue_impact*float(block.get_peak_work_rate(self.get_power_knob_id()))*allocated_work_rate_relative_to_other_kernels/work_ratio
                 block_work_rate_norm_dict[block][pipe_cluster] = work_rate
-                #if block_work_rate_norm_dict[block][pipe_cluster] == 0:
-                #    print("what")
 
         return block_work_rate_norm_dict
 
@@ -1399,6 +1404,17 @@ class Kernel:
     def get_completion_time(self):
         return self.completion_time
 
+    def time_to_meet_throughput_for_a_pipe(self, operating_state, mem, mem_pipe_cluster):
+        return (self.data_work_left[self.operating_state] - self.firing_work_to_meet_throughput[self.operating_state][0]) / self.block_att_work_rate_dict[mem][
+            mem_pipe_cluster]
+        """
+        if len(self.data_work_left_to_meet_throughput[self.operating_state]) == 1:
+            return self.data_work_left_to_meet_throughput[self.operating_state][0] / self.block_att_work_rate_dict[mem][
+                mem_pipe_cluster]
+        else:
+            return (self.data_work_left_to_meet_throughput[self.operating_state][0] - self.data_work_left_to_meet_throughput[self.operating_state][1])/ self.block_att_work_rate_dict[mem][
+                mem_pipe_cluster]
+        """
     # calculate the completion time for the kernel
     def calc_kernel_completion_time(self):
         if config.sw_model == "sequential":
@@ -1416,7 +1432,10 @@ class Kernel:
                 if pipe_cluster == None:
                     print("something went wrong since there is not pipe cluster associated with this memory")
                     exit(0)
-                return self.data_work_left[self.operating_state]/self.block_att_work_rate_dict[mem][mem_pipe_cluster]
+                if self.get_type() == "throughput_based":
+                    return self.time_to_meet_throughput_for_a_pipe(self.operating_state, mem, mem_pipe_cluster)
+                else:
+                    return self.data_work_left[self.operating_state]/self.block_att_work_rate_dict[mem][mem_pipe_cluster]
         else:
             return self.pe_s_work_left/self.block_att_work_rate_dict[self.get_ref_block()][self.get_ref_block().get_pipe_clusters()[0]]
 
@@ -1428,6 +1447,10 @@ class Kernel:
         self.data_work_left["read"] = self.kernel_total_work["read"]
         self.data_work_left["write"] = self.kernel_total_work["write"]
         self.operating_state = "read"
+
+        if self.get_type() == "throughput_based":
+            self.populate_throughput_data(self.operating_state, cur_time)
+
         # keeping track of how much work left for every block
         for block_dir_work_ratio in self.__task_to_blocks_map.block_dir_workRatio_dict.keys():
             if block_dir_work_ratio not in self.block_dir_work_left.keys():
@@ -1444,9 +1467,88 @@ class Kernel:
     def has_completed(self):
         return self.status == "completed"
 
+    """
     # has kernel started already
     def has_started(self):
         return self.status == "in_progress"
+    """
+
+    def get_type(self):
+        return self.type
+
+    def get_throughput_info(self):
+        return self.throughput_info
+
+    def throughput_time_trigger_achieved(self, clock):
+        # for execute, throughput doesn't make sense
+        if self.operating_state == "execute":
+            return False
+
+        error = .0002
+        for el in self.firing_time_to_meet_throughput[self.operating_state]:
+            if math.fabs(clock - el)/el < error:
+                return True
+        return False
+
+    def throughput_work_achieved(self):
+        error = 2
+        # for execute, throughput doesn't make sense
+        if self.operating_state == "execute":
+            return False
+        """
+        for el in self.firing_work_to_meet_throughput[self.operating_state]:
+            if math.fabs(self.data_work_left_to_meet_throughput[self.operating_state][0] - el) < error:
+                return True
+        return False
+        """
+        if math.fabs(self.firing_work_to_meet_throughput[self.operating_state][0] - self.data_work_left[self.operating_state]) < error:
+            return True
+        return False
+        """
+        for el in self.firing_work_to_meet_throughput[self.operating_state]:
+            if math.fabs(self.data_work_left[self.operating_state] - el) < error:
+                return True
+        return False
+        """
+
+    def populate_throughput_data(self, operating_state, clock_time):
+        self.firing_time_to_meet_throughput[operating_state] = []
+        self.firing_work_to_meet_throughput[operating_state] = []
+        self.data_work_left_to_meet_throughput[operating_state] = []
+        if operating_state == "execute":
+            return
+
+
+        # delete this later
+        throughput__ = 4*min([el.clock_freq for el in self.get_blocks()] )
+        self.throughput_info["read"] = self.throughput_info["write"] = throughput__
+        print("we are over writing throughput. Delete later")
+
+
+        total_work = self.data_work_left[operating_state]
+        assert(self.throughput_info["clock_period"]*(10**-9)> 0)
+        unit_time_to_meet_throughput = self.throughput_info["clock_period"]*(10**-9)
+        unit_work_to_meet_throughput = self.throughput_info[operating_state]*unit_time_to_meet_throughput
+
+
+        if self.get_task().is_task_dummy():
+            self.firing_work_to_meet_throughput[operating_state].append(0)
+            self.data_work_left_to_meet_throughput[operating_state].append(0)
+            self.firing_time_to_meet_throughput[operating_state].append(0)
+            return
+
+        while (True):
+            total_work -= unit_work_to_meet_throughput
+            #total_work = max(0, total_work)
+            if total_work <= 0:
+               break
+            clock_time += unit_time_to_meet_throughput
+            self.firing_work_to_meet_throughput[operating_state].append(total_work)
+            self.data_work_left_to_meet_throughput[operating_state].append(total_work)
+            self.firing_time_to_meet_throughput[operating_state].append(clock_time)
+
+        self.firing_work_to_meet_throughput[operating_state].append(0)  # adding zero to make sure we finish the task
+        print("number of phases added"+ str(len(self.firing_work_to_meet_throughput["read"])))
 
     def get_operating_state(self):
         return self.operating_state
@@ -1460,13 +1562,15 @@ class Kernel:
             elif self.operating_state == "execute" and self.pe_s_work_left <.001:
                 self.operating_state = "write"
                 self.progress= .5
+                if self.type == "throughput_based":
+                    self.populate_throughput_data(self.operating_state, clock)
             elif  self.operating_state == "write" and self.data_work_left["write"] < .001:
                 self.progress = 1
             else:
                 self.progress = .3
         else:
             if self.kernel_total_work["execute"] == 0:  self.progress = 1  # for dummy tasks (with the suffix of souurce and siink)
-            else: self.progress = 1 - float(self.pe_s_work_left/self.kernel_total_work)
+            else: self.progress = 1 - float(self.pe_s_work_left/self.kernel_total_work['execute'])
 
         self.stats.latency += time_step_size
 
@@ -1480,6 +1584,9 @@ class Kernel:
             self.status = "in_progress"
 
         self.update_stats(time_step_size)
+
+
+
 
     def get_a_mem_by_dir(self, dir_):
         for block in self.get_blocks():
@@ -1512,6 +1619,13 @@ class Kernel:
                      read_work += work_rate * time_step_size
                 if pipe_cluster.dir == "write":
                      write_work += work_rate * time_step_size
+
+            if self.get_type() == "throughput_based":
+                unit_time_to_meet_throughput = self.throughput_info["clock_period"] * (10 ** -9)
+                read_unit_of_work = self.throughput_info["read"] * unit_time_to_meet_throughput
+                write_unit_of_work = self.throughput_info["write"] * unit_time_to_meet_throughput
+                read_work = min(read_work, read_unit_of_work)
+                write_work = min(write_work, write_unit_of_work)
 
             # update read specifically
             if self.phase_num in self.block_phase_read_dict[block].keys():
@@ -1632,8 +1746,13 @@ class Kernel:
                         mem = self.get_a_mem_by_dir(self.operating_state)
                         if self.operating_state == "read":
                             self.data_work_left[self.operating_state] -= self.block_phase_read_dict[mem][self.phase_num]
+                            #if self.get_type() == "throughput_based":
+                            #    self.data_work_left_to_meet_throughput[self.operating_state][0] -= self.block_phase_read_dict[mem][self.phase_num]
                         elif self.operating_state == "write":
                             self.data_work_left[self.operating_state] -= self.block_phase_write_dict[mem][self.phase_num]
+                            #if self.get_type() == "throughput_based":
+                            #    self.data_work_left_to_meet_throughput[self.operating_state][0] -= \
+                            #    self.block_phase_write_dict[mem][self.phase_num]
                 for block_dir_work_ratio in self.__task_to_blocks_map.block_dir_workRatio_dict.keys():
                     if block_dir_work_ratio not in self.block_dir_work_left.keys():
                         self.block_dir_work_left[block_dir_work_ratio] = {}

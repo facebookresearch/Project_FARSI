@@ -17,7 +17,7 @@ import math
 # This class is to model a task, that is the smallest software execution unit.
 class Task:
     task_id_for_debugging_static = 0
-    def __init__(self, name, work, iteration_ctr =1):
+    def __init__(self, name, work, iteration_ctr =1, type="latency_based", throughput_info = {}):
         self.iteration_ctr = iteration_ctr
         self.name = name
         self.progress = 0  # progress percentage (how much of the task has been finished)
@@ -47,6 +47,11 @@ class Task:
                                                    # (in bytes)
         self.burst_size = config.default_burst_size
 
+        self.type = type
+        self.throughput_info = throughput_info
+
+    def get_throughput_info(self):
+        return self.throughput_info
 
     def get_iteration_cnt(self):
         return self.iteration_ctr
@@ -293,6 +298,9 @@ class Task:
         else:
             print(family_task.name + " is not a family task of " + self.name)
             exit(0)
+
+    def get_type(self):
+        return self.type
 
     def get_self_total_work(self, mode):
         total_work = 0

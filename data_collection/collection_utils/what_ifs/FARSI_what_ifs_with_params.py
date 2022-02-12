@@ -7,6 +7,7 @@ import os
 sys.path.append(os.path.abspath('./../'))
 import home_settings
 from top.main_FARSI import run_FARSI
+from top.main_FARSI import run_FARSI
 from settings import config
 import os
 import itertools
@@ -79,15 +80,20 @@ def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, trans_
                                 "tech_node_SF":tech_node_SF,
                                 "base_budget_scaling":base_budget_scaling,
                                 "queue_available_size":[1, 2, 4, 8, 16],
-                                "burst_size_options":[128, 256, 512]}
+                                "burst_size_options":[1024]}
 
     # set software hardware database population
+    # for scalibility studies
+    #sw_hw_database_population = {"db_mode": "generate", "hw_graph_mode": "generated_from_scratch",
+    #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
     # for SLAM
     #sw_hw_database_population = {"db_mode": "hardcoded", "hw_graph_mode": "generated_from_scratch",
     #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
     # for paper workloads
     sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_scratch",
                                  "workloads": workloads, "misc_knobs": db_population_misc_knobs}
+    #sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_check_point",
+    #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
     # for check pointed
     if check_points["start"]:
         config.check_point_folder = check_points["folder"]
@@ -102,6 +108,8 @@ def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, trans_
     # depending on the study/substudy type, invoke the appropriate function
     if study_type == "simple_run":
         simple_run(result_folder, sw_hw_database_population, system_workers)
+    if study_type == "simple_run_iterative":
+        simple_run_iterative(result_folder, sw_hw_database_population, system_workers)
     elif study_type == "cost_PPA" and study_subtype == "run":
         input_error_output_cost_sensitivity_study(result_folder, sw_hw_database_population, system_workers, False, False)
     elif study_type == "input_error_output_cost_sensitivity" and study_subtype == "run":
@@ -121,24 +129,28 @@ def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, trans_
 
 if __name__ == "__main__":
 
+    #study_type = "simple_run_iterative"
     study_type = "simple_run"
     #study_subtype = "plot_3d_distance"
     study_subtype = "run"
-    assert study_type in ["cost_PPA", "simple_run", "input_error_output_cost_sensitivity", "input_error_input_cost_sensitivity"]
+    assert study_type in ["cost_PPA", "simple_run", "input_error_output_cost_sensitivity", "input_error_input_cost_sensitivity", "simple_run_iterative"]
     assert study_subtype in ["run", "plot_3d_distance"]
     SA_depth = [10]
     freq_range = [1, 4, 6, 8]
+    #freq_range = [1] #, 4, 6, 8]
 
 
     # check pointing information
     check_points_start = False
-    check_points_top_folder = "/media/reddi-rtx/KINGSTON/FARSI_results/scaling_of_1_2_4_across_all_budgets_07-31"
+    check_points_top_folder = "/Users/behzadboro/Project_FARSI_dir/Project_FARSI_with_channels/data_collection/data/simple_run/12-20_15-37_33/data_per_design/12-20_15-39_38_16/PA_knob_ctr_0/"
+                              #"/media/reddi-rtx/KINGSTON/FARSI_results/scaling_of_1_2_4_across_all_budgets_07-31"
 
     # fast run
-    #workloads = [{"audio_decoder"}]
+    workloads = [{"audio_decoder"}]
+    #workloads = [{"synthetic"}]
     #workloads = [{"hpvm_cava"}]
-    workloads = [{"edge_detection"}]
-
+    #workloads = [{"edge_detection"}]
+    #workloads = [{"SLAM"}]
 
     #workloads =[{"audio_decoder", "hpvm_cava"}]
     # each workload in isolation

@@ -172,7 +172,7 @@ PA_output_folder = data_folder+"/"+"PA_output"
 sim_progress_folder = data_folder+"/"+"sim_progress"
 RUN_VERIFICATION_PER_GEN = False # every new desi, generate the verification data
 RUN_VERIFICATION_PER_NEW_CONFIG = True
-RUN_VERIFICATION_PER_IMPROVMENT = True and not (RUN_VERIFICATION_PER_GEN or RUN_VERIFICATION_PER_NEW_CONFIG) # every improvement, generate verification
+RUN_VERIFICATION_PER_IMPROVMENT = False and not (RUN_VERIFICATION_PER_GEN or RUN_VERIFICATION_PER_NEW_CONFIG) # every improvement, generate verification
                                                                          # don't want to double generate, hence the second
                                                                          # predicate clause
 RUN_VERIFICATION_AT_ALL = RUN_VERIFICATION_PER_IMPROVMENT or RUN_VERIFICATION_PER_NEW_CONFIG or RUN_VERIFICATION_PER_GEN
@@ -214,8 +214,8 @@ if hw_sampling["mode"] == "exact":
 
 #dice_factor_list = range(1, 150, 50)
 #dice_factor_list = [1]
-sw_model = "gables_inspired_exact"  # [gables_inspired_exact, gables_inspired] the diff is that exact replicates the PEs to solve the PA DRVR preemption issue
-sw_model = "sequential"  # read, execute write done in this order instead of simultenously
+sw_model = "gables_inspired_exact"  # [gables_inspired_exact, gables_inspired, sequential] the diff is that exact replicates the PEs to solve the PA DRVR preemption issue
+#sw_model = "sequential"  # read, execute write done in this order instead of simultenously
 #if not sw_model == "gables_inspired":
 #    dice_factor_list = [1]
 
@@ -273,8 +273,8 @@ transaction_base_simulation = False   # do not set to true. It doesn't work
 
 
 # CACTI
-#use_cacti = True and not RUN_VERIFICATION_AT_ALL # if True, use cacti. You have to have cacti installed.j
-use_cacti = False
+use_cacti = True and not RUN_VERIFICATION_AT_ALL # if True, use cacti. You have to have cacti installed.j
+#use_cacti = True
 cact_bin_addr = CC.cact_bin_addr
 cacti_param_addr = CC.cacti_param_addr
 cacti_data_log_file = CC.cacti_data_log_file
@@ -298,8 +298,8 @@ dram_stacked = True
 parallelism_analysis = "dynamic" # choose from ["dynamic", "static"]  # at the moment static is not working, something to do with the task and task sync
                                  # and read to being present after unloading
 
-default_cmd_queue_size = 2
-default_data_queue_size = 2
+default_cmd_queue_size = 16
+default_data_queue_size = 16
 #default_burst_size = 128
 default_burst_size = 1024
 #default_cmd_queue_size = 16

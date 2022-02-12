@@ -114,6 +114,41 @@ def generate_synthetic_datamovement(task_exec_intensity_type, avg_parallelism):
 
 
 # we generate very simple scenarios for now.
+def generate_synthetic_task_graphs_for_asymetric_graphs(num_of_tasks, avg_parallelism, exec_intensity):
+    assert(num_of_tasks > avg_parallelism)
+
+    tasksL: List[TaskL] = []
+
+    # generate a list of task names and their exec intensity (i.e., compute or memory intensive)
+    task_exec_intensity = []
+    for idx in range(0, num_of_tasks - 2):
+        task_exec_intensity.append(("synthetic_"+str(idx), exec_intensity))
+
+    # collect data movement data
+    task_graph_dict = generate_synthetic_datamovement(task_exec_intensity, avg_parallelism)
+
+    # collect number of instructions for each tasks
+    work_dict = generate_synthetic_work(task_exec_intensity)
+
+    for task_name_, values in task_graph_dict.items():
+        task_ = TaskL(task_name=task_name_, work=work_dict[task_name_])
+        task_.add_task_work_distribution([(work_dict[task_name_], 1)])
+        tasksL.append(task_)
+
+    for task_name_, values in task_graph_dict.items():
+        task_ = [taskL for taskL in tasksL if taskL.task_name == task_name_][0]
+        for child_task_name, data_movement in values.items():
+            child_task = [taskL for taskL in tasksL if taskL.task_name == child_task_name][0]
+            task_.add_child(child_task, data_movement, "real")  # eye_tracking_soource t glint_mapping
+            task_.add_task_to_child_work_distribution(child_task, [(data_movement, 1)])  # eye_tracking_soource t glint_mapping
+
+    return tasksL,task_graph_dict, work_dict
+
+
+#generate_synthetic_task_graphs_for_asymetric_graphs(10, 3, "memory_intensive")
+
+
+# we generate very simple scenarios for now.
 def generate_synthetic_task_graphs(num_of_tasks, avg_parallelism, exec_intensity):
     assert(num_of_tasks > avg_parallelism)
 
@@ -153,7 +188,8 @@ def generate_synthetic_hardware_library(task_work_dict, library_dir, Block_char_
 
     gpps = parse_block_based_on_types(library_dir, Block_char_file_name, ("pe", "gpp"))
     gpp_names = list(gpps.keys())
-    mems = parse_block_based_on_types(library_dir, Block_char_file_name, ("mem", "mem"))
+    mems = parse_block_based_on_types(library_dir, Block_char_file_name, ("mem", "sram"))
+    mems.update(parse_block_based_on_types(library_dir, Block_char_file_name, ("mem", "dram")))
     ics  = parse_block_based_on_types(library_dir, Block_char_file_name, ("ic", "ic"))
 
 
@@ -171,6 +207,8 @@ def generate_synthetic_hardware_library(task_work_dict, library_dir, Block_char_
                 hardware_library_dict[IP_name]["mappable_tasks"] = [task_name]
                 hardware_library_dict[IP_name]["type"] = "pe"
                 hardware_library_dict[IP_name]["sub_type"] = "gpp"
+                hardware_library_dict[IP_name]["clock_freq"] =  gpps[IP_name]['Freq']
+                hardware_library_dict[IP_name]["bus_width"] =  "NA"
                 #print("taskname: " + str(task_name) + ", subtype: gpp, power is"+ str(hardware_library_dict[IP_name]["work_rate"]/hardware_library_dict[IP_name]["work_over_energy"] ))
 
     for blck_name, blck_value in mems.items():
@@ -180,7 +218,9 @@ def generate_synthetic_hardware_library(task_work_dict, library_dir, Block_char_
         hardware_library_dict[blck_value['Name']]["work_over_area"] =  float(blck_value['Byte_per_m'])
         hardware_library_dict[blck_value['Name']]["mappable_tasks"] = 'all'
         hardware_library_dict[blck_value['Name']]["type"] = "mem"
-        hardware_library_dict[blck_value['Name']]["sub_type"] = "mem"
+        hardware_library_dict[blck_value['Name']]["sub_type"] = blck_value['Subtype']
+        hardware_library_dict[blck_value['Name']]["clock_freq"] = blck_value['Freq']
+        hardware_library_dict[blck_value['Name']]["bus_width"] = blck_value['BitWidth']*8
 
     for blck_name, blck_value in ics.items():
         hardware_library_dict[blck_value['Name']] = {}
@@ -190,6 +230,8 @@ def generate_synthetic_hardware_library(task_work_dict, library_dir, Block_char_
         hardware_library_dict[blck_value['Name']]["mappable_tasks"] = 'all'
         hardware_library_dict[blck_value['Name']]["type"] = "ic"
         hardware_library_dict[blck_value['Name']]["sub_type"] = "ic"
+        hardware_library_dict[blck_value['Name']]["clock_freq"] = blck_value['Freq']
+        hardware_library_dict[blck_value['Name']]["bus_width"] = blck_value['BitWidth']*8
 
 
     block_suptype = "gpp"  # default.
@@ -201,7 +243,8 @@ def generate_synthetic_hardware_library(task_work_dict, library_dir, Block_char_
                    peak_work_rate_distribution = {hardware_library_dict[IP_name]["work_rate"]:1},
                    work_over_energy_distribution = {hardware_library_dict[IP_name]["work_over_energy"]:1},
                    work_over_area_distribution = {hardware_library_dict[IP_name]["work_over_area"]:1},
-                   one_over_area_distribution = {1/hardware_library_dict[IP_name]["work_over_area"]:1}))
+                   one_over_area_distribution = {1/hardware_library_dict[IP_name]["work_over_area"]:1},
+                   clock_freq=hardware_library_dict[IP_name]["clock_freq"], bus_width=hardware_library_dict[IP_name]['bus_width']))
 
         if block_type == "pe":
             for mappable_tasks in hardware_library_dict[IP_name]["mappable_tasks"]:
