@@ -80,18 +80,19 @@ def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, trans_
                                 "tech_node_SF":tech_node_SF,
                                 "base_budget_scaling":base_budget_scaling,
                                 "queue_available_size":[1, 2, 4, 8, 16],
-                                "burst_size_options":[1024]}
+                                "burst_size_options":[1024],
+                                "task_spawn":{"parallel_task_cnt":2, "serial_task_cnt":3}}
 
     # set software hardware database population
     # for scalibility studies
-    #sw_hw_database_population = {"db_mode": "generate", "hw_graph_mode": "generated_from_scratch",
-    #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
+    sw_hw_database_population = {"db_mode": "generate", "hw_graph_mode": "generated_from_scratch",
+                                 "workloads": workloads, "misc_knobs": db_population_misc_knobs}
     # for SLAM
     #sw_hw_database_population = {"db_mode": "hardcoded", "hw_graph_mode": "generated_from_scratch",
     #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
     # for paper workloads
-    sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_scratch",
-                                 "workloads": workloads, "misc_knobs": db_population_misc_knobs}
+    #sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_scratch",
+    #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
     #sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_check_point",
     #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
     # for check pointed
@@ -129,8 +130,8 @@ def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, trans_
 
 if __name__ == "__main__":
 
-    #study_type = "simple_run_iterative"
-    study_type = "simple_run"
+    study_type = "simple_run_iterative"
+    #study_type = "simple_run"
     #study_subtype = "plot_3d_distance"
     study_subtype = "run"
     assert study_type in ["cost_PPA", "simple_run", "input_error_output_cost_sensitivity", "input_error_input_cost_sensitivity", "simple_run_iterative"]
@@ -146,8 +147,8 @@ if __name__ == "__main__":
                               #"/media/reddi-rtx/KINGSTON/FARSI_results/scaling_of_1_2_4_across_all_budgets_07-31"
 
     # fast run
-    workloads = [{"audio_decoder"}]
-    #workloads = [{"synthetic"}]
+    #workloads = [{"audio_decoder"}]
+    workloads = [{"synthetic"}]
     #workloads = [{"hpvm_cava"}]
     #workloads = [{"edge_detection"}]
     #workloads = [{"SLAM"}]

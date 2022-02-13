@@ -100,8 +100,10 @@ class database_input_class():
         self.misc_data  = {}
         self.hardware_graph = ""
         self.task_to_hardware_mapping = ""
-
-
+        self.parallel_task_count = "NA"
+        self.serial_task_count = "NA"
+        self.memory_boundedness_ratio = "NA"
+        self.datamovement_scaling_ratio = "NA"
 
         # using the input files, populate the task graph and possible blocks and the mapping of tasks to blocks
         if sw_hw_database_population["db_mode"] == "hardcoded":
@@ -150,10 +152,23 @@ class database_input_class():
                 print("we have to fix the budets_dict collection here. support it and run")
                 exit(0)
             self.gen_config = imported_databases[0].gen_config
+            self.gen_config['parallel_task_cnt'] = sw_hw_database_population["misc_knobs"]['task_spawn']["parallel_task_cnt"]
+            self.gen_config['serial_task_cnt'] = sw_hw_database_population["misc_knobs"]['task_spawn']["serial_task_cnt"]
+            self.parallel_task_count =self.gen_config['parallel_task_cnt']
+            self.serial_task_count =self.gen_config['serial_task_cnt']
+            self.datamovement_scaling_ratio = sw_hw_database_population["misc_knobs"]['task_spawn']["boundedness"][1]
+            self.memory_boundedness_ratio = sw_hw_database_population["misc_knobs"]['task_spawn']["boundedness"][2]
             self.budgets_dict = imported_databases[0].budgets_dict
             self.other_values_dict= imported_databases[0].other_values_dict
 
-            tasksL_, data_movement, task_work_dict = generate_synthetic_task_graphs_for_asymetric_graphs(self.gen_config["DB_MAX_TASK_CNT"], self.gen_config["DB_MAX_PAR_TASK_CNT"], "memory_intensive")  # memory_intensive, comp_intensive
+            other_task_count = 7
+            total_task_cnt = other_task_count + self.gen_config["parallel_task_cnt"] + self.gen_config["serial_task_cnt"]
+
+            #intensity_params = ["memory_intensive", 1]
+            intensity_params = sw_hw_database_population["misc_knobs"]['task_spawn']["boundedness"]
+
+
+            tasksL_, data_movement, task_work_dict = generate_synthetic_task_graphs_for_asymetric_graphs(total_task_cnt, other_task_count, self.gen_config["parallel_task_cnt"], self.gen_config["serial_task_cnt"], intensity_params)  # memory_intensive, comp_intensive
             blocksL_, pe_mapsL_, pe_schedulesL_ = generate_synthetic_hardware_library(task_work_dict, os.path.join(config.database_data_dir, "parsing"), "misc_database - Block Characteristics.csv")
             self.tasksL.extend(tasksL_)
             self.blocksL.extend(copy.deepcopy(blocksL_))

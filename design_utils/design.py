@@ -2391,6 +2391,10 @@ class DPStats:
             output.write("\"FARSI_predicted_energy\": "+ str(self.get_system_complex_metric("energy")) +",\n")
             output.write("\"FARSI_predicted_power\": "+ str(self.get_system_complex_metric("power")) +",\n")
             output.write("\"FARSI_predicted_area\": "+ str(self.get_system_complex_metric("area")) +",\n")
+            output.write("\"parallel_task_cnt\": "+ str(self.get_parallel_task_count()) +",\n")
+            output.write("\"serial_task_count\": "+ str(self.get_serial_task_count()) +",\n")
+            output.write("\"memory_boundedness_ratio\": "+ str(self.get_memory_boundedness_ratio()) +",\n")
+            output.write("\"data_movement_scaling_ratio\": "+ str(self.get_datamovement_scaling_ratio()) +",\n")
             #output.write("\"config_code\": "+ str(ic_count) + str(mem_count) + str(pe_count)+",\n")
             #output.write("\"config_code\": "+ self.dp.get_hardware_graph().get_config_code() +",\n")
             output.write("\"simplified_topology_code\": "+ self.dp.get_hardware_graph().get_simplified_topology_code() +",\n")
@@ -2816,6 +2820,20 @@ class DPStats:
     # get work associated with the phases of the execution
     def get_SOC_s_sim_work(self, SOC_type, SOC_id):
         return self.dp.block_phase_work_dict
+
+    def get_parallel_task_count(self):
+        return self.database.db_input.parallel_task_count
+
+    def get_serial_task_count(self):
+        return self.database.db_input.serial_task_count
+
+    def get_memory_boundedness_ratio(self):
+        return self.database.db_input.memory_boundedness_ratio
+
+    def get_datamovement_scaling_ratio(self):
+        return self.database.db_input.datamovement_scaling_ratio
+
+
 
     # get total (consider all SoCs') system metrics
     def get_system_complex_metric(self, metric_type):

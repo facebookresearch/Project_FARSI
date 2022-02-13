@@ -408,19 +408,43 @@ def simple_run_iterative(result_folder, sw_hw_database_population, system_worker
              "one_over_area": 1}
         hw_sampling = {"mode": "exact", "population_size": 1, "reduction": reduction,
                        "accuracy_percentage": accuracy_percentage}
-        db_input = database_input_class(sw_hw_database_population)
-        print("hw_sampling:" + str(hw_sampling))
-        print("budget set to:" + str(db_input.get_budget_dict("glass")))
+
         unique_suffix = str(total_process_cnt) + "_" + str(current_process_id) + "_" + str(run_ctr)
 
+        #study = ["boundedness", "serial_parallel"]
+        study = "boundedness"
+        #study = "serial_parallel"
 
-        # run FARSI
-        #dse_hndlr = run_FARSI(result_folder, unique_suffix, db_input, hw_sampling,
-        #                      sw_hw_database_population["hw_graph_mode"])
-        for i in [0,1]:
-            dse_hndlr = run_FARSI_only_simulation(result_folder, unique_suffix, db_input, hw_sampling,
-                                  sw_hw_database_population["hw_graph_mode"])
-
+        if study == "serial_parallel":
+            # for serial/parallel studies
+            serial_sweep = list(range(1,10,8))
+            parallel_sweep = list(range(1,20, 9))
+            all_sweep = [serial_sweep, parallel_sweep]
+            combos = itertools.product(*all_sweep)
+            for serial_task_cnt, parallel_task_cnt in combos:
+                datamovement_scaling_ratio = 1
+                sw_hw_database_population["misc_knobs"]['task_spawn']['serial_task_cnt'] = serial_task_cnt
+                sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_cnt'] = parallel_task_cnt
+                sw_hw_database_population["misc_knobs"]['task_spawn']['boundedness'] = ["memory_intensive", datamovement_scaling_ratio, 1]
+                db_input = database_input_class(sw_hw_database_population)
+                print("hw_sampling:" + str(hw_sampling))
+                print("budget set to:" + str(db_input.get_budget_dict("glass")))
+                dse_hndlr = run_FARSI_only_simulation(result_folder, unique_suffix, db_input, hw_sampling,
+                                      sw_hw_database_population["hw_graph_mode"])
+        elif study == "boundedness":
+            # for boundedness studies
+            boundedness_ratio_range = list(np.arange(0,1.1,.3))
+            datamovement_scaling_ratio_range = list(np.arange(.1,1,.4))
+            for boundedness_ratio in boundedness_ratio_range:
+                for datamovement_scaling_ratio in datamovement_scaling_ratio_range:
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['serial_task_cnt'] = 6
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_cnt'] = 3
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['boundedness'] = ["memory_intensive", datamovement_scaling_ratio, boundedness_ratio]
+                    db_input = database_input_class(sw_hw_database_population)
+                    print("hw_sampling:" + str(hw_sampling))
+                    print("budget set to:" + str(db_input.get_budget_dict("glass")))
+                    dse_hndlr = run_FARSI_only_simulation(result_folder, unique_suffix, db_input, hw_sampling,
+                                          sw_hw_database_population["hw_graph_mode"])
 
         run_ctr += 1
         # write the results in the general folder
