@@ -104,6 +104,7 @@ class database_input_class():
         self.serial_task_count = "NA"
         self.memory_boundedness_ratio = "NA"
         self.datamovement_scaling_ratio = "NA"
+        self.parallel_task_type = "NA"
 
         # using the input files, populate the task graph and possible blocks and the mapping of tasks to blocks
         if sw_hw_database_population["db_mode"] == "hardcoded":
@@ -154,6 +155,7 @@ class database_input_class():
             self.gen_config = imported_databases[0].gen_config
             self.gen_config['parallel_task_cnt'] = sw_hw_database_population["misc_knobs"]['task_spawn']["parallel_task_cnt"]
             self.gen_config['serial_task_cnt'] = sw_hw_database_population["misc_knobs"]['task_spawn']["serial_task_cnt"]
+            self.parallel_task_type = sw_hw_database_population["misc_knobs"]['task_spawn']["parallel_task_type"]
             self.parallel_task_count =self.gen_config['parallel_task_cnt']
             self.serial_task_count =self.gen_config['serial_task_cnt']
             self.datamovement_scaling_ratio = sw_hw_database_population["misc_knobs"]['task_spawn']["boundedness"][1]
@@ -168,7 +170,7 @@ class database_input_class():
             intensity_params = sw_hw_database_population["misc_knobs"]['task_spawn']["boundedness"]
 
 
-            tasksL_, data_movement, task_work_dict = generate_synthetic_task_graphs_for_asymetric_graphs(total_task_cnt, other_task_count, self.gen_config["parallel_task_cnt"], self.gen_config["serial_task_cnt"], intensity_params)  # memory_intensive, comp_intensive
+            tasksL_, data_movement, task_work_dict = generate_synthetic_task_graphs_for_asymetric_graphs(total_task_cnt, other_task_count, self.gen_config["parallel_task_cnt"], self.gen_config["serial_task_cnt"], self.parallel_task_type, intensity_params)  # memory_intensive, comp_intensive
             blocksL_, pe_mapsL_, pe_schedulesL_ = generate_synthetic_hardware_library(task_work_dict, os.path.join(config.database_data_dir, "parsing"), "misc_database - Block Characteristics.csv")
             self.tasksL.extend(tasksL_)
             self.blocksL.extend(copy.deepcopy(blocksL_))

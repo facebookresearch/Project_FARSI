@@ -53,7 +53,7 @@ class TaskL:  # task light weight
         self.__self_task_work_distribution = [] # amount of work for this task as a distribution (for jitter modeling).
         self.__self_to_child_task_work_distribution = {}   # amount of bytes passed from this task to its children (as a distribution).
         self.__children_nature_dict = dict()
-        self.burst_size = 512
+        self.burst_size = 256
         self.iteration = iteration
         self.throughput_info = throughput_info # can be empty if the task is latency based
         self.type = type

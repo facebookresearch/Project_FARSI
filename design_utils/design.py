@@ -2393,8 +2393,11 @@ class DPStats:
             output.write("\"FARSI_predicted_area\": "+ str(self.get_system_complex_metric("area")) +",\n")
             output.write("\"parallel_task_cnt\": "+ str(self.get_parallel_task_count()) +",\n")
             output.write("\"serial_task_count\": "+ str(self.get_serial_task_count()) +",\n")
-            output.write("\"memory_boundedness_ratio\": "+ str(self.get_memory_boundedness_ratio()) +",\n")
+            output.write("\"parallel_task_type\": "+ "\""+str(self.get_parallel_task_type()) +"\",\n")
+            output.write("\"memory_boundedness_ratio_based_on_task_count\": "+ str(self.get_memory_boundedness_ratio()) +",\n")
+            output.write("\"memory_boundedness_ratio\": "+ str(self.get_memory_boundedness_ratio_()) +",\n")
             output.write("\"data_movement_scaling_ratio\": "+ str(self.get_datamovement_scaling_ratio()) +",\n")
+
             #output.write("\"config_code\": "+ str(ic_count) + str(mem_count) + str(pe_count)+",\n")
             #output.write("\"config_code\": "+ self.dp.get_hardware_graph().get_config_code() +",\n")
             output.write("\"simplified_topology_code\": "+ self.dp.get_hardware_graph().get_simplified_topology_code() +",\n")
@@ -2799,6 +2802,22 @@ class DPStats:
         if metric == "bytes":
             pass
 
+    def get_memory_boundedness_ratio_(self):
+        mem_bottleneck_time = 0
+        cpu_bottleneck_time = 0
+        phase_seen = []
+        for krnl in self.dp.get_kernels():
+            for phase, block in krnl.stats.phase_block_duration_bottleneck.items():
+                if phase in phase_seen:
+                    continue
+                phase_seen.append(phase)
+                if block[0].type in ["mem","ic"]:
+                    mem_bottleneck_time += krnl.stats.phase_latency_dict[phase]
+                else:
+                    cpu_bottleneck_time += krnl.stats.phase_latency_dict[phase]
+        ratio = mem_bottleneck_time/(mem_bottleneck_time+cpu_bottleneck_time)
+        return ratio
+
 
     # returns the latency associated with the phases of the system execution
     def get_phase_latency(self, SOC_type=1, SOC_id=1):
@@ -2826,6 +2845,10 @@ class DPStats:
 
     def get_serial_task_count(self):
         return self.database.db_input.serial_task_count
+
+    def get_parallel_task_type(self):
+        return self.database.db_input.parallel_task_type
+
 
     def get_memory_boundedness_ratio(self):
         return self.database.db_input.memory_boundedness_ratio

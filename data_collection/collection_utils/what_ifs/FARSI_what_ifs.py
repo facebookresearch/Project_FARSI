@@ -417,28 +417,36 @@ def simple_run_iterative(result_folder, sw_hw_database_population, system_worker
 
         if study == "serial_parallel":
             # for serial/parallel studies
-            serial_sweep = list(range(1,10,8))
-            parallel_sweep = list(range(1,20, 9))
+            serial_sweep = list(range(1,20,8))
+            parallel_sweep = list(range(1,30, 9))
+            #serial_sweep = [2]
+            #parallel_sweep =[4]
+
             all_sweep = [serial_sweep, parallel_sweep]
-            combos = itertools.product(*all_sweep)
-            for serial_task_cnt, parallel_task_cnt in combos:
-                datamovement_scaling_ratio = 1
-                sw_hw_database_population["misc_knobs"]['task_spawn']['serial_task_cnt'] = serial_task_cnt
-                sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_cnt'] = parallel_task_cnt
-                sw_hw_database_population["misc_knobs"]['task_spawn']['boundedness'] = ["memory_intensive", datamovement_scaling_ratio, 1]
-                db_input = database_input_class(sw_hw_database_population)
-                print("hw_sampling:" + str(hw_sampling))
-                print("budget set to:" + str(db_input.get_budget_dict("glass")))
-                dse_hndlr = run_FARSI_only_simulation(result_folder, unique_suffix, db_input, hw_sampling,
-                                      sw_hw_database_population["hw_graph_mode"])
+            parallel_task_type_list= ["audio_style", "edge_detection_style"] # "audio_style, edge_detection_style
+            for parallel_task_type in parallel_task_type_list:
+                combos = itertools.product(*all_sweep)
+                for serial_task_cnt, parallel_task_cnt in combos:
+                    datamovement_scaling_ratio = 1
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['serial_task_cnt'] = serial_task_cnt
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_cnt'] = parallel_task_cnt
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_type'] = parallel_task_type  # can be audio or edge detection
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['boundedness'] = ["memory_intensive", datamovement_scaling_ratio, 1]
+                    db_input = database_input_class(sw_hw_database_population)
+                    print("hw_sampling:" + str(hw_sampling))
+                    print("budget set to:" + str(db_input.get_budget_dict("glass")))
+                    dse_hndlr = run_FARSI_only_simulation(result_folder, unique_suffix, db_input, hw_sampling,
+                                          sw_hw_database_population["hw_graph_mode"])
         elif study == "boundedness":
             # for boundedness studies
-            boundedness_ratio_range = list(np.arange(0,1.1,.3))
-            datamovement_scaling_ratio_range = list(np.arange(.1,1,.4))
+            boundedness_ratio_range = list(np.arange(0,1.1,.2))
+            #datamovement_scaling_ratio_range = list(np.arange(.1,1,.2))
+            datamovement_scaling_ratio_range = [.9]
             for boundedness_ratio in boundedness_ratio_range:
                 for datamovement_scaling_ratio in datamovement_scaling_ratio_range:
                     sw_hw_database_population["misc_knobs"]['task_spawn']['serial_task_cnt'] = 6
-                    sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_cnt'] = 3
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_cnt'] = 1
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_type'] = "audio_style" # can be audio or edge detection
                     sw_hw_database_population["misc_knobs"]['task_spawn']['boundedness'] = ["memory_intensive", datamovement_scaling_ratio, boundedness_ratio]
                     db_input = database_input_class(sw_hw_database_population)
                     print("hw_sampling:" + str(hw_sampling))
