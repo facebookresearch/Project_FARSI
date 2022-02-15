@@ -73,7 +73,7 @@ class database_input_class():
                                             "workloads":{},"misc_knobs":{}}):
         # some sanity checks first
         assert(sw_hw_database_population["db_mode"] in ["hardcoded", "generate", "parse"])
-        assert(sw_hw_database_population["hw_graph_mode"] in ["generated_from_scratch", "generated_from_check_point", "parse", "hardcoded"])
+        assert(sw_hw_database_population["hw_graph_mode"] in ["generated_from_scratch", "generated_from_check_point", "parse", "hardcoded", "hop_mode"])
         if sw_hw_database_population["hw_graph_mode"] == "parse":
             assert(sw_hw_database_population["db_mode"] == "parse")
 
@@ -105,6 +105,7 @@ class database_input_class():
         self.memory_boundedness_ratio = "NA"
         self.datamovement_scaling_ratio = "NA"
         self.parallel_task_type = "NA"
+        self.num_of_hops = "NA"
 
         # using the input files, populate the task graph and possible blocks and the mapping of tasks to blocks
         if sw_hw_database_population["db_mode"] == "hardcoded":
@@ -160,8 +161,10 @@ class database_input_class():
             self.serial_task_count =self.gen_config['serial_task_cnt']
             self.datamovement_scaling_ratio = sw_hw_database_population["misc_knobs"]['task_spawn']["boundedness"][1]
             self.memory_boundedness_ratio = sw_hw_database_population["misc_knobs"]['task_spawn']["boundedness"][2]
+            self.num_of_hops = sw_hw_database_population["misc_knobs"]['num_of_hops']
             self.budgets_dict = imported_databases[0].budgets_dict
             self.other_values_dict= imported_databases[0].other_values_dict
+            self.num_of_hops = sw_hw_database_population["misc_knobs"]["num_of_hops"]
 
             other_task_count = 7
             total_task_cnt = other_task_count + self.gen_config["parallel_task_cnt"] + self.gen_config["serial_task_cnt"]
@@ -170,7 +173,7 @@ class database_input_class():
             intensity_params = sw_hw_database_population["misc_knobs"]['task_spawn']["boundedness"]
 
 
-            tasksL_, data_movement, task_work_dict = generate_synthetic_task_graphs_for_asymetric_graphs(total_task_cnt, other_task_count, self.gen_config["parallel_task_cnt"], self.gen_config["serial_task_cnt"], self.parallel_task_type, intensity_params)  # memory_intensive, comp_intensive
+            tasksL_, data_movement, task_work_dict = generate_synthetic_task_graphs_for_asymetric_graphs(total_task_cnt, other_task_count, self.gen_config["parallel_task_cnt"], self.gen_config["serial_task_cnt"], self.parallel_task_type, intensity_params, self.num_of_hops)  # memory_intensive, comp_intensive
             blocksL_, pe_mapsL_, pe_schedulesL_ = generate_synthetic_hardware_library(task_work_dict, os.path.join(config.database_data_dir, "parsing"), "misc_database - Block Characteristics.csv")
             self.tasksL.extend(tasksL_)
             self.blocksL.extend(copy.deepcopy(blocksL_))

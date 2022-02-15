@@ -414,6 +414,7 @@ def simple_run_iterative(result_folder, sw_hw_database_population, system_worker
         #study = ["boundedness", "serial_parallel"]
         study = "boundedness"
         #study = "serial_parallel"
+        #study = "hop_studies"
 
         if study == "serial_parallel":
             # for serial/parallel studies
@@ -432,6 +433,7 @@ def simple_run_iterative(result_folder, sw_hw_database_population, system_worker
                     sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_cnt'] = parallel_task_cnt
                     sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_type'] = parallel_task_type  # can be audio or edge detection
                     sw_hw_database_population["misc_knobs"]['task_spawn']['boundedness'] = ["memory_intensive", datamovement_scaling_ratio, 1]
+                    sw_hw_database_population["misc_knobs"]['num_of_hops'] = 1
                     db_input = database_input_class(sw_hw_database_population)
                     print("hw_sampling:" + str(hw_sampling))
                     print("budget set to:" + str(db_input.get_budget_dict("glass")))
@@ -439,20 +441,42 @@ def simple_run_iterative(result_folder, sw_hw_database_population, system_worker
                                           sw_hw_database_population["hw_graph_mode"])
         elif study == "boundedness":
             # for boundedness studies
-            boundedness_ratio_range = list(np.arange(0,1.1,.2))
+            boundedness_ratio_range = list(np.arange(0,1.1,.1))
             #datamovement_scaling_ratio_range = list(np.arange(.1,1,.2))
-            datamovement_scaling_ratio_range = [.9]
+            datamovement_scaling_ratio_range = [1]
             for boundedness_ratio in boundedness_ratio_range:
                 for datamovement_scaling_ratio in datamovement_scaling_ratio_range:
-                    sw_hw_database_population["misc_knobs"]['task_spawn']['serial_task_cnt'] = 6
-                    sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_cnt'] = 1
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['serial_task_cnt'] = 6 #6
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_cnt'] = 3 #1
                     sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_type'] = "audio_style" # can be audio or edge detection
                     sw_hw_database_population["misc_knobs"]['task_spawn']['boundedness'] = ["memory_intensive", datamovement_scaling_ratio, boundedness_ratio]
+                    sw_hw_database_population["misc_knobs"]['num_of_hops'] = 1
                     db_input = database_input_class(sw_hw_database_population)
                     print("hw_sampling:" + str(hw_sampling))
                     print("budget set to:" + str(db_input.get_budget_dict("glass")))
                     dse_hndlr = run_FARSI_only_simulation(result_folder, unique_suffix, db_input, hw_sampling,
                                           sw_hw_database_population["hw_graph_mode"])
+        elif study == "hop_studies":
+            # for boundedness studies
+            boundedness_ratio_range = [1]
+            datamovement_scaling_ratio_range = [1]
+            num_of_hops_range = [2, 3,4]
+            boundedness_ratio = 1
+            for num_of_hops in num_of_hops_range:
+                for datamovement_scaling_ratio in datamovement_scaling_ratio_range:
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['serial_task_cnt'] = 6
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_cnt'] = 1
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_type'] = "audio_style" # can be audio or edge detection
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['boundedness'] = ["memory_intensive", datamovement_scaling_ratio, boundedness_ratio]
+                    sw_hw_database_population["misc_knobs"]['num_of_hops'] = num_of_hops
+                    sw_hw_database_population["hw_graph_mode"] = "hop_mode"
+                    db_input = database_input_class(sw_hw_database_population)
+                    print("hw_sampling:" + str(hw_sampling))
+                    print("budget set to:" + str(db_input.get_budget_dict("glass")))
+                    dse_hndlr = run_FARSI_only_simulation(result_folder, unique_suffix, db_input, hw_sampling,
+                                          sw_hw_database_population["hw_graph_mode"])
+
+
 
         run_ctr += 1
         # write the results in the general folder

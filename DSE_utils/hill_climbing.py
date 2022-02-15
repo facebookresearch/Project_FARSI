@@ -152,6 +152,8 @@ class HillClimbing:
             self.init_ex_dp = self.dh.gen_specific_hardcoded_ex_dp(self.dh.database)
         elif mode == "parse":
             self.init_ex_dp = self.dh.gen_specific_parsed_ex_dp(self.dh.database)
+        elif mode == "hop_mode":
+            self.init_ex_dp = self.dh.gen_specific_design_with_hops(self.dh.database)
         else: raise Exception("mode:" + mode + " is not supported")
 
 

@@ -571,6 +571,44 @@ class DesignHandler:
             for task_child in task.get_children():
                 mem.load_improved(task, task_child)  # load memory with tasks
 
+    # only have one pe and write mem, so easy. TODO: how about multiple ones
+    def load_tasks_to_pe_and_write_mem_for_hops(self, pes, mems, tasks, num_of_hops):  # is used only for initializing
+        get_work_ratio = self.database.get_block_work_ratio_by_task_dir
+
+        # souurce/siink
+        task = tasks[0]
+        pes[0].load_improved(task, task)
+        for task_child in task.get_children():
+            mems[0].load_improved(task, task_child)  # load memory with tasks
+        task = tasks[-1]
+        pes[-1].load_improved(task, task)
+        for task_child in task.get_children():
+            mems[-1].load_improved(task, task_child)  # load memory with tasks
+
+
+        last_task = 1
+        for i in range(1, len(tasks) - (num_of_hops-2) -1):
+            task = tasks[i]
+            if (i % 2) == 0:
+                pe_mem_idx =0
+            else:
+                pe_mem_idx = len(pes) -1
+
+            pes[pe_mem_idx].load_improved(task, task)
+            for task_child in task.get_children():
+                mems[pe_mem_idx].load_improved(task, task_child)  # load memory with tasks
+            last_task +=1
+
+        # dummy tasks in the middle
+        idx = 1
+        for i in range(last_task, len(tasks)-1):
+            task = tasks[i]
+            pes[idx].load_improved(task, task)
+            for task_child in task.get_children():
+                mems[idx].load_improved(task, task_child)  # load memory with tasks
+            idx +=1
+
+
     # ------------------------------
     # Functionality:
     #       loading (Mapping) and unloading tasks to reading memory/ICs blocks.
@@ -1140,6 +1178,46 @@ class DesignHandler:
 
     def get_most_inferior_block_before_unrolling(self, block, tasks):
         return self.database.sample_most_inferior_blocks_before_unrolling_by_type(block_type=block.type, tasks=block.get_tasks_of_block(), block=block)
+
+    def gen_specific_design_with_hops(self, database):
+        num_of_hops = database.db_input.sw_hw_database_population["misc_knobs"]["num_of_hops"]  # supporting only one hardcoded workload
+        pes = []
+        mems = []
+        ics = []
+
+        for el in range (0, num_of_hops):
+            pe = self.database.sample_most_inferior_blocks_by_type(block_type="pe", tasks=self.__tasks)
+            mem = self.database.sample_most_inferior_blocks_by_type(block_type="mem", tasks=self.__tasks)
+            ic = self.database.sample_most_inferior_blocks_by_type(block_type="ic", tasks=self.__tasks)
+            pe = self.database.sample_most_inferior_SOC(pe, config.sorting_SOC_metric)
+            mem = self.database.sample_most_inferior_SOC(mem, config.sorting_SOC_metric)
+            ic = self.database.sample_most_inferior_SOC(ic, "power")
+            pes.append(pe)
+            mems.append(mem)
+            ics.append(ic)
+
+        for pe,mem, ic in zip(pes, mems, ics):
+            pe.connect(ic)
+            ic.connect(mem)
+
+        for idx, ic in enumerate(ics):
+            if idx == 0:
+                continue
+            ic.connect(ics[idx-1])
+
+        self.load_tasks_to_pe_and_write_mem_for_hops(pes, mems, self.__tasks, num_of_hops)
+
+        # generate a hardware graph and load read mem and ic
+        hardware_graph = HardwareGraph(pe)
+        ex_dp = ExDesignPoint(hardware_graph)
+        self.load_tasks_to_read_mem_and_ic(ex_dp)
+        ex_dp.hardware_graph.update_graph()
+        ex_dp.hardware_graph.pipe_design()
+        return ex_dp
+
+
+
+        #print("ok")
 
 
     # ------------------------------

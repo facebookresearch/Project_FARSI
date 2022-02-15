@@ -6,6 +6,30 @@ from specs.LW_cl import *
 from specs.parse_libraries.parse_library import  *
 
 
+
+def gen_tg_with_hops(task_name_intensity_type, others_task_cnt, parallel_task_cnt, serial_task_cnt, parallel_task_type, num_of_hops):
+    task_names = [task_name for task_name, intensity in task_name_intensity_type]
+    task_name_position = []
+    name = "synthetic_"
+    parents = [name + "souurce"]
+    task_name_position.append((task_names[0], parents))
+
+    parents = [name + "0"]
+    task_name_position.append((task_names[1], parents))
+    last_task = 2
+
+    for i in range(0, others_task_cnt + serial_task_cnt - 3):
+        parents =  [name + str(last_task - 1)]
+        task_name_position.append((task_names[last_task], parents))
+        last_task +=1
+
+    for i in range(0, num_of_hops-2):
+        parents = [name + str(last_task - 1)]
+        task_name_position.append((task_names[last_task], parents))
+        last_task += 1
+    return task_name_position
+
+
 def gen_tg_core_improved(task_name_intensity_type, others_task_cnt, parallel_task_cnt, serial_task_cnt, parallel_task_type):
     task_names = [task_name for task_name, intensity in task_name_intensity_type]
     task_name_position = []
@@ -168,12 +192,13 @@ def generate_synthetic_work(task_exec_intensity_type, general_task_type_char):
     return work_dict
 
 
-def generate_synthetic_datamovement_asymetric_tg(task_exec_intensity_type, others_task_cnt, parallel_task_cnt, serial_task_cnt , parallel_task_type, exec_intensity_scaling_factor):
+def generate_synthetic_datamovement_asymetric_tg(task_exec_intensity_type, others_task_cnt, parallel_task_cnt, serial_task_cnt , parallel_task_type, exec_intensity_scaling_factor, num_of_hops):
     # hardcoded data.
     # TODO: move these into a config file later
     general_task_type_char = {}
     general_task_type_char["memory_intensive"] = {}
     general_task_type_char["comp_intensive"] = {}
+    general_task_type_char["dummy_intensive"] = {}
     general_task_type_char["memory_intensive"]["read_bytes"] = exec_intensity_scaling_factor*500000
     general_task_type_char["memory_intensive"]["write_bytes"] = exec_intensity_scaling_factor*500000 # hardcoded, delete later
     general_task_type_char["comp_intensive"]["read_bytes"] = exec_intensity_scaling_factor*80000
@@ -182,10 +207,12 @@ def generate_synthetic_datamovement_asymetric_tg(task_exec_intensity_type, other
     general_task_type_char["memory_intensive"]["exec"] = exec_intensity_scaling_factor*50000
     general_task_type_char["comp_intensive"]["exec"] = exec_intensity_scaling_factor*10*50000*3
 
+    general_task_type_char["dummy_intensive"]["read_bytes"] = 64
+    general_task_type_char["dummy_intensive"]["write_bytes"] = 64
+    general_task_type_char["dummy_intensive"]["exec"] = 64
+
     #general_task_type_char["memory_intensive"]["read_bytes"] = math.floor((exec_intensity_scaling_factor * 500000)/256)*256
     #general_task_type_char["memory_intensive"]["write_bytes"] = math.floor((exec_intensity_scaling_factor * 500000)/256)*256
-
-
 
     # find a family task (parent, child or sibiling)
     def find_family(task_name_position, task_name, relationship):
@@ -216,7 +243,11 @@ def generate_synthetic_datamovement_asymetric_tg(task_exec_intensity_type, other
             exit(0)
 
     data_movement = {}
-    task_name_position = gen_tg_core_improved(task_exec_intensity_type, others_task_cnt, parallel_task_cnt, serial_task_cnt, parallel_task_type)
+    if num_of_hops == 1:
+        task_name_position = gen_tg_core_improved(task_exec_intensity_type, others_task_cnt, parallel_task_cnt, serial_task_cnt, parallel_task_type)
+    else:
+        task_name_position = gen_tg_with_hops(task_exec_intensity_type, others_task_cnt, parallel_task_cnt, serial_task_cnt, parallel_task_type, num_of_hops)
+
     task_name_position.insert(0,("synthetic_souurce", [""]))
     all_idx = []
     for el, pos in task_name_position:
@@ -301,20 +332,18 @@ def generate_synthetic_datamovement(task_exec_intensity_type, avg_parallelism):
 
 
 # we generate very simple scenarios for now.
-def generate_synthetic_task_graphs_for_asymetric_graphs(num_of_tasks,  others_task_cnt, parallel_task_cnt, serial_task_cnt, parallel_task_type, intensity_params):
+def generate_synthetic_task_graphs_for_asymetric_graphs(num_of_tasks,  others_task_cnt, parallel_task_cnt, serial_task_cnt, parallel_task_type, intensity_params, num_of_hops):
 
     exec_intensity = intensity_params[0]
     exec_intensity_scaling_factor = intensity_params[1]  # scaling with respect to the referece (amount of data movement)
     intensity_ratio = intensity_params[2] # what percentage of the tasks are memory intensive
 
-    opposite_intensity_task_cnt = int((num_of_tasks - 2)*(1-intensity_ratio))
-    #opposite_intensity = list(set(["memory_intensive", "comp_intensive"]).difference(set([exec_intensity])))
+    #----------------------
+    # assigning memory bounded ness or compute boundedness to tasks
+    #----------------------
+    opposite_intensity_task_cnt = int((num_of_tasks - 2 - (num_of_hops-1))*(1-intensity_ratio))
     opposite_intensity = list({"memory_intensive", "comp_intensive"}.difference(set([exec_intensity])))[0]
 
-
-    tasksL: List[TaskL] = []
-
-    # generate a list of task names and their exec intensity (i.e., compute or memory intensive)
     last_idx = 0
     task_exec_intensity = []
     for idx in range(0, num_of_tasks - 2 - opposite_intensity_task_cnt):
@@ -322,11 +351,16 @@ def generate_synthetic_task_graphs_for_asymetric_graphs(num_of_tasks,  others_ta
         last_idx = idx+1
 
     for idx in range(0, opposite_intensity_task_cnt):
-        task_exec_intensity.append(("synthetic_"+str(last_idx + idx), opposite_intensity))
+        task_exec_intensity.append(("synthetic_"+str(last_idx), opposite_intensity))
+        last_idx +=1
+
+    # for dummy tasks taht are used for hops
+    for idx in range(0, num_of_hops-2):
+        task_exec_intensity.append(("synthetic_"+str(last_idx + idx), "dummy_intensive"))
 
 
-    # collect data movement data
-    task_graph_dict, general_task_type_char = generate_synthetic_datamovement_asymetric_tg(task_exec_intensity, others_task_cnt, parallel_task_cnt, serial_task_cnt, parallel_task_type, exec_intensity_scaling_factor)
+    # generate task graph and data movement
+    task_graph_dict, general_task_type_char = generate_synthetic_datamovement_asymetric_tg(task_exec_intensity, others_task_cnt, parallel_task_cnt, serial_task_cnt, parallel_task_type, exec_intensity_scaling_factor, num_of_hops)
 
     # collect number of instructions for each tasks
     work_dict = generate_synthetic_work(task_exec_intensity, general_task_type_char)
@@ -342,6 +376,7 @@ def generate_synthetic_task_graphs_for_asymetric_graphs(num_of_tasks,  others_ta
 
 
 
+    tasksL: List[TaskL] = []
     for task_name_, values in task_graph_dict.items():
         task_ = TaskL(task_name=task_name_, work=work_dict[task_name_])
         task_.add_task_work_distribution([(work_dict[task_name_], 1)])

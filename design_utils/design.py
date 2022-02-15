@@ -2397,7 +2397,7 @@ class DPStats:
             output.write("\"memory_boundedness_ratio_based_on_task_count\": "+ str(self.get_memory_boundedness_ratio()) +",\n")
             output.write("\"memory_boundedness_ratio\": "+ str(self.get_memory_boundedness_ratio_()) +",\n")
             output.write("\"data_movement_scaling_ratio\": "+ str(self.get_datamovement_scaling_ratio()) +",\n")
-
+            output.write("\"num_of_hops\": "+ str(self.get_num_of_hops_()) +",\n")
             #output.write("\"config_code\": "+ str(ic_count) + str(mem_count) + str(pe_count)+",\n")
             #output.write("\"config_code\": "+ self.dp.get_hardware_graph().get_config_code() +",\n")
             output.write("\"simplified_topology_code\": "+ self.dp.get_hardware_graph().get_simplified_topology_code() +",\n")
@@ -2801,6 +2801,36 @@ class DPStats:
             return [self.get_SOC_s_latency_sim_progress(type, id, metric) for type, id in self.dp.get_designs_SOCs()]
         if metric == "bytes":
             pass
+
+
+    def get_num_of_hops(self):
+        return self.database.db_input.num_of_hops
+
+    def get_num_of_hops_(self):
+        total_time = 0
+        hop_time = 0
+        phase_seen = []
+
+        for krnl in self.dp.get_kernels():
+            for phase, block in krnl.stats.phase_block_duration_bottleneck.items():
+                if phase in phase_seen:
+                    continue
+                phase_seen.append(phase)
+
+
+                if block[0].type in ["mem","ic"]:
+                    max_hop = 1
+                    mems = [blk for blk in krnl.get_blocks() if blk.type == "mem"]
+                    pe = [blk for blk in krnl.get_blocks() if blk.type == "pe"][0]
+                    for mem in mems:
+                        max_hop = max(len(self.dp.get_hardware_graph().get_path_between_two_vertecies(pe, mem))-2, max_hop)
+                    hop_time += max_hop*krnl.stats.phase_latency_dict[phase]
+                    total_time += krnl.stats.phase_latency_dict[phase]
+                else:
+                    total_time += krnl.stats.phase_latency_dict[phase]
+        ratio = hop_time/total_time
+        return ratio
+
 
     def get_memory_boundedness_ratio_(self):
         mem_bottleneck_time = 0
