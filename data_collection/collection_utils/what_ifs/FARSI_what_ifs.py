@@ -412,19 +412,21 @@ def simple_run_iterative(result_folder, sw_hw_database_population, system_worker
         unique_suffix = str(total_process_cnt) + "_" + str(current_process_id) + "_" + str(run_ctr)
 
         #study = ["boundedness", "serial_parallel"]
-        study = "boundedness"
-        #study = "serial_parallel"
+        #study = "boundedness"
+        study = "serial_parallel"
         #study = "hop_studies"
 
         if study == "serial_parallel":
             # for serial/parallel studies
-            serial_sweep = list(range(1,20,8))
-            parallel_sweep = list(range(1,30, 9))
-            #serial_sweep = [2]
-            #parallel_sweep =[4]
+            serial_sweep = list(range(0,20,8))
+            parallel_sweep = list(range(0,20, 8))
+            parallel_sweep = [0, 4,8,16]
+            serial_sweep = [0, 4, 8, 16]
+            #parallel_sweep =[5]
 
             all_sweep = [serial_sweep, parallel_sweep]
             parallel_task_type_list= ["audio_style", "edge_detection_style"] # "audio_style, edge_detection_style
+            parallel_task_type_list= ["audio_style"] #, "edge_detection_style"] # "audio_style, edge_detection_style
             for parallel_task_type in parallel_task_type_list:
                 combos = itertools.product(*all_sweep)
                 for serial_task_cnt, parallel_task_cnt in combos:
@@ -434,6 +436,7 @@ def simple_run_iterative(result_folder, sw_hw_database_population, system_worker
                     sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_type'] = parallel_task_type  # can be audio or edge detection
                     sw_hw_database_population["misc_knobs"]['task_spawn']['boundedness'] = ["memory_intensive", datamovement_scaling_ratio, 1]
                     sw_hw_database_population["misc_knobs"]['num_of_hops'] = 1
+                    #sw_hw_database_population["hw_graph_mode"] = "star_mode"
                     db_input = database_input_class(sw_hw_database_population)
                     print("hw_sampling:" + str(hw_sampling))
                     print("budget set to:" + str(db_input.get_budget_dict("glass")))
@@ -446,7 +449,7 @@ def simple_run_iterative(result_folder, sw_hw_database_population, system_worker
             datamovement_scaling_ratio_range = [1]
             for boundedness_ratio in boundedness_ratio_range:
                 for datamovement_scaling_ratio in datamovement_scaling_ratio_range:
-                    sw_hw_database_population["misc_knobs"]['task_spawn']['serial_task_cnt'] = 6 #6
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['serial_task_cnt'] = 3 #6
                     sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_cnt'] = 3 #1
                     sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_type'] = "audio_style" # can be audio or edge detection
                     sw_hw_database_population["misc_knobs"]['task_spawn']['boundedness'] = ["memory_intensive", datamovement_scaling_ratio, boundedness_ratio]
@@ -460,12 +463,25 @@ def simple_run_iterative(result_folder, sw_hw_database_population, system_worker
             # for boundedness studies
             boundedness_ratio_range = [1]
             datamovement_scaling_ratio_range = [1]
-            num_of_hops_range = [2, 3,4]
+            datamovement_scaling_ratio = 1
+            #num_of_hops_range = [1]
+            num_of_hops_range = [1,2, 3, 4]
             boundedness_ratio = 1
+
+            serial_sweep = [0]
+            parallel_sweep = [0,2, 4, 8] #, 16]
+
+            #serial_sweep = [3]
+            #parallel_sweep = [3] #, 16]
+
+            all_sweep = [serial_sweep, parallel_sweep]
+            parallel_task_type_list= ["audio_style"] #, "edge_detection_style"] # "audio_style, edge_detection_style
+
             for num_of_hops in num_of_hops_range:
-                for datamovement_scaling_ratio in datamovement_scaling_ratio_range:
-                    sw_hw_database_population["misc_knobs"]['task_spawn']['serial_task_cnt'] = 6
-                    sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_cnt'] = 1
+                combos = itertools.product(*all_sweep)
+                for serial_task_cnt, parallel_task_cnt in combos:
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['serial_task_cnt'] = serial_task_cnt
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_cnt'] = parallel_task_cnt
                     sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_type'] = "audio_style" # can be audio or edge detection
                     sw_hw_database_population["misc_knobs"]['task_spawn']['boundedness'] = ["memory_intensive", datamovement_scaling_ratio, boundedness_ratio]
                     sw_hw_database_population["misc_knobs"]['num_of_hops'] = num_of_hops

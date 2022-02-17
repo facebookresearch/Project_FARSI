@@ -18,6 +18,16 @@ def gen_tg_with_hops(task_name_intensity_type, others_task_cnt, parallel_task_cn
     task_name_position.append((task_names[1], parents))
     last_task = 2
 
+    """
+    parents = [name + "0"]
+    task_name_position.append((task_names[2], parents))
+    last_task = 3
+
+    parents = [name + "1", name + "2"]
+    task_name_position.append((task_names[3], parents))
+    last_task =4
+    """
+
     for i in range(0, others_task_cnt + serial_task_cnt - 3):
         parents =  [name + str(last_task - 1)]
         task_name_position.append((task_names[last_task], parents))
@@ -27,15 +37,16 @@ def gen_tg_with_hops(task_name_intensity_type, others_task_cnt, parallel_task_cn
         parents = [name + str(last_task - 1)]
         task_name_position.append((task_names[last_task], parents))
         last_task += 1
-    return task_name_position
+    return task_name_position,"_"
 
 
-def gen_tg_core_improved(task_name_intensity_type, others_task_cnt, parallel_task_cnt, serial_task_cnt, parallel_task_type):
+def gen_tg_core_improved(task_name_intensity_type, others_task_cnt, parallel_task_cnt, serial_task_cnt, parallel_task_type, mode, num_of_hops):
     task_names = [task_name for task_name, intensity in task_name_intensity_type]
     task_name_position = []
     name = "synthetic_"
     #parallel_task_type = "edge_detection"
     #parallel_task_type = "audio"
+    hoppy_tasks = []
 
     for i in range(0,2):
         if i == 0:
@@ -46,9 +57,33 @@ def gen_tg_core_improved(task_name_intensity_type, others_task_cnt, parallel_tas
             task_name_position.append((task_names[i], parents))
 
 
+    num_of_hops_added_tasks = max(num_of_hops-2, 0)
+
+    # spacial case
+    if parallel_task_cnt == 0:
+        last_task = 2
+        for i in range(0, others_task_cnt - 4 - num_of_hops_added_tasks):
+            parents =  [name + str(last_task- 1)]
+            task_name_position.append((task_names[last_task], parents))
+            last_task +=1
+
+        if mode == "hop":
+            for i in range(0, num_of_hops_added_tasks):
+                parents = [name + str(last_task-1)]
+                task_name_position.append((task_names[last_task], parents))
+                hoppy_tasks.append(task_names[last_task])
+                last_task += 1
+
+        return task_name_position,{},hoppy_tasks
+
+
+
+
+    parallel_task_cnt -=1 # by default has one
     # set up parallel type of audio
-    parallel_task_names = []
-    parallel_task_names.append(name + str(1))
+    parallel_task_names = {}
+    parallel_task_names[0] = []
+    parallel_task_names[0].append(name + str(1))
     last_task = 2
     if parallel_task_type == "audio_style":
         parallel_offset =1
@@ -56,22 +91,26 @@ def gen_tg_core_improved(task_name_intensity_type, others_task_cnt, parallel_tas
         for i in range(0, parallel_task_cnt):
             parents = [name + str(parallel_offset-1)]
             task_name_position.append((task_names[1 + i+1], parents))
-            parallel_task_names.append(name + str(i+2))
+            parallel_task_names[0].append(name + str(i+2))
             last_task +=1
 
     # set up serial
     if parallel_task_type == "edge_detection_style":
         serial_task_cnt += int(parallel_task_cnt/2)
 
+
     for i in range(0, serial_task_cnt):
-        if i == 0:
-            parents = [el for el in parallel_task_names]
+        if i ==0:
+            parents = [el for el in parallel_task_names[0]]
         else:
             parents =  [name + str(last_task - 1)]
         task_name_position.append((task_names[last_task], parents))
         last_task +=1
 
-    parents = [name + str(last_task-1)]
+    if serial_task_cnt == 0:
+        parents = [el for el in parallel_task_names[0]]
+    else:
+        parents = [name + str(last_task-1)]
     task_name_position.append((task_names[last_task], parents))
     last_right = last_task
 
@@ -79,6 +118,8 @@ def gen_tg_core_improved(task_name_intensity_type, others_task_cnt, parallel_tas
     parents = [name+str(0)]
     last_task +=1
     task_name_position.append((task_names[last_task], parents))
+    left_begin =  last_task
+    parallel_task_names[0].append(task_names[left_begin])
 
     if parallel_task_type == "edge_detection_style":
         for i in  range(0, int(parallel_task_cnt/2)):
@@ -95,8 +136,26 @@ def gen_tg_core_improved(task_name_intensity_type, others_task_cnt, parallel_tas
     task_name_position.append((task_names[last_task], parents))
 
 
+    if parallel_task_type == "edge_detection_style":
+        idx =1
+        for i in range(2, left_begin):
+            parallel_task_names[idx] = []
+            parallel_task_names[idx].append(name+str(idx))
+            idx +=1
+        idx = 1
+        for i in range(left_begin, last_left):
+            parallel_task_names[idx].append(name + str(i))
+            idx+=1
 
-    return task_name_position
+
+    if mode == "hop":
+        for i in range(0, num_of_hops_added_tasks):
+            parents = [name + str(last_task)]
+            task_name_position.append((task_names[last_task+1], parents))
+            hoppy_tasks.append(task_names[last_task+1])
+            last_task += 1
+
+    return task_name_position,parallel_task_names, hoppy_tasks
 
 
 
@@ -244,9 +303,10 @@ def generate_synthetic_datamovement_asymetric_tg(task_exec_intensity_type, other
 
     data_movement = {}
     if num_of_hops == 1:
-        task_name_position = gen_tg_core_improved(task_exec_intensity_type, others_task_cnt, parallel_task_cnt, serial_task_cnt, parallel_task_type)
+        task_name_position, parallel_task_names, hoppy_tasks = gen_tg_core_improved(task_exec_intensity_type, others_task_cnt, parallel_task_cnt, serial_task_cnt, parallel_task_type, "non_hop", 1)
     else:
-        task_name_position = gen_tg_with_hops(task_exec_intensity_type, others_task_cnt, parallel_task_cnt, serial_task_cnt, parallel_task_type, num_of_hops)
+        task_name_position, parallel_task_names, hoppy_tasks = gen_tg_core_improved(task_exec_intensity_type, others_task_cnt, parallel_task_cnt, serial_task_cnt, parallel_task_type, "hop", num_of_hops)
+        #task_name_position, parallel_task_names = gen_tg_with_hops(task_exec_intensity_type, others_task_cnt, parallel_task_cnt, serial_task_cnt, parallel_task_type, "hop", num_of_hops)
 
     task_name_position.insert(0,("synthetic_souurce", [""]))
     all_idx = []
@@ -270,7 +330,7 @@ def generate_synthetic_datamovement_asymetric_tg(task_exec_intensity_type, other
             #    data_movement[task][child] = 1
             #else:
             data_movement[task][child] = general_task_type_char[exec_intensity]["write_bytes"]
-    return data_movement,general_task_type_char
+    return data_movement,general_task_type_char, parallel_task_names,hoppy_tasks
 
 
 
@@ -341,12 +401,13 @@ def generate_synthetic_task_graphs_for_asymetric_graphs(num_of_tasks,  others_ta
     #----------------------
     # assigning memory bounded ness or compute boundedness to tasks
     #----------------------
-    opposite_intensity_task_cnt = int((num_of_tasks - 2 - (num_of_hops-1))*(1-intensity_ratio))
+    num_of_hops_added_tasks = max(num_of_hops-2, 0)
+    opposite_intensity_task_cnt = int((num_of_tasks - 2 - num_of_hops_added_tasks)*(1-intensity_ratio))
     opposite_intensity = list({"memory_intensive", "comp_intensive"}.difference(set([exec_intensity])))[0]
 
     last_idx = 0
     task_exec_intensity = []
-    for idx in range(0, num_of_tasks - 2 - opposite_intensity_task_cnt):
+    for idx in range(0, num_of_tasks - 2 - opposite_intensity_task_cnt - num_of_hops_added_tasks):
         task_exec_intensity.append(("synthetic_"+str(idx), exec_intensity))
         last_idx = idx+1
 
@@ -355,12 +416,12 @@ def generate_synthetic_task_graphs_for_asymetric_graphs(num_of_tasks,  others_ta
         last_idx +=1
 
     # for dummy tasks taht are used for hops
-    for idx in range(0, num_of_hops-2):
+    for idx in range(0, num_of_hops_added_tasks):
         task_exec_intensity.append(("synthetic_"+str(last_idx + idx), "dummy_intensive"))
 
 
     # generate task graph and data movement
-    task_graph_dict, general_task_type_char = generate_synthetic_datamovement_asymetric_tg(task_exec_intensity, others_task_cnt, parallel_task_cnt, serial_task_cnt, parallel_task_type, exec_intensity_scaling_factor, num_of_hops)
+    task_graph_dict, general_task_type_char, parallel_task_names, hoppy_task_names = generate_synthetic_datamovement_asymetric_tg(task_exec_intensity, num_of_tasks, parallel_task_cnt, serial_task_cnt, parallel_task_type, exec_intensity_scaling_factor, num_of_hops)
 
     # collect number of instructions for each tasks
     work_dict = generate_synthetic_work(task_exec_intensity, general_task_type_char)
@@ -389,7 +450,7 @@ def generate_synthetic_task_graphs_for_asymetric_graphs(num_of_tasks,  others_ta
             task_.add_child(child_task, data_movement, "real")  # eye_tracking_soource t glint_mapping
             task_.add_task_to_child_work_distribution(child_task, [(data_movement, 1)])  # eye_tracking_soource t glint_mapping
 
-    return tasksL,task_graph_dict, work_dict
+    return tasksL,task_graph_dict, work_dict, parallel_task_names,hoppy_task_names
 
 
 #generate_synthetic_task_graphs_for_asymetric_graphs(10, 3, "memory_intensive")

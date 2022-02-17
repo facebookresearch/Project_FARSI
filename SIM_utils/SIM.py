@@ -75,4 +75,5 @@ class OSASimulator:
         self.completion_time = self.next_tick_time
         self.dp.set_serial_design_time(self.perf_sim.serial_latency)
         self.dp.set_par_speedup(self.perf_sim.serial_latency/self.completion_time)
+        self.dp.set_simulation_time_analytical_portion(self.perf_sim.analytical_sim_time_so_far)
         return self.dp

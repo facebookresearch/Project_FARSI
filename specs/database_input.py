@@ -73,7 +73,7 @@ class database_input_class():
                                             "workloads":{},"misc_knobs":{}}):
         # some sanity checks first
         assert(sw_hw_database_population["db_mode"] in ["hardcoded", "generate", "parse"])
-        assert(sw_hw_database_population["hw_graph_mode"] in ["generated_from_scratch", "generated_from_check_point", "parse", "hardcoded", "hop_mode"])
+        assert(sw_hw_database_population["hw_graph_mode"] in ["generated_from_scratch", "generated_from_check_point", "parse", "hardcoded", "hop_mode", "star_mode"])
         if sw_hw_database_population["hw_graph_mode"] == "parse":
             assert(sw_hw_database_population["db_mode"] == "parse")
 
@@ -98,6 +98,8 @@ class database_input_class():
         self.workload_tasks = {}
         self.task_workload = {}
         self.misc_data  = {}
+        self.parallel_task_names = {}
+        self.hoppy_task_names = []
         self.hardware_graph = ""
         self.task_to_hardware_mapping = ""
         self.parallel_task_count = "NA"
@@ -167,13 +169,14 @@ class database_input_class():
             self.num_of_hops = sw_hw_database_population["misc_knobs"]["num_of_hops"]
 
             other_task_count = 7
-            total_task_cnt = other_task_count + self.gen_config["parallel_task_cnt"] + self.gen_config["serial_task_cnt"]
+
+            total_task_cnt = other_task_count + max(self.gen_config["parallel_task_cnt"]-1, 0) + self.gen_config["serial_task_cnt"] + max(self.num_of_hops -2, 0)
 
             #intensity_params = ["memory_intensive", 1]
             intensity_params = sw_hw_database_population["misc_knobs"]['task_spawn']["boundedness"]
 
 
-            tasksL_, data_movement, task_work_dict = generate_synthetic_task_graphs_for_asymetric_graphs(total_task_cnt, other_task_count, self.gen_config["parallel_task_cnt"], self.gen_config["serial_task_cnt"], self.parallel_task_type, intensity_params, self.num_of_hops)  # memory_intensive, comp_intensive
+            tasksL_, data_movement, task_work_dict, parallel_task_names, hoppy_task_names = generate_synthetic_task_graphs_for_asymetric_graphs(total_task_cnt, other_task_count, self.gen_config["parallel_task_cnt"], self.gen_config["serial_task_cnt"], self.parallel_task_type, intensity_params, self.num_of_hops)  # memory_intensive, comp_intensive
             blocksL_, pe_mapsL_, pe_schedulesL_ = generate_synthetic_hardware_library(task_work_dict, os.path.join(config.database_data_dir, "parsing"), "misc_database - Block Characteristics.csv")
             self.tasksL.extend(tasksL_)
             self.blocksL.extend(copy.deepcopy(blocksL_))
@@ -187,7 +190,8 @@ class database_input_class():
             self.workloads_last_task = {"synthetic" : [taskL.task_name for taskL in tasksL_ if len(taskL.get_children()) == 0][0]}
             self.gen_config["full_potential_tasks_list"] = list(task_work_dict.keys())
             self.misc_data["same_ip_tasks_list"] = []
-
+            self.parallel_task_names = parallel_task_names
+            self.hoppy_task_names = hoppy_task_names
             self.workload_tasks[list(sw_hw_database_population["workloads"])[0]] = [el.task_name for el in self.tasksL]
             self.sw_hw_database_population = sw_hw_database_population
 

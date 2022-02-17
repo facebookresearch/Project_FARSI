@@ -729,6 +729,59 @@ class Kernel:
         return blocks_family_members
 
 
+    def get_queue_impact_simplified(self, block, pipe_cluster, schedulued_krnels):
+        def get_flit_count_on_pipe(block, pipe, schedulued_krnels):
+            work_unit_total = 0
+            for krnl in schedulued_krnels:
+                if pipe.is_task_present(krnl.get_task()) and krnl.get_task_name() == self.get_task_name():
+                    work_unit_total += pipe.get_task_work_unit(krnl.get_task())
+
+            flit_cnt = math.ceil(work_unit_total/block.get_block_bus_width())
+            return  flit_cnt
+
+        def get_flit_count_on_pipe_cluster(block, schedulued_kernels, mode):
+            incoming_pipes = pipe_cluster.get_incoming_pipes()
+            own_pipe = "NA"
+            other_pipes = []
+            for pipe_ in incoming_pipes:
+                if pipe_.is_task_present(self.get_task()):
+                    own_pipe = pipe_
+
+            for pipe_ in incoming_pipes:
+                if pipe_.is_task_present(self.get_task()):
+                    continue
+                other_pipes.append(pipe_)
+
+            if mode == "own":
+                work_unit_total = own_pipe.get_task_work_unit(self.get_task())
+
+            if mode == "serial":
+                for krnl in schedulued_krnels:
+                    if own_pipe.is_task_present(krnl.get_task()) and not krnl.get_task_name() == self.get_task_name():
+                        work_unit_total += own_pipe.get_task_work_unit(krnl.get_task())
+
+            if mode == "parallel":
+                for krnl in schedulued_krnels:
+                    for pipe_ in other_pipes:
+                        if pipe_.is_task_present(krnl.get_task()) and not krnl.get_task_name() == self.get_task_name():
+                            work_unit_total += pipe_.get_task_work_unit(krnl.get_task())
+
+
+            return math.ceil(work_unit_total / block.get_block_bus_width())
+
+
+        # calculate the queue impact
+        queue_impact = 1
+        if block.type == "pe":
+            queue_impact = 1
+        else:
+            incoming_pipes = pipe_cluster.get_incoming_pipes()
+            # use a  random pipe for now. TODO: fix later
+
+
+        return queue_impact
+
+
     def get_queue_impact(self, block, pipe_cluster, schedulued_krnels):
         def get_flit_count_on_pipe(block, pipe, schedulued_krnels):
             work_unit_total = 0

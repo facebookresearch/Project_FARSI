@@ -2015,6 +2015,12 @@ class SimDesignPoint(ExDesignPoint):
     def set_par_speedup(self, speedup):
         self.par_speedup_time = speedup
 
+    def set_simulation_time_analytical_portion(self, time):
+        self.simulation_time_analytical_portion = time
+
+    def get_simulation_time_analytical_portion(self):
+        return self.simulation_time_analytical_portion
+
     def get_par_speedup(self):
         return self.par_speedup_time
 
@@ -2391,13 +2397,14 @@ class DPStats:
             output.write("\"FARSI_predicted_energy\": "+ str(self.get_system_complex_metric("energy")) +",\n")
             output.write("\"FARSI_predicted_power\": "+ str(self.get_system_complex_metric("power")) +",\n")
             output.write("\"FARSI_predicted_area\": "+ str(self.get_system_complex_metric("area")) +",\n")
-            output.write("\"parallel_task_cnt\": "+ str(self.get_parallel_task_count()) +",\n")
+            output.write("\"parallel_task_cnt\": "+ str(self.get_parallel_task_count_analytically()) +",\n")
+            output.write("\"parallel_task_cnt_experimentally\": "+ str(self.get_parallel_task_count_experimentally()) +",\n")
             output.write("\"serial_task_count\": "+ str(self.get_serial_task_count()) +",\n")
             output.write("\"parallel_task_type\": "+ "\""+str(self.get_parallel_task_type()) +"\",\n")
-            output.write("\"memory_boundedness_ratio_based_on_task_count\": "+ str(self.get_memory_boundedness_ratio()) +",\n")
-            output.write("\"memory_boundedness_ratio\": "+ str(self.get_memory_boundedness_ratio_()) +",\n")
+            output.write("\"memory_boundedness_ratio_analytically\": "+ str(self.get_memory_boundedness_ratio_analytically()) +",\n")
+            output.write("\"memory_boundedness_ratio_experimentally\": "+ str(self.get_memory_boundedness_ratio_experimentally()) +",\n")
             output.write("\"data_movement_scaling_ratio\": "+ str(self.get_datamovement_scaling_ratio()) +",\n")
-            output.write("\"num_of_hops\": "+ str(self.get_num_of_hops_()) +",\n")
+            output.write("\"num_of_hops_experimentally\": "+ str(self.get_num_of_hops_experimentally()) +",\n")
             #output.write("\"config_code\": "+ str(ic_count) + str(mem_count) + str(pe_count)+",\n")
             #output.write("\"config_code\": "+ self.dp.get_hardware_graph().get_config_code() +",\n")
             output.write("\"simplified_topology_code\": "+ self.dp.get_hardware_graph().get_simplified_topology_code() +",\n")
@@ -2408,6 +2415,7 @@ class DPStats:
             output.write("\"task_cnt\": "+ str(task_cnt) +",\n")
             output.write("\"routing_complexity\": "+ str(routing_complexity) +",\n")
             output.write("\"channel_cnt\": "+ str(channel_cnt) +",\n")
+            output.write("\"simulation_time_analytical_portion\": "+ str(self.get_simulation_time_analytical_portion()) +",\n")
             output.write("\"FARSI simulation time\": " + str(self.dp.get_simulation_time()) + ",\n")
 
     # Function: profile the simulated design, collecting information about
@@ -2803,15 +2811,16 @@ class DPStats:
             pass
 
 
-    def get_num_of_hops(self):
+    def get_num_of_hops_analytically(self):
         return self.database.db_input.num_of_hops
 
-    def get_num_of_hops_(self):
+    def get_num_of_hops_experimentally(self):
         total_time = 0
         hop_time = 0
         phase_seen = []
 
         for krnl in self.dp.get_kernels():
+            phase_seen = []
             for phase, block in krnl.stats.phase_block_duration_bottleneck.items():
                 if phase in phase_seen:
                     continue
@@ -2831,8 +2840,20 @@ class DPStats:
         ratio = hop_time/total_time
         return ratio
 
+    def get_parallel_task_count_experimentally(self):
+        total_time = 0
+        serial_time = 0
+        for krnl in self.dp.get_kernels():
+            for phase, latency in krnl.stats.phase_latency_dict.items():
+                serial_time += latency
 
-    def get_memory_boundedness_ratio_(self):
+        execution_latency = 0
+        for type, id in self.dp.get_designs_SOCs():
+            execution_latency += list(self.get_SOC_metric_value("latency", type, id).values())[0] # data per SoC
+        ratio = serial_time/execution_latency
+        return ratio
+
+    def get_memory_boundedness_ratio_experimentally(self):
         mem_bottleneck_time = 0
         cpu_bottleneck_time = 0
         phase_seen = []
@@ -2847,6 +2868,10 @@ class DPStats:
                     cpu_bottleneck_time += krnl.stats.phase_latency_dict[phase]
         ratio = mem_bottleneck_time/(mem_bottleneck_time+cpu_bottleneck_time)
         return ratio
+
+
+
+
 
 
     # returns the latency associated with the phases of the system execution
@@ -2870,8 +2895,11 @@ class DPStats:
     def get_SOC_s_sim_work(self, SOC_type, SOC_id):
         return self.dp.block_phase_work_dict
 
-    def get_parallel_task_count(self):
+    def get_parallel_task_count_analytically(self):
         return self.database.db_input.parallel_task_count
+
+    def get_simulation_time_analytical_portion(self):
+        return self.dp.get_simulation_time_analytical_portion()
 
     def get_serial_task_count(self):
         return self.database.db_input.serial_task_count
@@ -2880,7 +2908,7 @@ class DPStats:
         return self.database.db_input.parallel_task_type
 
 
-    def get_memory_boundedness_ratio(self):
+    def get_memory_boundedness_ratio_analytically(self):
         return self.database.db_input.memory_boundedness_ratio
 
     def get_datamovement_scaling_ratio(self):

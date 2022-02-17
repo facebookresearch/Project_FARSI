@@ -153,7 +153,9 @@ class HillClimbing:
         elif mode == "parse":
             self.init_ex_dp = self.dh.gen_specific_parsed_ex_dp(self.dh.database)
         elif mode == "hop_mode":
-            self.init_ex_dp = self.dh.gen_specific_design_with_hops(self.dh.database)
+            self.init_ex_dp = self.dh.gen_specific_design_with_hops_and_stars(self.dh.database)
+        elif mode == "star_mode":
+            self.init_ex_dp = self.dh.gen_specific_design_with_a_star_noc(self.dh.database)
         else: raise Exception("mode:" + mode + " is not supported")
 
 

@@ -363,6 +363,10 @@ class Task:
             return 0
         if "siink" in self.name:
             return 0
+
+        if len(family_tasks) == 0:
+            print("what")
+
         return min([self.get_self_to_family_task_work(task_) for task_ in family_tasks])
 
     def get_biggest_task_work_by_dir(self, dir):

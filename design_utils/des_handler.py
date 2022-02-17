@@ -1179,6 +1179,175 @@ class DesignHandler:
     def get_most_inferior_block_before_unrolling(self, block, tasks):
         return self.database.sample_most_inferior_blocks_before_unrolling_by_type(block_type=block.type, tasks=block.get_tasks_of_block(), block=block)
 
+
+    def gen_specific_design_with_a_star_noc(self, database):
+
+        num_of_hops = database.db_input.sw_hw_database_population["misc_knobs"]["num_of_hops"]  # supporting only one hardcoded workload
+        #if database.db_input.parallel_task_names == {}:
+        if len(list(database.db_input.parallel_task_names.values())) == 0:
+            max_parallelism = 0
+        else:
+            max_parallelism = max([len(el) for el in database.db_input.parallel_task_names.values()])
+        pes = []
+        mems = []
+        ics = []
+        parallel_task_names =database.db_input.parallel_task_names
+        for el in range (0, max(max_parallelism,1)):
+            pe = self.database.sample_most_inferior_blocks_by_type(block_type="pe", tasks=self.__tasks)
+            mem = self.database.sample_most_inferior_blocks_by_type(block_type="mem", tasks=self.__tasks)
+            if  el == 0:
+                ic = self.database.sample_most_inferior_blocks_by_type(block_type="ic", tasks=self.__tasks)
+            if  el == 0:
+                ic = self.database.sample_most_inferior_SOC(ic, "power")
+                ics.append(ic)
+
+            pe = self.database.sample_most_inferior_SOC(pe, config.sorting_SOC_metric)
+            mem = self.database.sample_most_inferior_SOC(mem, config.sorting_SOC_metric)
+            pes.append(pe)
+            mems.append(mem)
+
+        for pe,mem in zip(pes, mems):
+            pe.connect(ics[0])
+            ics[0].connect(mem)
+
+        serial_task_names = set([el.name for el in self.__tasks])
+        for parallel_task_names in database.db_input.parallel_task_names.values():
+            parallel_tasks = [database.get_task_by_name(tsk_name) for tsk_name in parallel_task_names]
+            for idx, task in enumerate(parallel_tasks):
+                serial_task_names = serial_task_names - set([task.name])
+                pes[idx].load_improved(task, task)
+                for task_child in task.get_children():
+                    mems[idx].load_improved(task, task_child)  # load memory with tasks
+
+        serial_tasks = [database.get_task_by_name(tsk_name) for tsk_name in serial_task_names]
+        for task in serial_tasks:
+            pes[0].load_improved(task, task)
+            for task_child in task.get_children():
+                mems[0].load_improved(task, task_child)  # load memory with tasks
+
+        # generate a hardware graph and load read mem and ic
+        """
+        for pe in pes:
+            for tsk in pe.get_tasks_of_block():
+                if "souurce" in tsk.name:
+                    pe_ = pe
+        """
+
+        hardware_graph = HardwareGraph(pes[0])
+        ex_dp = ExDesignPoint(hardware_graph)
+        self.load_tasks_to_read_mem_and_ic(ex_dp)
+        ex_dp.hardware_graph.update_graph()
+        ex_dp.hardware_graph.pipe_design()
+        return ex_dp
+
+
+    def gen_specific_design_with_hops_and_stars(self, database):
+        num_of_hops = database.db_input.sw_hw_database_population["misc_knobs"]["num_of_hops"]  # supporting only one hardcoded workload
+        #if database.db_input.parallel_task_names == {}:
+        if len(list(database.db_input.parallel_task_names.values())) == 0:
+            max_parallelism = 0
+        else:
+            max_parallelism = max([len(el) for el in database.db_input.parallel_task_names.values()])
+        pes = []
+        mems = []
+        ics = []
+        parallel_task_names =database.db_input.parallel_task_names
+        for el in range (0, max(max_parallelism,1)):
+            pe = self.database.sample_most_inferior_blocks_by_type(block_type="pe", tasks=self.__tasks)
+            mem = self.database.sample_most_inferior_blocks_by_type(block_type="mem", tasks=self.__tasks)
+            if  el == 0:
+                ic = self.database.sample_most_inferior_blocks_by_type(block_type="ic", tasks=self.__tasks)
+            if  el == 0:
+                ic = self.database.sample_most_inferior_SOC(ic, "power")
+                ics.append(ic)
+
+            pe = self.database.sample_most_inferior_SOC(pe, config.sorting_SOC_metric)
+            mem = self.database.sample_most_inferior_SOC(mem, config.sorting_SOC_metric)
+            pes.append(pe)
+            mems.append(mem)
+
+        for pe,mem in zip(pes, mems):
+            pe.connect(ics[0])
+            ics[0].connect(mem)
+
+        serial_task_names = set([el.name for el in self.__tasks])
+        for parallel_task_names in database.db_input.parallel_task_names.values():
+            parallel_tasks = [database.get_task_by_name(tsk_name) for tsk_name in parallel_task_names]
+            for idx, task in enumerate(parallel_tasks):
+                serial_task_names = serial_task_names - set([task.name])
+                pes[idx].load_improved(task, task)
+                for task_child in task.get_children():
+                    mems[idx].load_improved(task, task_child)  # load memory with tasks
+
+        listified_serial_task_names = list(serial_task_names)
+        listified_serial_task_names.sort()
+        serial_task_names = listified_serial_task_names
+
+        added_tasks = max(0, num_of_hops-2)
+        serial_tasks = [database.get_task_by_name(tsk_name) for tsk_name in serial_task_names]
+        # dummy tasks in the middle
+        hoppy_task_names =database.db_input.hoppy_task_names
+        for el in hoppy_task_names:
+            pe = self.database.sample_most_inferior_blocks_by_type(block_type="pe", tasks=self.__tasks)
+            mem = self.database.sample_most_inferior_blocks_by_type(block_type="mem", tasks=self.__tasks)
+            pe = self.database.sample_most_inferior_SOC(pe, config.sorting_SOC_metric)
+            mem = self.database.sample_most_inferior_SOC(mem, config.sorting_SOC_metric)
+            pes.append(pe)
+            mems.append(mem)
+            ic = self.database.sample_most_inferior_blocks_by_type(block_type="ic", tasks=self.__tasks)
+            ic = self.database.sample_most_inferior_SOC(ic, "power")
+            ics.append(ic)
+            pe.connect(ic)
+            ic.connect(mem)
+
+        hoppy_tasks = [database.get_task_by_name(tsk_name) for tsk_name in hoppy_task_names]
+        for idx, task in enumerate(hoppy_tasks):
+            pes[-1].load_improved(task, task)
+            for task_child in task.get_children():
+                mems[-1].load_improved(task, task_child)  # load memory with tasks
+
+
+        # serial tasks
+        if num_of_hops > 1:
+            pe = self.database.sample_most_inferior_blocks_by_type(block_type="pe", tasks=self.__tasks)
+            mem = self.database.sample_most_inferior_blocks_by_type(block_type="mem", tasks=self.__tasks)
+            pe = self.database.sample_most_inferior_SOC(pe, config.sorting_SOC_metric)
+            mem = self.database.sample_most_inferior_SOC(mem, config.sorting_SOC_metric)
+            pes.append(pe)
+            mems.append(mem)
+            ic = self.database.sample_most_inferior_blocks_by_type(block_type="ic", tasks=self.__tasks)
+            ic = self.database.sample_most_inferior_SOC(ic, "power")
+            ics.append(ic)
+            pe.connect(ic)
+            ic.connect(mem)
+
+        for idx, task in enumerate(serial_tasks):
+            if task.name in hoppy_task_names:
+                continue
+            if "souurce" in task.name:
+                idx_ =0
+            elif "synthetic_0" in task.name:
+                idx_ = -1
+            else:
+               idx_ = -1*(idx%2 )
+            pes[idx_].load_improved(task, task)
+            for task_child in task.get_children():
+                mems[idx_].load_improved(task, task_child)  # load memory with tasks
+
+        for idx, ic in enumerate(ics):
+            if idx == 0:
+                continue
+            ic.connect(ics[idx - 1])
+
+
+        hardware_graph = HardwareGraph(pes[0])
+        ex_dp = ExDesignPoint(hardware_graph)
+        self.load_tasks_to_read_mem_and_ic(ex_dp)
+        ex_dp.hardware_graph.update_graph()
+        ex_dp.hardware_graph.pipe_design()
+        return ex_dp
+
+
     def gen_specific_design_with_hops(self, database):
         num_of_hops = database.db_input.sw_hw_database_population["misc_knobs"]["num_of_hops"]  # supporting only one hardcoded workload
         pes = []
@@ -1204,6 +1373,7 @@ class DesignHandler:
             if idx == 0:
                 continue
             ic.connect(ics[idx-1])
+
 
         self.load_tasks_to_pe_and_write_mem_for_hops(pes, mems, self.__tasks, num_of_hops)
 
