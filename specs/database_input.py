@@ -108,6 +108,7 @@ class database_input_class():
         self.datamovement_scaling_ratio = "NA"
         self.parallel_task_type = "NA"
         self.num_of_hops = "NA"
+        self.num_of_NoCs = "NA"
 
         # using the input files, populate the task graph and possible blocks and the mapping of tasks to blocks
         if sw_hw_database_population["db_mode"] == "hardcoded":
@@ -166,17 +167,17 @@ class database_input_class():
             self.num_of_hops = sw_hw_database_population["misc_knobs"]['num_of_hops']
             self.budgets_dict = imported_databases[0].budgets_dict
             self.other_values_dict= imported_databases[0].other_values_dict
-            self.num_of_hops = sw_hw_database_population["misc_knobs"]["num_of_hops"]
+            self.num_of_NoCs = sw_hw_database_population["misc_knobs"]["num_of_NoCs"]
 
             other_task_count = 7
 
-            total_task_cnt = other_task_count + max(self.gen_config["parallel_task_cnt"]-1, 0) + self.gen_config["serial_task_cnt"] + max(self.num_of_hops -2, 0)
+            total_task_cnt = other_task_count + max(self.gen_config["parallel_task_cnt"]-1, 0) + self.gen_config["serial_task_cnt"] + max(self.num_of_NoCs -2, 0)
 
             #intensity_params = ["memory_intensive", 1]
             intensity_params = sw_hw_database_population["misc_knobs"]['task_spawn']["boundedness"]
 
 
-            tasksL_, data_movement, task_work_dict, parallel_task_names, hoppy_task_names = generate_synthetic_task_graphs_for_asymetric_graphs(total_task_cnt, other_task_count, self.gen_config["parallel_task_cnt"], self.gen_config["serial_task_cnt"], self.parallel_task_type, intensity_params, self.num_of_hops)  # memory_intensive, comp_intensive
+            tasksL_, data_movement, task_work_dict, parallel_task_names, hoppy_task_names = generate_synthetic_task_graphs_for_asymetric_graphs(total_task_cnt, other_task_count, self.gen_config["parallel_task_cnt"], self.gen_config["serial_task_cnt"], self.parallel_task_type, intensity_params, self.num_of_NoCs)  # memory_intensive, comp_intensive
             blocksL_, pe_mapsL_, pe_schedulesL_ = generate_synthetic_hardware_library(task_work_dict, os.path.join(config.database_data_dir, "parsing"), "misc_database - Block Characteristics.csv")
             self.tasksL.extend(tasksL_)
             self.blocksL.extend(copy.deepcopy(blocksL_))

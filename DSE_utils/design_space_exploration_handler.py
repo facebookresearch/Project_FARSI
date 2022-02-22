@@ -142,7 +142,7 @@ class DSEHandler:
     # ---------------
     def setup_an_explorer(self, db_input, hw_sampling):
         # body
-        if config.dse_type == "hill_climbing":
+        if config.dse_type == "hill_climbing" or config.dse_type == "moos":
             exploration_start_time = time.time()  # time hooks (for data collection)
             self.database = DataBase(db_input, hw_sampling)   # initialize the database
             # initializes the design space exploration of certain type

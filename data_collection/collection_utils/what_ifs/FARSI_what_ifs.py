@@ -412,21 +412,26 @@ def simple_run_iterative(result_folder, sw_hw_database_population, system_worker
         unique_suffix = str(total_process_cnt) + "_" + str(current_process_id) + "_" + str(run_ctr)
 
         #study = ["boundedness", "serial_parallel"]
-        #study = "boundedness"
-        study = "serial_parallel"
-        #study = "hop_studies"
+        study = "boundedness"
+        #study = "serial_parallel"
+        #study = "hop_NoC_studies"
 
         if study == "serial_parallel":
             # for serial/parallel studies
-            serial_sweep = list(range(0,20,8))
-            parallel_sweep = list(range(0,20, 8))
-            parallel_sweep = [0, 4,8,16]
-            serial_sweep = [0, 4, 8, 16]
+            #serial_sweep = list(range(0,20,8))
+            #parallel_sweep = list(range(0,20, 8))
+            #parallel_sweep = [0, 1,2, 4,8]
+            #serial_sweep = [0, 1, 2, 4,8]
+
+
+            parallel_sweep = [0,4,8] #, 4,8]
+            serial_sweep = [0, 4,8]
             #parallel_sweep =[5]
 
             all_sweep = [serial_sweep, parallel_sweep]
             parallel_task_type_list= ["audio_style", "edge_detection_style"] # "audio_style, edge_detection_style
             parallel_task_type_list= ["audio_style"] #, "edge_detection_style"] # "audio_style, edge_detection_style
+            #parallel_task_type_list= ["edge_detection"] #, "edge_detection_style"] # "audio_style, edge_detection_style
             for parallel_task_type in parallel_task_type_list:
                 combos = itertools.product(*all_sweep)
                 for serial_task_cnt, parallel_task_cnt in combos:
@@ -435,8 +440,10 @@ def simple_run_iterative(result_folder, sw_hw_database_population, system_worker
                     sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_cnt'] = parallel_task_cnt
                     sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_type'] = parallel_task_type  # can be audio or edge detection
                     sw_hw_database_population["misc_knobs"]['task_spawn']['boundedness'] = ["memory_intensive", datamovement_scaling_ratio, 1]
-                    sw_hw_database_population["misc_knobs"]['num_of_hops'] = 1
+                    sw_hw_database_population["misc_knobs"]['num_of_hops'] = 4
+                    sw_hw_database_population["misc_knobs"]['num_of_NoCs'] = 4
                     #sw_hw_database_population["hw_graph_mode"] = "star_mode"
+                    sw_hw_database_population["hw_graph_mode"] = "hop_mode"
                     db_input = database_input_class(sw_hw_database_population)
                     print("hw_sampling:" + str(hw_sampling))
                     print("budget set to:" + str(db_input.get_budget_dict("glass")))
@@ -445,15 +452,18 @@ def simple_run_iterative(result_folder, sw_hw_database_population, system_worker
         elif study == "boundedness":
             # for boundedness studies
             boundedness_ratio_range = list(np.arange(0,1.1,.1))
+            #boundedness_ratio_range = [0, .3,.6,1]
+            boundedness_ratio_range = [.3]
             #datamovement_scaling_ratio_range = list(np.arange(.1,1,.2))
             datamovement_scaling_ratio_range = [1]
             for boundedness_ratio in boundedness_ratio_range:
                 for datamovement_scaling_ratio in datamovement_scaling_ratio_range:
-                    sw_hw_database_population["misc_knobs"]['task_spawn']['serial_task_cnt'] = 3 #6
-                    sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_cnt'] = 3 #1
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['serial_task_cnt'] = 4 #6
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_cnt'] = 0 #1
                     sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_type'] = "audio_style" # can be audio or edge detection
                     sw_hw_database_population["misc_knobs"]['task_spawn']['boundedness'] = ["memory_intensive", datamovement_scaling_ratio, boundedness_ratio]
                     sw_hw_database_population["misc_knobs"]['num_of_hops'] = 1
+                    sw_hw_database_population["misc_knobs"]['num_of_NoCs'] = 1
                     db_input = database_input_class(sw_hw_database_population)
                     print("hw_sampling:" + str(hw_sampling))
                     print("budget set to:" + str(db_input.get_budget_dict("glass")))
@@ -465,14 +475,14 @@ def simple_run_iterative(result_folder, sw_hw_database_population, system_worker
             datamovement_scaling_ratio_range = [1]
             datamovement_scaling_ratio = 1
             #num_of_hops_range = [1]
-            num_of_hops_range = [1,2, 3, 4]
+            num_of_hops_range = [4]
             boundedness_ratio = 1
 
-            serial_sweep = [0]
-            parallel_sweep = [0,2, 4, 8] #, 16]
+            #serial_sweep = [0]
+            #parallel_sweep = [0,2, 4, 8] #, 16]
 
-            #serial_sweep = [3]
-            #parallel_sweep = [3] #, 16]
+            serial_sweep = [0]
+            parallel_sweep = [5,7, 9] #, 16]
 
             all_sweep = [serial_sweep, parallel_sweep]
             parallel_task_type_list= ["audio_style"] #, "edge_detection_style"] # "audio_style, edge_detection_style
@@ -485,13 +495,49 @@ def simple_run_iterative(result_folder, sw_hw_database_population, system_worker
                     sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_type'] = "audio_style" # can be audio or edge detection
                     sw_hw_database_population["misc_knobs"]['task_spawn']['boundedness'] = ["memory_intensive", datamovement_scaling_ratio, boundedness_ratio]
                     sw_hw_database_population["misc_knobs"]['num_of_hops'] = num_of_hops
+                    sw_hw_database_population["misc_knobs"]['num_of_NoCs'] = num_of_hops  # same as num_of_hops
                     sw_hw_database_population["hw_graph_mode"] = "hop_mode"
                     db_input = database_input_class(sw_hw_database_population)
                     print("hw_sampling:" + str(hw_sampling))
                     print("budget set to:" + str(db_input.get_budget_dict("glass")))
                     dse_hndlr = run_FARSI_only_simulation(result_folder, unique_suffix, db_input, hw_sampling,
                                           sw_hw_database_population["hw_graph_mode"])
+        elif study == "hop_NoC_studies":
+            # for boundedness studies
+            boundedness_ratio_range = [1]
+            datamovement_scaling_ratio_range = [1]
+            datamovement_scaling_ratio = 1
+            #num_of_hops_range = [1]
+            #num_of_hop_NoCs_range =[[1,1], [2,2],[3,3], [2,3], [2,4],[3,4]]
+            #num_of_hop_NoCs_range =[[3,4]]
+            #num_of_hop_NoCs_range =[[1,1], [2,2], [3,3]]
+            num_of_hop_NoCs_range =[[1,1],[2,2],[2,3], [2,4], [3,3], [3,4], [4,4]]
+            boundedness_ratio = 1
 
+            #serial_sweep = [0]
+            #parallel_sweep = [0,2, 4, 8] #, 16]
+
+            serial_sweep = [4]
+            parallel_sweep = [0] #, 16]
+
+            all_sweep = [serial_sweep, parallel_sweep]
+            parallel_task_type_list= ["audio_style"] #, "edge_detection_style"] # "audio_style, edge_detection_style
+
+            for num_of_hops, num_of_NoCs in num_of_hop_NoCs_range:
+                combos = itertools.product(*all_sweep)
+                for serial_task_cnt, parallel_task_cnt in combos:
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['serial_task_cnt'] = serial_task_cnt
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_cnt'] = parallel_task_cnt
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['parallel_task_type'] = "audio_style" # can be audio or edge detection
+                    sw_hw_database_population["misc_knobs"]['task_spawn']['boundedness'] = ["memory_intensive", datamovement_scaling_ratio, boundedness_ratio]
+                    sw_hw_database_population["misc_knobs"]['num_of_hops'] = num_of_hops
+                    sw_hw_database_population["misc_knobs"]['num_of_NoCs'] = num_of_NoCs
+                    sw_hw_database_population["hw_graph_mode"] = "hop_mode"
+                    db_input = database_input_class(sw_hw_database_population)
+                    print("hw_sampling:" + str(hw_sampling))
+                    print("budget set to:" + str(db_input.get_budget_dict("glass")))
+                    dse_hndlr = run_FARSI_only_simulation(result_folder, unique_suffix, db_input, hw_sampling,
+                                          sw_hw_database_population["hw_graph_mode"])
 
 
         run_ctr += 1

@@ -1722,6 +1722,168 @@ class HillClimbing:
                 else:
                     return designs_to_consider[0], True # can be smarter here
 
+
+    # use simulated annealing to pick the next design(s).
+    # Use this link to understand simulated annealing (SA) http://www.cs.cmu.edu/afs/cs.cmu.edu/project/learn-43/lib/photoz/.g/we /glossary/anneal.html
+    # cur_temp: current temperature for simulated annealing
+    def moos_greedy_design_selection(self, sim_stat_ex_dp_dict, sim_dp_stat_list, best_ex_dp_so_far, best_sim_dp_so_far_stats, cur_temp):
+
+        # get the kernel of interest using this for now to collect cached designs
+        best_sim_selected_metric, metric_prob_dict,best_sorted_metric_dir = self.select_metric(best_sim_dp_so_far_stats.dp)
+        best_sim_move_dir = self.select_dir(best_sim_dp_so_far_stats.dp, best_sim_selected_metric)
+        best_sim_selected_krnl, _, _= self.select_kernel(best_ex_dp_so_far, best_sim_dp_so_far_stats.dp, best_sim_selected_metric, best_sorted_metric_dir)
+        if best_sim_selected_krnl.get_task_name() not in self.recently_cached_designs.keys():
+           self.recently_cached_designs[best_sim_selected_krnl.get_task_name()]  = []
+
+
+        # get the worse case cost for normalizing the cost when calculating the distance
+        best_cost = min([sim_dp.get_system_complex_metric("cost") for sim_dp in (sim_dp_stat_list + [best_sim_dp_so_far_stats])])
+        self.database.set_ideal_metric_value("cost", "glass", best_cost)
+
+        # find if any of the new designs meet the budget
+        new_designs_meeting_budget = []  # designs that are meeting the budget
+        for sim_dp_stat in sim_dp_stat_list:
+            if sim_dp_stat.fits_budget(1):
+                new_designs_meeting_budget.append(sim_dp_stat)
+
+        new_designs_meeting_budget_with_dram = []  # designs that are meeting the budget
+        for sim_dp_stat in sim_dp_stat_list:
+            if sim_dp_stat.fits_budget(1):
+                ex_dp = sim_stat_ex_dp_dict[sim_dp_stat]
+                if ex_dp.has_system_bus():
+                    new_designs_meeting_budget_with_dram.append(sim_dp_stat)
+        dram_fixed = False
+        if len(new_designs_meeting_budget_with_dram) > 0 and not self.dram_feasibility_check_pass(best_ex_dp_so_far):
+            dram_fixed = True
+
+
+        # find each design's simulated annealing Energy difference with the best design's energy
+        # if any of the designs meet the budget or it's a cleanup iteration, include cost in distance calculation.
+        # note that when we compare, we need to use the same dist_to_goal calculation, hence
+        # ann_energy_best_dp_so_far needs to use the same calculation
+        metric_to_target , metric_prob_dict, sorted_metric_dir = self.select_metric(best_sim_dp_so_far_stats.dp)
+        include_cost_in_distance = best_sim_dp_so_far_stats.fits_budget(1) or (len(new_designs_meeting_budget) > 0) or self.is_cleanup_iter() or (len(new_designs_meeting_budget_with_dram)>0)
+        if include_cost_in_distance:
+            ann_energy_best_dp_so_far = best_sim_dp_so_far_stats.dist_to_goal(["cost", "latency", "power", "area"],
+                                                                              "eliminate")
+            ann_energy_best_dp_so_far_all_metrics = best_sim_dp_so_far_stats.dist_to_goal(["cost", "latency", "power", "area"],
+                                                                              "eliminate")
+        else:
+            ann_energy_best_dp_so_far = best_sim_dp_so_far_stats.dist_to_goal([metric_to_target], "dampen")
+            ann_energy_best_dp_so_far_all_metrics = best_sim_dp_so_far_stats.dist_to_goal(["power", "area", "latency"],
+                                                                              "dampen")
+        sim_dp_stat_ann_delta_energy_dict = {}
+        sim_dp_stat_ann_delta_energy_dict_all_metrics = {}
+        # deleteee the following debugging lines
+        print("--------%%%%%%%%%%%---------------")
+        print("--------%%%%%%%%%%%---------------")
+        print("first the best design from the previous iteration")
+        print(" des" + " latency:" + str(best_sim_dp_so_far_stats.get_system_complex_metric("latency")))
+        print(" des" + " power:" + str(
+            best_sim_dp_so_far_stats.get_system_complex_metric("power")))
+        print("energy :" + str(ann_energy_best_dp_so_far))
+
+
+
+        sim_dp_to_look_at = [] # which designs to look at.
+        # only look at the designs that meet the budget (if any), basically  prioritize these designs first
+        if len(new_designs_meeting_budget_with_dram) > 0:
+            sim_dp_to_look_at = new_designs_meeting_budget_with_dram
+        elif len(new_designs_meeting_budget) > 0:
+            sim_dp_to_look_at = new_designs_meeting_budget
+        else:
+            sim_dp_to_look_at = sim_dp_stat_list
+
+        for sim_dp_stat in sim_dp_to_look_at:
+            if include_cost_in_distance:
+                sim_dp_stat_ann_delta_energy_dict[sim_dp_stat] = sim_dp_stat.dist_to_goal(
+                    ["cost", "latency", "power", "area"], "eliminate") - ann_energy_best_dp_so_far
+                sim_dp_stat_ann_delta_energy_dict_all_metrics[sim_dp_stat] = sim_dp_stat.dist_to_goal(
+                    ["cost", "latency", "power", "area"], "eliminate") - ann_energy_best_dp_so_far_all_metrics
+            else:
+                new_design_energy = sim_dp_stat.dist_to_goal([metric_to_target], "dampen")
+                sim_dp_stat_ann_delta_energy_dict[sim_dp_stat] = new_design_energy - ann_energy_best_dp_so_far
+                new_design_energy_all_metrics = sim_dp_stat.dist_to_goal(["power", "latency", "area"], "dampen")
+                sim_dp_stat_ann_delta_energy_dict_all_metrics[sim_dp_stat] = new_design_energy_all_metrics - ann_energy_best_dp_so_far_all_metrics
+
+        # changing the seed for random selection
+        if config.DEBUG_FIX: random.seed(0)
+        else: time.sleep(.00001), random.seed(datetime.now().microsecond)
+
+        result, design_improved = self.find_best_design(sim_stat_ex_dp_dict, sim_dp_stat_ann_delta_energy_dict,
+                                                        sim_dp_stat_ann_delta_energy_dict_all_metrics, best_sim_dp_so_far_stats, best_ex_dp_so_far)
+        best_neighbour_stat, best_neighbour_delta_energy = result
+
+        print("all the designs tried")
+        for el, energy in sim_dp_stat_ann_delta_energy_dict_all_metrics.items():
+            print("----------------")
+            sim_dp_ =  el.dp
+            if not sim_dp_.move_applied == None:
+                sim_dp_.move_applied.print_info()
+                print("energy" + str(energy))
+                print("design's latency: " + str(el.get_system_complex_metric("latency")))
+                print("design's power: " + str(el.get_system_complex_metric("power")))
+                print("design's area: " + str(el.get_system_complex_metric("area")))
+                print("design's sub area: " + str(el.get_system_complex_area_stacked_dram()))
+
+        # if any negative (desired move) value is detected or there is a design in the new batch
+        #  that meet the budget, but the previous best design didn't, we have at least one improved solution
+        found_an_improved_solution = (len(new_designs_meeting_budget)>0 and not(best_sim_dp_so_far_stats).fits_budget(1)) or design_improved or dram_fixed
+
+
+        # for debugging. delete later
+        if (len(new_designs_meeting_budget)>0 and not(best_sim_dp_so_far_stats).fits_budget(1)):
+            print("what")
+
+        if not found_an_improved_solution:
+            # avoid not improving
+            self.krnel_stagnation_ctr +=1
+            self.des_stag_ctr += 1
+            if self.krnel_stagnation_ctr > config.max_krnel_stagnation_ctr:
+                self.krnel_rnk_to_consider = min(self.krnel_rnk_to_consider + 1, len(best_sim_dp_so_far_stats.get_kernels()) -1)
+                krnel_not_to_consider = get_kernel_not_to_consider(self.krnels_not_to_consider, best_sim_dp_so_far_stats.dp.move_applied, sim_dp_to_look_at[-1].dp.move_applied)
+                if not krnel_not_to_consider == None:
+                    self.krnels_not_to_consider.append(krnel_not_to_consider)
+                #self.krnel_stagnation_ctr = 0
+                #self.recently_seen_design_ctr = 0
+        elif best_neighbour_stat.dp.dp_rep.get_hardware_graph().get_SOC_design_code() in self.recently_cached_designs[best_sim_selected_krnl.get_task_name()] and False:
+            # avoid circular exploration
+            self.recently_seen_design_ctr += 1
+            self.des_stag_ctr += 1
+            if self.recently_seen_design_ctr > config.max_recently_seen_design_ctr:
+                self.krnel_rnk_to_consider = min(self.krnel_rnk_to_consider + 1,
+                                                 len(best_sim_dp_so_far_stats.get_kernels()) - 1)
+                self.krnel_stagnation_ctr = 0
+                #self.recently_seen_design_ctr = 0
+        else:
+            self.krnel_stagnation_ctr = max(0, self.krnel_stagnation_ctr -1)
+            if self.krnel_stagnation_ctr == 0:
+                if not len(self.krnels_not_to_consider) == 0:
+                    self.krnels_not_to_consider = self.krnels_not_to_consider[:-1]
+                self.krnel_rnk_to_consider = max(0, self.krnel_rnk_to_consider - 1)
+            self.cleanup_ctr +=1
+            self.des_stag_ctr = 0
+            self.recently_seen_design_ctr = 0
+
+        # initialize selected_sim_dp
+        selected_sim_dp = best_sim_dp_so_far_stats.dp
+        if found_an_improved_solution:
+            selected_sim_dp = best_neighbour_stat.dp
+        else:
+            try:
+                if math.e**(best_neighbour_delta_energy/max(cur_temp, .001)) < random.choice(range(0, 1)):
+                    selected_sim_dp = best_neighbour_stat.dp
+            except:
+                selected_sim_dp = best_neighbour_stat.dp
+
+        # cache the best design
+        if len(self.recently_cached_designs[best_sim_selected_krnl.get_task_name()]) < config.recently_cached_designs_queue_size:
+            self.recently_cached_designs[best_sim_selected_krnl.get_task_name()].append(selected_sim_dp.dp_rep.get_hardware_graph().get_SOC_design_code())
+        else:
+            self.recently_cached_designs[best_sim_selected_krnl.get_task_name()][self.population_generation_cnt%config.recently_cached_designs_queue_size] = selected_sim_dp.dp_rep.get_hardware_graph().get_SOC_design_code()
+
+        return selected_sim_dp, found_an_improved_solution
+
     # use simulated annealing to pick the next design(s).
     # Use this link to understand simulated annealing (SA) http://www.cs.cmu.edu/afs/cs.cmu.edu/project/learn-43/lib/photoz/.g/we /glossary/anneal.html
     # cur_temp: current temperature for simulated annealing
@@ -1897,6 +2059,41 @@ class HillClimbing:
             self.recently_cached_designs[best_sim_selected_krnl.get_task_name()][self.population_generation_cnt%config.recently_cached_designs_queue_size] = selected_sim_dp.dp_rep.get_hardware_graph().get_SOC_design_code()
 
         return selected_sim_dp, found_an_improved_solution
+
+    # ------------------------------
+    # Functionality:
+    #     select the next best design (from the sorted dp)
+    # Variables
+    #       ex_sim_dp_dict: example_simulate_design_point_list. List of designs to pick from.
+    # ------------------------------
+    def sel_start_dp_moos(self, ex_sim_dp_dict, best_sim_dp_so_far, best_ex_dp_so_far, cur_temp):
+        # convert to stats
+        sim_dp_list = list(ex_sim_dp_dict.values())
+        sim_dp_stat_list = [sim_dp.dp_stats for sim_dp in sim_dp_list]
+        sim_stat_ex_dp_dict = {}
+        for k, v in ex_sim_dp_dict.items():
+            sim_stat_ex_dp_dict[v.dp_stats] = k
+
+
+
+        # find the ones that fit the expanded budget (note that budget radius shrinks)
+        selected_sim_dp, found_improved_solution = self.moos_design_selection(sim_stat_ex_dp_dict, sim_dp_stat_list,
+                                                                            best_ex_dp_so_far, best_sim_dp_so_far.dp_stats,
+                                                                            cur_temp)
+
+        # extract the design
+        for key, val in ex_sim_dp_dict.items():
+            key.sanity_check()
+            if val == selected_sim_dp:
+                selected_ex_dp = key
+                break
+
+        # generate verification data
+        if found_improved_solution and config.RUN_VERIFICATION_PER_IMPROVMENT:
+            self.gen_verification_data(selected_sim_dp, selected_ex_dp)
+        return selected_ex_dp, selected_sim_dp
+
+
 
     # ------------------------------
     # Functionality:
@@ -2544,6 +2741,73 @@ class HillClimbing:
             ctr +=1
             self.log_data_list.append(data)
 
+
+    # ------------------------------
+    # Functionality:
+    #      Explore the design space.
+    # Variables
+    #       it uses the config parameters that are used to instantiate the object.
+    # ------------------------------
+    def explore_ds_with_moos(self):
+        self.so_far_best_ex_dp = self.init_ex_dp
+        self.so_far_best_sim_dp = self.eval_design(self.so_far_best_ex_dp, self.database)
+        self.init_sim_dp = self.eval_design(self.so_far_best_ex_dp, self.database)
+
+        # visualize/checkpoint/PA generation
+        vis_hardware.vis_hardware(self.so_far_best_sim_dp.get_dp_rep())
+        if config.RUN_VERIFICATION_PER_GEN or config.RUN_VERIFICATION_PER_IMPROVMENT or config.RUN_VERIFICATION_PER_NEW_CONFIG:
+            self.gen_verification_data(self.so_far_best_sim_dp, self.so_far_best_ex_dp)
+
+        des_per_iteration = [0]
+        start = True
+        cur_temp = config.annealing_max_temp
+
+        should_terminate = False
+        while not should_terminate:
+            best_leaf = self.sel_best_leaf_node()
+            child_leaf_list = self.expand_leaf(best_leaf)
+            lambda_list = self.create_lambdas(child_leaf_list)
+            for lambda_ in lambda_list:
+                self.cur_best_ex_dp, self.cur_best_sim_dp = self.sel_start_dp_moos(this_itr_ex_sim_dp_dict,
+                                                                         self.so_far_best_sim_dp, self.so_far_best_ex_dp, lambda_)
+
+                # use the follow as a the starting point for greedy heuristic
+                self.so_far_best_ex_dp  = self.cur_best_ex_dp
+                self.so_far_best_sim_dp  = self.cur_best_sim_dp
+                this_itr_ex_sim_dp_dict = self.greedy_for_moos()   # run simple simulated annealing
+
+                # collect profiling information about moves and designs generated
+                if config.VIS_MOVE_TRAIL and (self.population_generation_cnt% config.vis_reg_ctr_threshold) == 0 and len(self.des_trail_list) > 0:
+                    plot.des_trail_plot(self.des_trail_list, self.move_profile, des_per_iteration)
+                    plot.move_profile_plot(self.move_profile)
+
+
+                self.extract_pareto(this_itr_ex_sim_dp_dict)
+                self.pareto_global.append()
+                self.update_tree()
+
+
+                if config.VIS_GR_PER_ITR and (self.population_generation_cnt% config.vis_reg_ctr_threshold) == 0:
+                    vis_hardware.vis_hardware(self.cur_best_sim_dp.get_dp_rep())
+
+                # collect statistics about the design
+                self.collect_stats(this_itr_ex_sim_dp_dict)
+
+
+            stat_result = self.so_far_best_sim_dp.dp_stats
+            if stat_result.fits_budget(1):
+                should_terminate = True
+                reason_to_terminate = "met the budget"
+            elif self.population_generation_cnt > self.TOTAL_RUN_THRESHOLD:
+                should_terminate = True
+                reason_to_terminate = "exploration (total itr_ctr) iteration threshold reached"
+
+
+    def greedy_for_moos(self):
+        this_itr_ex_sim_dp_dict = self.simple_SA()  # run simple simulated annealing
+        self.cur_best_ex_dp, self.cur_best_sim_dp = self.sel_next_dp(this_itr_ex_sim_dp_dict,
+                                                                     self.so_far_best_sim_dp, self.so_far_best_ex_dp,
+                                                                     cur_temp)
 
 
     # ------------------------------

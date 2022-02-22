@@ -1243,6 +1243,11 @@ class DesignHandler:
 
     def gen_specific_design_with_hops_and_stars(self, database):
         num_of_hops = database.db_input.sw_hw_database_population["misc_knobs"]["num_of_hops"]  # supporting only one hardcoded workload
+        num_of_NoCs = database.db_input.sw_hw_database_population["misc_knobs"]["num_of_NoCs"]  # supporting only one hardcoded workload
+        if num_of_hops > num_of_NoCs:
+            print("number of hops can't be greater than number of NoCs")
+            exit(0)
+
         #if database.db_input.parallel_task_names == {}:
         if len(list(database.db_input.parallel_task_names.values())) == 0:
             max_parallelism = 0
@@ -1287,6 +1292,11 @@ class DesignHandler:
         serial_tasks = [database.get_task_by_name(tsk_name) for tsk_name in serial_task_names]
         # dummy tasks in the middle
         hoppy_task_names =database.db_input.hoppy_task_names
+
+        last_non_hoppy_task = list(set(serial_task_names) - set(hoppy_task_names) - set(["synthetic_siink"]) - set(["synthetic_souurce"]))
+        last_non_hoppy_task.sort()
+        last_non_hoppy_task = last_non_hoppy_task[-1]
+
         for el in hoppy_task_names:
             pe = self.database.sample_most_inferior_blocks_by_type(block_type="pe", tasks=self.__tasks)
             mem = self.database.sample_most_inferior_blocks_by_type(block_type="mem", tasks=self.__tasks)
@@ -1302,9 +1312,9 @@ class DesignHandler:
 
         hoppy_tasks = [database.get_task_by_name(tsk_name) for tsk_name in hoppy_task_names]
         for idx, task in enumerate(hoppy_tasks):
-            pes[-1].load_improved(task, task)
+            pes[-1*(1+idx)].load_improved(task, task)
             for task_child in task.get_children():
-                mems[-1].load_improved(task, task_child)  # load memory with tasks
+                mems[-1*(1+idx)].load_improved(task, task_child)  # load memory with tasks
 
 
         # serial tasks
@@ -1338,6 +1348,13 @@ class DesignHandler:
             if idx == 0:
                 continue
             ic.connect(ics[idx - 1])
+
+        if num_of_hops < num_of_NoCs:
+            if num_of_hops == 2:
+                ics[-1].connect(ics[0])
+            if num_of_hops == 3:
+                ics[-2].connect(ics[0])
+                #ics[1].connect(ics[-1])
 
 
         hardware_graph = HardwareGraph(pes[0])

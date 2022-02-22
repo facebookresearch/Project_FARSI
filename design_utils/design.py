@@ -2405,6 +2405,7 @@ class DPStats:
             output.write("\"memory_boundedness_ratio_experimentally\": "+ str(self.get_memory_boundedness_ratio_experimentally()) +",\n")
             output.write("\"data_movement_scaling_ratio\": "+ str(self.get_datamovement_scaling_ratio()) +",\n")
             output.write("\"num_of_hops_experimentally\": "+ str(self.get_num_of_hops_experimentally()) +",\n")
+            output.write("\"num_of_hops_theoretically\": "+ str(self.get_num_of_hops_theoretically()) +",\n")
             #output.write("\"config_code\": "+ str(ic_count) + str(mem_count) + str(pe_count)+",\n")
             #output.write("\"config_code\": "+ self.dp.get_hardware_graph().get_config_code() +",\n")
             output.write("\"simplified_topology_code\": "+ self.dp.get_hardware_graph().get_simplified_topology_code() +",\n")
@@ -2811,7 +2812,7 @@ class DPStats:
             pass
 
 
-    def get_num_of_hops_analytically(self):
+    def get_num_of_hops_theoretically(self):
         return self.database.db_input.num_of_hops
 
     def get_num_of_hops_experimentally(self):
