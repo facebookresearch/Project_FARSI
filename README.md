@@ -1,5 +1,5 @@
 # Project_FARSI
-FARSI is a pre-rtl design space exploration framework. It allows SOC designers to find optimal
+FARSI is a agile pre-rtl design space exploration framework. It allows SOC designers to find optimal
 designs given a set of constraints (performance/power/area and development cost).
 
 
