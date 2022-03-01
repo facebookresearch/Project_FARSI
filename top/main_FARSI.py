@@ -5,7 +5,7 @@
 from SIM_utils.SIM import *
 from DSE_utils.design_space_exploration_handler import  *
 from specs.database_input import *
-
+import psutil
 
 # Run an instance of FARSI, the exploration framework
 # Variables:
@@ -55,8 +55,9 @@ def run_FARSI(result_folder, unique_number, db_input, hw_sampling, starting_expl
             best_design_sim_last_itr = best_design_sim_this_itr
             best_design_sim_this_itr = dse_handler.dse.so_far_best_sim_dp
 
-            # if did not improve comparing to the last iteration, exit
-            if not best_design_sim_last_itr == None and \
+            if config.heuristic_type == "moos" and not dse_handler.dse.reason_to_terminate == "":
+                return dse_handler
+            elif not best_design_sim_last_itr == None and \
                     (best_design_sim_this_itr.dp_rep.get_hardware_graph().get_SOC_design_code() ==
                      best_design_sim_last_itr.dp_rep.get_hardware_graph().get_SOC_design_code()):
                 return dse_handler

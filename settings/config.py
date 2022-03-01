@@ -124,6 +124,8 @@ for metric in all_metrics:
                       "navigation heuristic if you want otherwise in ")
                 exit(0)
 
+heuristic_type = "moos" # {moose, FARSI, SA}
+
 #objective_function = 0  #
 #objective_budget = .000000001
 metric_trans_dict = {"latency": ["split", "swap", "migrate", "split_swap"], "power": ["split", "swap", "migrate", "split_swap"],
@@ -171,7 +173,7 @@ data_folder = "data"
 PA_output_folder = data_folder+"/"+"PA_output"
 sim_progress_folder = data_folder+"/"+"sim_progress"
 RUN_VERIFICATION_PER_GEN = False # every new desi, generate the verification data
-RUN_VERIFICATION_PER_NEW_CONFIG = True
+RUN_VERIFICATION_PER_NEW_CONFIG = False
 RUN_VERIFICATION_PER_IMPROVMENT = False and not (RUN_VERIFICATION_PER_GEN or RUN_VERIFICATION_PER_NEW_CONFIG) # every improvement, generate verification
                                                                          # don't want to double generate, hence the second
                                                                          # predicate clause
@@ -286,7 +288,7 @@ cacti_min_memory_size_in_bytes = 2048 # bellow this value cacti errors out. We c
 	       # It should almost always set to 1
 
 
-transformation_selection_mode = "arch-aware"  # choose from {random, arch-aware}
+transformation_selection_mode = "random"  # choose from {random, arch-aware}
 
 all_available_transformations = ["migrate", "swap", "split", "split_swap"]#, "transfer", "routing"]
 if RUN_VERIFICATION_AT_ALL:
@@ -298,6 +300,7 @@ dram_stacked = True
 parallelism_analysis = "dynamic" # choose from ["dynamic", "static"]  # at the moment static is not working, something to do with the task and task sync
                                  # and read to being present after unloading
 
+out_of_memory_percentage = 97
 default_cmd_queue_size = 16
 default_data_queue_size = 16
 #default_burst_size = 128

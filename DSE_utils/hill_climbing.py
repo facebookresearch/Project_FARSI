@@ -1,6 +1,8 @@
 #Copyright (c) Facebook, Inc. and its affiliates.
 #This source code is licensed under the MIT license found in the
 #LICENSE file in the root directory of this source tree.
+from copy import *
+from decimal import Decimal
 import zipfile
 import csv
 import _pickle as cPickle
@@ -23,6 +25,11 @@ import pickle
 import importlib
 import gc
 import difflib
+from pygmo import *
+#from pygmo.util import *
+import psutil
+
+
 # ------------------------------
 # This class is responsible for design space exploration using our proprietary hill-climbing algorithm.
 # Our Algorithm currently uses swap (improving the current design) and  duplicate (relaxing the contention on the
@@ -102,6 +109,7 @@ class HillClimbing:
         self.population_observed_ctr = 0  #
         self.neighbour_selection_time = 0
         self.total_iteration_cnt = 0
+        self.moos_tree = moosTreeModel(config.budgetted_metrics)  # only used for moos heuristic
 
     def get_total_iteration_cnt(self):
         return self.total_iteration_cnt
@@ -1727,6 +1735,21 @@ class HillClimbing:
     # Use this link to understand simulated annealing (SA) http://www.cs.cmu.edu/afs/cs.cmu.edu/project/learn-43/lib/photoz/.g/we /glossary/anneal.html
     # cur_temp: current temperature for simulated annealing
     def moos_greedy_design_selection(self, sim_stat_ex_dp_dict, sim_dp_stat_list, best_ex_dp_so_far, best_sim_dp_so_far_stats, cur_temp):
+        def get_kernel_not_to_consider(krnels_not_to_consider, cur_best_move_applied, random_move_applied):
+            if cur_best_move_applied == None: # only none for the first iteration
+                move_applied = random_move_applied
+            else:
+                move_applied = cur_best_move_applied
+            if move_applied == None:
+                return None
+
+            krnl_prob_dict_sorted = move_applied.krnel_prob_dict_sorted
+            for krnl, prob in krnl_prob_dict_sorted:
+                if krnl.get_task_name() in krnels_not_to_consider:
+                    continue
+                return krnl.get_task_name()
+
+
 
         # get the kernel of interest using this for now to collect cached designs
         best_sim_selected_metric, metric_prob_dict,best_sorted_metric_dir = self.select_metric(best_sim_dp_so_far_stats.dp)
@@ -2060,13 +2083,29 @@ class HillClimbing:
 
         return selected_sim_dp, found_an_improved_solution
 
-    # ------------------------------
+    def find_design_scalarized_value_from_moos_perspective(self, sim, lambdas):
+        sim_metric_values = {}
+        value = []
+        for metric_name in config.budgetted_metrics:
+            for type, id in sim.get_designs_SOCs():
+                if metric_name == "latency":
+                    metric_val = sum(list(sim.dp_stats.get_SOC_metric_value(metric_name, type, id).values()))
+                else:
+                    metric_val = sim.dp_stats.get_SOC_metric_value(metric_name, type, id)
+
+                value.append(Decimal(metric_val)*lambdas[metric_name])
+
+
+        #return max(value)
+        return sum(value)
+
+                # ------------------------------
     # Functionality:
     #     select the next best design (from the sorted dp)
     # Variables
     #       ex_sim_dp_dict: example_simulate_design_point_list. List of designs to pick from.
     # ------------------------------
-    def sel_start_dp_moos(self, ex_sim_dp_dict, best_sim_dp_so_far, best_ex_dp_so_far, cur_temp):
+    def sel_start_dp_moos(self, ex_sim_dp_dict, best_sim_dp_so_far, best_ex_dp_so_far, lambda_list):
         # convert to stats
         sim_dp_list = list(ex_sim_dp_dict.values())
         sim_dp_stat_list = [sim_dp.dp_stats for sim_dp in sim_dp_list]
@@ -2075,11 +2114,24 @@ class HillClimbing:
             sim_stat_ex_dp_dict[v.dp_stats] = k
 
 
-
         # find the ones that fit the expanded budget (note that budget radius shrinks)
-        selected_sim_dp, found_improved_solution = self.moos_design_selection(sim_stat_ex_dp_dict, sim_dp_stat_list,
-                                                                            best_ex_dp_so_far, best_sim_dp_so_far.dp_stats,
-                                                                            cur_temp)
+        sim_scalarized_value = {}
+        for ex, sim in ex_sim_dp_dict.items():
+            value = self.find_design_scalarized_value_from_moos_perspective(sim, lambda_list)
+            sim_scalarized_value[sim] = value
+
+        min_scalarized_value = float('inf')
+        min_sim = ""
+        for sim,value in  sim_scalarized_value.items():
+            if value <  min_scalarized_value:
+                min_sim = sim
+                min_ex = sim_stat_ex_dp_dict[sim.dp_stats]
+                min_scalarized_value = value
+
+        if min_sim == "":
+            print("some thing went wrong. should have at least one minimum")
+        return min_ex, min_sim
+
 
         # extract the design
         for key, val in ex_sim_dp_dict.items():
@@ -2372,6 +2424,7 @@ class HillClimbing:
     # Variables:
     #       des_tup: starting point design point tuple (design point, simulated design point)
     # ------------------------------
+    #@profile
     def gen_neigh_and_eval(self, des_tup):
         # "delete this later"
         print("------ depth ------")
@@ -2742,6 +2795,151 @@ class HillClimbing:
             self.log_data_list.append(data)
 
 
+    def sel_next_dp_for_moos(self, ex_sim_dp_dict, best_sim_dp_so_far, best_ex_dp_so_far, cur_temp):
+        # convert to stats
+        sim_dp_list = list(ex_sim_dp_dict.values())
+        sim_dp_stat_list = [sim_dp.dp_stats for sim_dp in sim_dp_list]
+        sim_stat_ex_dp_dict = {}
+        for k, v in ex_sim_dp_dict.items():
+            sim_stat_ex_dp_dict[v.dp_stats] = k
+
+
+        # find the ones that fit the expanded budget (note that budget radius shrinks)
+        selected_sim_dp, found_improved_solution = self.moos_greedy_design_selection(sim_stat_ex_dp_dict, sim_dp_stat_list,
+                                                                            best_ex_dp_so_far, best_sim_dp_so_far.dp_stats,
+                                                                            cur_temp)
+
+        if not found_improved_solution:
+            selected_sim_dp = self.so_far_best_sim_dp
+            selected_ex_dp = self.so_far_best_ex_dp
+        else:
+            # extract the design
+            for key, val in ex_sim_dp_dict.items():
+                key.sanity_check()
+                if val == selected_sim_dp:
+                    selected_ex_dp = key
+                    break
+
+        # generate verification data
+        if found_improved_solution and config.RUN_VERIFICATION_PER_IMPROVMENT:
+            self.gen_verification_data(selected_sim_dp, selected_ex_dp)
+        return selected_ex_dp, selected_sim_dp, found_improved_solution
+
+
+    def greedy_for_moos(self, starting_ex_sim):
+        found_improvement = True
+        this_itr_ex_sim_dp_dict_all = {}
+        while found_improvement:
+            this_itr_ex_sim_dp_dict = self.simple_SA()  # run simple simulated annealing
+            self.cur_best_ex_dp, self.cur_best_sim_dp, found_improvement = self.sel_next_dp_for_moos(this_itr_ex_sim_dp_dict,
+                                                                         self.so_far_best_sim_dp, self.so_far_best_ex_dp, 1)
+
+            for ex, sim in this_itr_ex_sim_dp_dict.items():
+                this_itr_ex_sim_dp_dict_all[ex] = sim
+
+            self.so_far_best_sim_dp = self.cur_best_sim_dp
+            self.so_far_best_ex_dp = self.cur_best_ex_dp
+
+        result = {self.cur_best_ex_dp: self.cur_best_sim_dp}
+
+        result = this_itr_ex_sim_dp_dict_all
+        return result
+
+
+    def get_pareto_designs(self, ex_sim_designs):
+        pareto_designs = {}
+        point_list = []
+        # iterate through the designs and generate points ([latency, power, area] tuple or points)
+        for ex, sim in ex_sim_designs.items():
+            point = []
+            for metric_name in config.budgetted_metrics:
+                for type, id in sim.dp_stats.get_designs_SOCs():
+                    if metric_name == "latency":
+                        metric_val = sum(list(sim.dp_stats.get_SOC_metric_value(metric_name, type, id).values()))
+                        #metric_val = format(metric_val, ".10f")
+                    else:
+                        metric_val = sim.dp_stats.get_SOC_metric_value(metric_name, type, id)
+                        #metric_val = format(metric_val, ".10f")
+
+
+                    point.append(metric_val)
+            point_list.append(point)
+
+        # find the pareto points
+        pareto_points = self.find_pareto_points(point_list)
+        remove_list = []
+        # extract the designs according to the pareto points
+        for ex, sim in ex_sim_designs.items():
+            point = []
+            for metric_name in config.budgetted_metrics:
+                for type, id in sim.dp_stats.get_designs_SOCs():
+                    if metric_name == "latency":
+                        metric_val = sum(list(sim.dp_stats.get_SOC_metric_value(metric_name, type, id).values()))
+                    else:
+                        metric_val = sim.dp_stats.get_SOC_metric_value(metric_name, type, id)
+
+                    #metric_val = format(metric_val, ".10f")
+                    point.append(metric_val)
+            if point in pareto_points:
+                pareto_points.remove(point)  # no double counting
+                pareto_designs[ex] = sim
+            else:
+                remove_list.append(ex)
+
+        for el in remove_list:
+            del ex_sim_designs[el]
+
+        if pareto_designs == {}:
+            print("hmm there shoujld be a point in the pareto design")
+        return pareto_designs
+
+    def find_pareto_points(self, points):
+        def is_pareto_efficient_dumb(costs):
+            is_efficient = np.ones(costs.shape[0], dtype=bool)
+            for i, c in enumerate(costs):
+                is_efficient[i] = np.all(np.any(costs[:i] > c, axis=1)) and np.all(np.any(costs[i + 1:] > c, axis=1))
+            return is_efficient
+
+        # removing the duplicates (other wise we get wrong results for pareto front)
+        points.sort()
+        points =  list(k for k, _ in itertools.groupby(points))
+        efficients = is_pareto_efficient_dumb(np.array(points))
+        pareto_points_array = [points[idx] for idx, el in enumerate(efficients) if el]
+
+        return pareto_points_array
+
+        """
+        pareto_points = []
+        for el in pareto_points_array:
+            list_ = []
+            for el_ in el:
+                list.append(el)
+            pareto_points.append(list_)
+
+        return pareto_points
+        """
+
+    def evaluate_pareto(self, pareto_ex_sim, ref):
+        point_list = []
+        for ex, sim in pareto_ex_sim.items():
+            point = []
+            for metric_name in config.budgetted_metrics:
+                for type, id in sim.get_designs_SOCs():
+                    if metric_name == "latency":
+                        metric_val = sum(list(sim.dp_stats.get_SOC_metric_value(metric_name, type, id).values()))
+                    else:
+                        metric_val = sim.dp_stats.get_SOC_metric_value(metric_name, type, id)
+
+                    #metric_val = format(metric_val, ".10f")
+                    point.append(metric_val)
+            point_list.append(point)
+
+
+        hv = hypervolume(point_list)
+        hv_value = hv.compute(ref)
+
+        return hv_value
+
     # ------------------------------
     # Functionality:
     #      Explore the design space.
@@ -2749,6 +2947,7 @@ class HillClimbing:
     #       it uses the config parameters that are used to instantiate the object.
     # ------------------------------
     def explore_ds_with_moos(self):
+        #gc.DEBUG_SAVEALL = True
         self.so_far_best_ex_dp = self.init_ex_dp
         self.so_far_best_sim_dp = self.eval_design(self.so_far_best_ex_dp, self.database)
         self.init_sim_dp = self.eval_design(self.so_far_best_ex_dp, self.database)
@@ -2758,42 +2957,136 @@ class HillClimbing:
         if config.RUN_VERIFICATION_PER_GEN or config.RUN_VERIFICATION_PER_IMPROVMENT or config.RUN_VERIFICATION_PER_NEW_CONFIG:
             self.gen_verification_data(self.so_far_best_sim_dp, self.so_far_best_ex_dp)
 
+
+        #num_of_workloads = len(self.so_far_best_sim_dp.dp_stats.database.get_workloads_last_task().values())
+        # initializing the tree
+        self.pareto_global = {}
+        self.pareto_global [self.so_far_best_ex_dp] = self.so_far_best_sim_dp
+        hyper_volume_ref = [300,1,1]
+        pareto_global_child_evaluation = self.evaluate_pareto(self.pareto_global, hyper_volume_ref)
+        root_node = self.moos_tree.get_root()
+        root_node.update_evaluation(pareto_global_child_evaluation)
+        best_leaf = self.moos_tree.get_root()
+
         des_per_iteration = [0]
         start = True
         cur_temp = config.annealing_max_temp
 
+        pareto_global_init = {}
+        pareto_global_child = {}
         should_terminate = False
+        reason_to_termiante = ""
+        ctr = 0
         while not should_terminate:
-            best_leaf = self.sel_best_leaf_node()
-            child_leaf_list = self.expand_leaf(best_leaf)
-            lambda_list = self.create_lambdas(child_leaf_list)
-            for lambda_ in lambda_list:
-                self.cur_best_ex_dp, self.cur_best_sim_dp = self.sel_start_dp_moos(this_itr_ex_sim_dp_dict,
-                                                                         self.so_far_best_sim_dp, self.so_far_best_ex_dp, lambda_)
+            # get pareto designs
+            self.pareto_global = self.get_pareto_designs(self.pareto_global)
+            # expand the tree
+            best_leaf = self.moos_tree.find_node_to_expand()
+            best_leaf_evaluation = best_leaf.get_evaluation()
+            expanded = self.moos_tree.expand(best_leaf)
+            ctr +=1
+            # if expansion failed, terminate
+            # usually happens when the intervals are too small
+            if not expanded:
+                should_terminate, reason_to_terminate = True, "no_interval_for_moos"
+            ctr +=1
+            # populate the pareto (local pareto)
+            pareto_global_init.clear()
+            for ex, sim in self.pareto_global.items():
+                pareto_global_init[ex] = sim
+
+            print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+            print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+            print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+            print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+            print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+
+            # iterate through the children and run greedy heuristic
+            for name, child in best_leaf.get_children().items():
+                if should_terminate:
+                    continue
+
+                if name == "center":
+                    pareto_global_child_evaluation = best_leaf_evaluation
+                    child.update_evaluation(pareto_global_child_evaluation)
+                    continue
+
+                # populate the pareto front with pareto global
+                pareto_global_child.clear()
+                for ex, sim in pareto_global_init.items():
+                    pareto_global_child[ex] = sim
+                lambdas = child.get_lambdas()
+                self.cur_best_ex_dp, self.cur_best_sim_dp = self.sel_start_dp_moos(pareto_global_child,
+                                                                         self.so_far_best_sim_dp, self.so_far_best_ex_dp, lambdas)
 
                 # use the follow as a the starting point for greedy heuristic
                 self.so_far_best_ex_dp  = self.cur_best_ex_dp
                 self.so_far_best_sim_dp  = self.cur_best_sim_dp
-                this_itr_ex_sim_dp_dict = self.greedy_for_moos()   # run simple simulated annealing
+                #this_itr_ex_sim_dp_dict = {self.so_far_best_ex_dp:  self.so_far_best_sim_dp}
+                this_itr_ex_sim_dp_dict = self.greedy_for_moos(self.so_far_best_ex_dp)   # run simple simulated annealing
 
+
+                """
                 # collect profiling information about moves and designs generated
                 if config.VIS_MOVE_TRAIL and (self.population_generation_cnt% config.vis_reg_ctr_threshold) == 0 and len(self.des_trail_list) > 0:
                     plot.des_trail_plot(self.des_trail_list, self.move_profile, des_per_iteration)
                     plot.move_profile_plot(self.move_profile)
+                """
 
+                # get new pareto design and merge, and evaluate (update the tree)
+                self.log_data(this_itr_ex_sim_dp_dict)
+                self.collect_stats(this_itr_ex_sim_dp_dict)
+                pareto_designs = self.get_pareto_designs(this_itr_ex_sim_dp_dict)
+                pareto_global_child.update(pareto_designs)
+                pareto_global_child = self.get_pareto_designs(pareto_global_child)
+                pareto_global_child_evaluation = self.evaluate_pareto(pareto_global_child, hyper_volume_ref)
+                print("evaluation" +str(pareto_global_child_evaluation) +  "-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+                print("pareto evluation" + str(pareto_global_child_evaluation))
+                child.update_evaluation(pareto_global_child_evaluation)
 
-                self.extract_pareto(this_itr_ex_sim_dp_dict)
-                self.pareto_global.append()
-                self.update_tree()
+                # update pareto global
+                for ex, sim in pareto_global_child.items():
+                    self.pareto_global[ex] = sim
+                #self.pareto_global.update(pareto_global_child)
 
-
+                """
                 if config.VIS_GR_PER_ITR and (self.population_generation_cnt% config.vis_reg_ctr_threshold) == 0:
                     vis_hardware.vis_hardware(self.cur_best_sim_dp.get_dp_rep())
-
+                """
                 # collect statistics about the design
-                self.collect_stats(this_itr_ex_sim_dp_dict)
+                gc.collect()
+
+                # update and check for termination
+                print("memory usage ===================================== " +str(psutil.virtual_memory()))
+                # check terminattion status
+                should_terminate, reason_to_terminate = self.update_ctrs()
+                mem = psutil.virtual_memory()
+                mem_used = int(mem.percent)
+                if mem_used > config.out_of_memory_percentage:
+                    should_terminate, reason_to_terminate = True, "out_of_memory"
 
 
+            if should_terminate:
+                print("reason to terminate is:" + reason_to_terminate)
+                vis_hardware.vis_hardware(self.cur_best_sim_dp.get_dp_rep())
+                if not (self.last_des_trail == None):
+                    if self.last_des_trail == None:
+                        self.last_des_trail = (
+                        copy.deepcopy(self.so_far_best_sim_dp), copy.deepcopy(self.so_far_best_sim_dp))
+                        # self.last_des_trail = (cPickle.loads(cPickle.dumps(self.so_far_best_sim_dp, -1)),cPickle.loads(cPickle.dumps(self.so_far_best_sim_dp)))
+                    else:
+                        self.des_trail_list.append(self.last_des_trail)
+                if not (self.last_move == None):
+                    self.move_profile.append(self.last_move)
+
+                if config.VIS_MOVE_TRAIL:
+                    plot.des_trail_plot(self.des_trail_list, self.move_profile, des_per_iteration)
+                    plot.move_profile_plot(self.move_profile)
+                self.reason_to_terminate = reason_to_terminate
+                return
+
+
+            """ 
             stat_result = self.so_far_best_sim_dp.dp_stats
             if stat_result.fits_budget(1):
                 should_terminate = True
@@ -2802,13 +3095,7 @@ class HillClimbing:
                 should_terminate = True
                 reason_to_terminate = "exploration (total itr_ctr) iteration threshold reached"
 
-
-    def greedy_for_moos(self):
-        this_itr_ex_sim_dp_dict = self.simple_SA()  # run simple simulated annealing
-        self.cur_best_ex_dp, self.cur_best_sim_dp = self.sel_next_dp(this_itr_ex_sim_dp_dict,
-                                                                     self.so_far_best_sim_dp, self.so_far_best_ex_dp,
-                                                                     cur_temp)
-
+            """
 
     # ------------------------------
     # Functionality:
@@ -3046,3 +3333,197 @@ class HillClimbing:
 
 
         return should_terminate, reason_to_terminate
+
+
+class moosTreeNode:
+    def __init__(self, k_intervals):
+        self.k_ins = k_intervals
+        self.children = {}
+        self.evaluation = "None"
+
+    def update_evaluation(self, evaluation):
+        self.evaluation = evaluation
+
+    def get_evaluation(self):
+        if self.evaluation == "None":
+            print("must populate the evluation first")
+            exit(0)
+        return self.evaluation
+
+    def get_k_ins(self):
+        return self.k_ins
+
+    def get_interval(self, metric):
+        return self.get_k_ins()[metric]
+
+
+    def get_interval_length(self, metric):
+        assert(metric in self.k_ins.keys())
+        interval = self.k_ins[metric]
+        length = interval[1] - interval[0]
+        if (length <=0):
+            print("length" + str(length))
+            print("interval is:")
+            print(str(self.k_ins[metric]))
+        assert(length > 0)
+        return length
+
+    def longest_dimension_name(self):
+        key =  list(self.get_k_ins().keys())[0]
+        max_dimension = self.get_interval_length(key)
+        max_key = key
+        print("max_dimentions" + str(max_dimension))
+
+        for k,v in self.get_k_ins().items():
+            if self.get_interval_length(k) > max_dimension:
+                max_dimension = self.get_interval_length(k)
+                max_key = k
+
+        return max_key
+
+    def update_interval(self, key, interval):
+        self.k_ins[key] = interval
+
+    def add_children(self, left_children_, center_children_, right_children_):
+        self.children["left"]= left_children_
+        self.children["center"] = center_children_
+        self.children["right"] = right_children_
+
+    def get_children_with_position(self, position):
+        return self.children[position]
+
+    def get_children(self):
+        return self.children
+
+    def get_lambdas(self):
+        lambdas = {}
+        for metric_name, val in self.k_ins.items():
+            lambdas[metric_name]  = (val[1] - val[0])/2
+        return lambdas
+
+
+class moosTreeModel:
+    def __init__(self, metric_names):
+        max = Decimal(100000)
+        min = Decimal(0)
+        node_val = []
+        k_ins = {}
+        for el in metric_names:
+            k_ins[el] = [min, max]
+        self.root = moosTreeNode(k_ins)
+
+    def get_root(self):
+        return self.root
+
+    def get_leaves_with_depth(self):
+        def get_leaves_helper(node, depth):
+            result = []
+            if node.get_children()  == {}:
+                result = [(node, depth)]
+            else:
+                for position, child in node.get_children().items():
+                    child_result = get_leaves_helper(child, depth+1)
+                    result.extend(child_result)
+            return result
+
+        leaves_depth = get_leaves_helper(self.root, 0)
+        return leaves_depth
+
+    def expand(self, node):
+        # initializing the longest
+        longest_dimension_key = node.longest_dimension_name()
+        longest_dimension_interval = node.get_interval(longest_dimension_key)
+        longest_intr_min = min(longest_dimension_interval)
+        longest_intr_max = max(longest_dimension_interval)
+        longest_dimension_incr = Decimal(longest_intr_max - longest_intr_min)/3
+
+        child_center = moosTreeNode(copy.deepcopy(node.get_k_ins()))
+        child_left = moosTreeNode(copy.deepcopy(node.get_k_ins()))
+        child_right = moosTreeNode(copy.deepcopy(node.get_k_ins()))
+
+        if (longest_intr_min - longest_intr_min + 1*longest_dimension_incr == 0):
+            print("this shouldn't happen. intervals should be the same")
+            print("intrval" + str(longest_dimension_interval))
+            print("incr" + str(longest_dimension_incr))
+            print("min" +str(longest_intr_min))
+            print("max" + str(longest_intr_max))
+            print("first upper" + str(longest_intr_min + 1*longest_dimension_incr))
+            print("second upper"+ str(longest_intr_min + 2 * longest_dimension_incr))
+            return False
+
+        if (longest_intr_min + 1 * longest_dimension_incr - longest_intr_min + 2 * longest_dimension_incr == 0):
+            print("this shouldn't happen. intervals should be the same")
+            print(longest_dimension_interval)
+            print(longest_dimension_incr)
+            print(longest_intr_min)
+            print(longest_intr_min + 1*longest_dimension_incr)
+            print(longest_intr_min + 2 * longest_dimension_incr)
+            print(longest_intr_max)
+            return False
+
+        if (longest_intr_min + 2 * longest_dimension_incr -  longest_intr_max == 0):
+            print("this shouldn't happen. intervals should be the same")
+            print(longest_dimension_interval)
+            print(longest_dimension_incr)
+            print(longest_intr_min)
+            print(longest_intr_min + 1*longest_dimension_incr)
+            print(longest_intr_min + 2 * longest_dimension_incr)
+            print(longest_intr_max)
+            return False
+
+
+        child_left.update_interval(longest_dimension_key, [longest_intr_min, longest_intr_min + 1*longest_dimension_incr])
+        child_center.update_interval(longest_dimension_key, [longest_intr_min + 1*longest_dimension_incr, longest_intr_min + 2*longest_dimension_incr])
+        child_right.update_interval(longest_dimension_key, [longest_intr_min + 2*longest_dimension_incr, longest_intr_max])
+        node.add_children(child_left, child_center, child_right)
+        return True
+
+    def find_node_to_expand(self):
+        node_star_list = []  # selected node
+        leaves_with_depth = self.get_leaves_with_depth()
+
+        # find max depth
+        max_depth = max([depth for leaf,depth in leaves_with_depth])
+
+        # split leaves to max and non max depth
+        leaves_with_max_depth = [leaf for leaf,depth in leaves_with_depth if depth == max_depth]
+        leaves_with_non_max_depth = [leaf for leaf,depth in leaves_with_depth if not depth == max_depth]
+
+        # select node star
+        for max_leaf in leaves_with_max_depth:
+            leaf_is_better_list = []
+            for non_max_leaf in leaves_with_non_max_depth:
+                leaf_is_better_list.append(max_leaf.get_evaluation() >= non_max_leaf.get_evaluation())
+            if all(leaf_is_better_list):
+                node_star_list.append(max_leaf)
+
+
+        best_node = node_star_list[0]
+        for node in node_star_list:
+            if node.get_evaluation() > best_node.get_evaluation():
+                best_node = node
+        """
+        # for debugging. delete later
+        if (len(node_star_list) == 0):
+            for max_leaf in leaves_with_max_depth:
+                leaf_is_better_list = []
+                for non_max_leaf in leaves_with_non_max_depth:
+                    leaf_is_better_list.append(max_leaf.get_evaluation() >= non_max_leaf.get_evaluation())
+                if all(leaf_is_better_list):
+                    node_star_list.append(max_leaf)
+
+            if not (len(node_star_list) == 1):
+                print("something went wrong")
+        """
+        return best_node
+
+
+
+
+
+
+
+
+
+
+

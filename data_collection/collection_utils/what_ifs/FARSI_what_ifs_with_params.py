@@ -85,14 +85,14 @@ def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, trans_
 
     # set software hardware database population
     # for scalibility studies
-    sw_hw_database_population = {"db_mode": "generate", "hw_graph_mode": "generated_from_scratch",
-                                 "workloads": workloads, "misc_knobs": db_population_misc_knobs}
+    #sw_hw_database_population = {"db_mode": "generate", "hw_graph_mode": "generated_from_scratch",
+    #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
     # for SLAM
     #sw_hw_database_population = {"db_mode": "hardcoded", "hw_graph_mode": "generated_from_scratch",
     #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
     # for paper workloads
-    #sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_scratch",
-    #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
+    sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_scratch",
+                                 "workloads": workloads, "misc_knobs": db_population_misc_knobs}
     #sw_hw_database_population = {"db_mode": "parse", "hw_graph_mode": "generated_from_check_point",
     #                             "workloads": workloads, "misc_knobs": db_population_misc_knobs}
     # for check pointed
@@ -129,9 +129,8 @@ def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, trans_
         plot_3d_dist(result_dir_addr, full_file_addr, workloads)
 
 if __name__ == "__main__":
-
-    study_type = "simple_run_iterative"
-    #study_type = "simple_run"
+    #study_type = "simple_run_iterative"
+    study_type = "simple_run"
     #study_subtype = "plot_3d_distance"
     study_subtype = "run"
     assert study_type in ["cost_PPA", "simple_run", "input_error_output_cost_sensitivity", "input_error_input_cost_sensitivity", "simple_run_iterative"]
@@ -142,13 +141,16 @@ if __name__ == "__main__":
 
 
     # check pointing information
-    check_points_start = False
-    check_points_top_folder = "/Users/behzadboro/Project_FARSI_dir/Project_FARSI_with_channels/data_collection/data/simple_run/12-20_15-37_33/data_per_design/12-20_15-39_38_16/PA_knob_ctr_0/"
+    check_points_start = True
+    #check_points_top_folder = "/Users/behzadboro/Project_FARSI_dir/Project_FARSI_with_channels/data_collection/data/simple_run/12-20_15-37_33/data_per_design/12-20_15-39_38_16/PA_knob_ctr_0/"
                               #"/media/reddi-rtx/KINGSTON/FARSI_results/scaling_of_1_2_4_across_all_budgets_07-31"
+    #check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/02-28_17-00_03/a_e_h__r/02-28_17-00_03____lat_1__pow_1__area_1___workloads_a_e_h/check_points"
+    #check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/02-28_17-52_30/a_e_h__r/02-28_17-52_30____lat_1__pow_1__area_1___workloads_a_e_h/check_points"
+    check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/02-28_19-01_52/a_e_h__r/02-28_17-52_30____lat_1__pow_1__area_1___workloads_a_e_h/check_points"
 
     # fast run
     #workloads = [{"audio_decoder"}]
-    workloads = [{"synthetic"}]
+    #workloads = [{"synthetic"}]
     #workloads = [{"hpvm_cava"}]
     #workloads = [{"edge_detection"}]
     #workloads = [{"SLAM"}]
@@ -158,7 +160,7 @@ if __name__ == "__main__":
     #workloads =[{"audio_decoder"}, {"edge_detection"}, {"hpvm_cava"}]
 
     # all workloads togethe
-    #workloads =[{"audio_decoder", "edge_detection", "hpvm_cava"}]
+    workloads =[{"audio_decoder", "edge_detection", "hpvm_cava"}]
 
     # entire workload set
     #workloads = [{"hpvm_cava"}, {"audio_decoder"}, {"edge_detection"}, {"edge_detection", "audio_decoder"}, {"hpvm_cava", "audio_decoder"}, {"hpvm_cava", "edge_detection"} , {"audio_decoder", "edge_detection", "hpvm_cava"}]
@@ -168,7 +170,7 @@ if __name__ == "__main__":
     area_scaling_range  = [.8,1,1.2]
 
     # edge detection lower budget
-    latency_scaling_range  = [.9]
+    latency_scaling_range  = [1]
     # for audio
     #power_scaling_range  = [.6,.5,.4,.3]
     #area_scaling_range  = [.6,.5,.5,.3]
@@ -183,7 +185,8 @@ if __name__ == "__main__":
     os.mkdir(run_folder)
 
     #transformation_selection_mode_list = ["random", "arch-aware"]  # choose from {random, arch-aware}
-    transformation_selection_mode_list = ["arch-aware"]
+    transformation_selection_mode_list = ["random"]
+    #transformation_selection_mode_list = ["arch-aware"]
 
     check_points_values = []
     if check_points_start:

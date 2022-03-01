@@ -226,8 +226,10 @@ class DSEHandler:
     # ---------------
     def explore(self):
         exploration_start_time = time.time()  # time hook (data collection)
-        self.dse.explore_ds()
-
+        if config.heuristic_type in ["FARSI", "SA"]:
+            self.dse.explore_ds()
+        if config.heuristic_type == "moos":
+            self.dse.explore_ds_with_moos()
 
     # ---------------
     # Functionality:

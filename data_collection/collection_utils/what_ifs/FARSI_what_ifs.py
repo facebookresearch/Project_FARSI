@@ -558,7 +558,6 @@ def simple_run_iterative(result_folder, sw_hw_database_population, system_worker
 
         os.system("cp " + config.home_dir+"/settings/config.py"+ " "+ result_folder)
 
-
 # ------------------------------
 # Functionality:
 #  a simple run, where FARSI is run to meet certain budget

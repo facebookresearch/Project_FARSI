@@ -829,6 +829,32 @@ class DPStatsContainer():
 
 
     def get_speedup_analysis(self,dse):
+
+        # for now just fill it out. something goes wrong
+        speedup_avg = {"customization_first_speed_up_avg": 1,
+                                         "parallelism_second_speed_up_avg": 1,
+                                         "customization_second_speed_up_avg":1 ,
+                                         "parallelism_first_speed_up_avg": 1,
+                                         "interference_degradation_avg":1,
+                       "customization_speed_up_full_system":1,
+                       "loop_unrolling_parallelism_speed_up_full_system": 1,
+                       "task_level_parallelism_speed_up_full_system":1
+                       }
+
+        workload_speed_up = {}
+        for workload in self.database.get_workloads_last_task().keys():
+            workload_speed_up[workload] = {"customization_first_speed_up": 1,
+                                           "parallelism_second_speed_up": 1,
+                                           "customization_second_speed_up": 1,
+                                           "parallelism_first_speed_up": 1,
+                                           "interference_degradation": 1}
+        return workload_speed_up,speedup_avg
+
+
+
+
+
+
         # lower the design
         workload_speed_up = {}
         customization_first_speed_up_list =[]
