@@ -57,13 +57,18 @@ def run_FARSI(result_folder, unique_number, db_input, hw_sampling, starting_expl
 
             if dse_handler.dse.reason_to_terminate == "out_of_memory":
                 return dse_handler
-            elif not best_design_sim_last_itr == None and \
-                    (best_design_sim_this_itr.dp_rep.get_hardware_graph().get_SOC_design_code() ==
-                     best_design_sim_last_itr.dp_rep.get_hardware_graph().get_SOC_design_code()):
+            elif not dse_handler.dse.found_any_improvement:
                 return dse_handler
             else:
                 dse_handler.dse.reset_ctrs()
                 dse_handler.dse.init_ex_dp =  dse_handler.dse.so_far_best_ex_dp
+            """
+            elif not best_design_sim_last_itr == None and \
+                    (best_design_sim_this_itr.dp_rep.get_hardware_graph().get_SOC_design_code() ==
+                     best_design_sim_last_itr.dp_rep.get_hardware_graph().get_SOC_design_code()):
+                return dse_handler
+            """
+
             #if stat_result.fits_budget(1) get_SOC_design_code
             #return dse_handler
 

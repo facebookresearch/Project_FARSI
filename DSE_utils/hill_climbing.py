@@ -38,6 +38,7 @@ class Counters():
         self.des_stag_ctr = 0
         self.krnels_not_to_consider = []
         self.population_generation_cnt = 0
+        self.found_any_improvement = False
 
     def reset(self):
         self.krnel_rnk_to_consider = 0
@@ -46,15 +47,18 @@ class Counters():
         self.des_stag_ctr = 0
         self.krnels_not_to_consider = []
         self.population_generation_cnt = 0
+        self.found_any_improvement = False
 
-    def update(self, krnel_rnk_to_consider, krnel_stagnation_ctr, fitted_budget_ctr, des_stag_ctr, krnels_not_to_consider, population_generation_cnt):
+    def update(self, krnel_rnk_to_consider, krnel_stagnation_ctr, fitted_budget_ctr, des_stag_ctr, krnels_not_to_consider, population_generation_cnt, found_any_improvement):
         self.krnel_rnk_to_consider = krnel_rnk_to_consider
         self.krnel_stagnation_ctr = krnel_stagnation_ctr
         self.fitted_budget_ctr = fitted_budget_ctr
         self.des_stag_ctr = des_stag_ctr
         self.krnels_not_to_consider = krnels_not_to_consider[:]
         self.population_generation_cnt = population_generation_cnt
-
+        self.found_any_improvement = found_any_improvement
+    #def update_improvement(self, improvement):
+    #    self.found_any_improvement = self.found_any_improvement or improvement
 
 
     # ------------------------------
@@ -67,6 +71,7 @@ class HillClimbing:
 
         # parameters (to configure)
         self.counters = Counters()
+        self.found_any_improvement = False
         self.result_dir = result_dir
         self.fitted_budget_ctr = 0  # counting the number of times that we were able to find a design to fit the budget. Used to terminate the search
         self.name_ctr = 0
@@ -172,6 +177,7 @@ class HillClimbing:
         self.des_stag_ctr = counters.des_stag_ctr
         self.krnels_not_to_consider = counters.krnels_not_to_consider[:]
         self.population_generation_cnt = counters.population_generation_cnt
+        self.found_any_improvement = counters.found_any_improvement
 
     # ------------------------------
     # Functionality
@@ -2881,6 +2887,7 @@ class HillClimbing:
 
             self.so_far_best_sim_dp = self.cur_best_sim_dp
             self.so_far_best_ex_dp = self.cur_best_ex_dp
+            self.found_any_improvement  = self.found_any_improvement or found_improvement
 
         result = {self.cur_best_ex_dp: self.cur_best_sim_dp}
 
@@ -3335,6 +3342,7 @@ class HillClimbing:
         self.recently_seen_design_ctr = 0
         self.counters.reset()
         self.moos_tree = moosTreeModel(config.budgetted_metrics)  # only used for moos heuristic
+        self.found_any_improvement = False
 
 
 
@@ -3384,7 +3392,8 @@ class HillClimbing:
                 reason_to_terminate = "exploration (total itr_ctr) iteration threshold reached"
             should_terminate = True
 
-        self.counters.update(self.krnel_rnk_to_consider, self.krnel_stagnation_ctr, self.fitted_budget_ctr, self.des_stag_ctr, self.krnels_not_to_consider, self.population_generation_cnt)
+        self.counters.update(self.krnel_rnk_to_consider, self.krnel_stagnation_ctr, self.fitted_budget_ctr, self.des_stag_ctr,
+                             self.krnels_not_to_consider, self.population_generation_cnt, self.found_any_improvement)
 
         return should_terminate, reason_to_terminate
 

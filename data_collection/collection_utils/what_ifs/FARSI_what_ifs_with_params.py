@@ -144,7 +144,7 @@ def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, trans_
 
 
 
-def run(check_point_start, check_points_top_folder, previous_results):
+def run(check_points_start, check_points_top_folder, previous_results):
     #study_type = "simple_run_iterative"
     study_type = "simple_run"
     #study_subtype = "plot_3d_distance"
@@ -236,7 +236,45 @@ def run(check_point_start, check_points_top_folder, previous_results):
                             dse_hndler = run_with_params(w, d, freq_range, base_budget_scaling, trans_sel_mode, study_type, workload_folder, date_time, check_point)
     return "others", run_folder
 
-if __name__ == "__main__":
+def create_final_folder(run_folder):
+    source = run_folder
+    destination_parts = run_folder.split("/")
+    destination_last_folder = "final_" + destination_parts[-1]
+    destination_parts[-1] = destination_last_folder
+    destination = "/".join(destination_parts)
+    os.rename(source, destination)
+    return destination
+
+def aggregate_results(run_folder):
+    all_dirs = [x[0] for x in os.walk(run_folder) if 'result_summary' == x[0].split("/")[-1]]
+    sorted_based_on_depth = sorted(all_dirs, reverse=True)
+
+    # create a new file
+    most_recent_directory = sorted_based_on_depth[-1]
+    file_to_copy_to = os.path.join(most_recent_directory, "aggregate_all_results.csv")
+    with open(file_to_copy_to, 'w') as fp:
+        pass
+
+    # iterate through all the folder and append to the new file
+    first = True
+    for dir in sorted_based_on_depth:
+        if "result_summary" in dir:
+            file_to_copy = os.path.join(dir, "FARSI_simple_run_0_1_all_reults.csv")
+            file = open(file_to_copy, "r")
+            data2 = file.read().splitlines(True)
+            file.close()
+            fout = open(file_to_copy_to, "a")
+            if first:
+                fout.writelines(data2[:])
+            else:
+                fout.writelines(data2[1:])
+            first = False
+            fout.close()
+
+    previous_results = [dir for dir in all_dirs if "result_summary" in dir][0]
+
+
+def run_batch():
     # check pointing information
     check_points_start = False
     # check_points_top_folder = "/Users/behzadboro/Project_FARSI_dir/Project_FARSI_with_channels/data_collection/data/simple_run/12-20_15-37_33/data_per_design/12-20_15-39_38_16/PA_knob_ctr_0/"
@@ -248,16 +286,19 @@ if __name__ == "__main__":
     check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/03-01_15-54_25"
     previous_results = ""
 
-    all_dirs = [x[0] for x in os.walk(check_points_top_folder)]
-    previous_results = [dir for dir in all_dirs if "result_summary" in dir][0]
-
+    #all_dirs = [x[0] for x in os.walk(check_points_top_folder)]
+    #previous_results = [dir for dir in all_dirs if "result_summary" in dir][0]
+    ctr =0
     while True:
+
         termination_cause, run_folder = run(check_points_start, check_points_top_folder, previous_results)
         if not config.memory_conscious:
             break
-
-        if not termination_cause == "out_of_memory":
+        if not termination_cause == "out_of_memory" or ctr>=2:
+            run_folder = create_final_folder(run_folder)
+            aggregate_results(run_folder)
             break
+        ctr +=1
         # run again with the curent check point
         check_points_start = True
         check_points_top_folder = run_folder
@@ -265,4 +306,8 @@ if __name__ == "__main__":
         previous_results = [dir for dir in all_dirs if  "result_summary" in dir][0]
 
 
+if __name__ == "__main__":
+    batch_count = 2
+    for batch_number in range(0, batch_count):
+        run_batch()
 
