@@ -124,7 +124,7 @@ for metric in all_metrics:
                       "navigation heuristic if you want otherwise in ")
                 exit(0)
 
-heuristic_type = "moos" # {moose, FARSI, SA}
+heuristic_type = "moos" # {moos, FARSI, SA}
 
 #objective_function = 0  #
 #objective_budget = .000000001
@@ -206,7 +206,7 @@ hw_sampling = {"mode":"exact", "population_size":1, "reduction":"avg"}   # mode:
                                                # exact, means that (even if IP library has an error), treat the (most likely) value as accurate value
 
 check_pointing_allowed = True
-check_point_list = ["ex", "db"] #choose from ["sim","ex", "db"]
+check_point_list = ["ex", "db", "counters"] #choose from ["sim","ex", "db", "counters"]
 
 
 use_slack_management_estimation = False and not (RUN_VERIFICATION_PER_GEN or RUN_VERIFICATION_PER_IMPROVMENT or RUN_VERIFICATION_PER_NEW_CONFIG)# if run verification, we can apply slack, otherwise we get the wrong numbers
@@ -300,7 +300,7 @@ dram_stacked = True
 parallelism_analysis = "dynamic" # choose from ["dynamic", "static"]  # at the moment static is not working, something to do with the task and task sync
                                  # and read to being present after unloading
 
-out_of_memory_percentage = 97
+out_of_memory_percentage = 95
 default_cmd_queue_size = 16
 default_data_queue_size = 16
 #default_burst_size = 128
@@ -308,3 +308,6 @@ default_burst_size = 256
 #default_cmd_queue_size = 16
 #default_data_queue_size = 16
 #default_burst_size = 64
+
+
+memory_conscious = True

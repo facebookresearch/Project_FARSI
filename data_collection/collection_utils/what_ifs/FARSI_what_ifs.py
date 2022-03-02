@@ -629,7 +629,7 @@ def simple_run(result_folder, sw_hw_database_population, system_workers=(1, 1)):
                       config.FARSI_simple_run_prefix + "_" + str(current_process_id) + "_" + str(total_process_cnt))
 
         os.system("cp " + config.home_dir+"/settings/config.py"+ " "+ result_folder)
-
+        return dse_hndlr
 
 
 

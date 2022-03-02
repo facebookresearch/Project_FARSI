@@ -4,6 +4,9 @@
 
 import sys
 import os
+import shutil
+import multiprocessing
+import psutil
 sys.path.append(os.path.abspath('./../'))
 import home_settings
 from top.main_FARSI import run_FARSI
@@ -41,7 +44,7 @@ else:
 
 
 
-def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, trans_sel_mode, study_type, workload_folder, check_points):
+def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, trans_sel_mode, study_type, workload_folder, date_time, check_points, ret_value):
     config.transformation_selection_mode = trans_sel_mode
     config.SA_depth = SA_depth
     # set the number of workers to be used (parallelism applied)
@@ -61,6 +64,13 @@ def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, trans_
     if check_points["start"]:
         append = check_points["folder"].split("/")[-2]
         result_folder = os.path.join(workload_folder, append)
+        # copy the previous results
+        if config.memory_conscious and not check_points['prev_itr'] == "":
+            src = check_points["prev_itr"]
+            des = os.path.join(result_folder, "result_summary", "prev_iter")
+            os.makedirs(des, exist_ok=True)
+            des = os.path.join(result_folder, "result_summary", "prev_iter", "result_summary")
+            destination = shutil.copytree(src, des)
     else:
         result_folder = os.path.join(workload_folder,
                                  date_time + "____"+ budget_values +"___workloads_"+workloads_first_letter)
@@ -106,11 +116,12 @@ def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, trans_
                                      "workloads": workloads, "misc_knobs": db_population_misc_knobs}
 
 
+
     # depending on the study/substudy type, invoke the appropriate function
     if study_type == "simple_run":
-        simple_run(result_folder, sw_hw_database_population, system_workers)
+        dse_hndler = simple_run(result_folder, sw_hw_database_population, system_workers)
     if study_type == "simple_run_iterative":
-        simple_run_iterative(result_folder, sw_hw_database_population, system_workers)
+        dse_hndler = simple_run_iterative(result_folder, sw_hw_database_population, system_workers)
     elif study_type == "cost_PPA" and study_subtype == "run":
         input_error_output_cost_sensitivity_study(result_folder, sw_hw_database_population, system_workers, False, False)
     elif study_type == "input_error_output_cost_sensitivity" and study_subtype == "run":
@@ -128,7 +139,12 @@ def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, trans_
                                       config.FARSI_cost_correlation_study_prefix + "_0_1.csv")
         plot_3d_dist(result_dir_addr, full_file_addr, workloads)
 
-if __name__ == "__main__":
+    ret_value.value = int(dse_hndler.dse.reason_to_terminate == "out_of_memory")
+
+
+
+
+def run(check_point_start, check_points_top_folder, previous_results):
     #study_type = "simple_run_iterative"
     study_type = "simple_run"
     #study_subtype = "plot_3d_distance"
@@ -138,15 +154,6 @@ if __name__ == "__main__":
     SA_depth = [10]
     freq_range = [1, 4, 6, 8]
     #freq_range = [1] #, 4, 6, 8]
-
-
-    # check pointing information
-    check_points_start = True
-    #check_points_top_folder = "/Users/behzadboro/Project_FARSI_dir/Project_FARSI_with_channels/data_collection/data/simple_run/12-20_15-37_33/data_per_design/12-20_15-39_38_16/PA_knob_ctr_0/"
-                              #"/media/reddi-rtx/KINGSTON/FARSI_results/scaling_of_1_2_4_across_all_budgets_07-31"
-    #check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/02-28_17-00_03/a_e_h__r/02-28_17-00_03____lat_1__pow_1__area_1___workloads_a_e_h/check_points"
-    #check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/02-28_17-52_30/a_e_h__r/02-28_17-52_30____lat_1__pow_1__area_1___workloads_a_e_h/check_points"
-    check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/02-28_19-01_52/a_e_h__r/02-28_17-52_30____lat_1__pow_1__area_1___workloads_a_e_h/check_points"
 
     # fast run
     #workloads = [{"audio_decoder"}]
@@ -159,7 +166,7 @@ if __name__ == "__main__":
     # each workload in isolation
     #workloads =[{"audio_decoder"}, {"edge_detection"}, {"hpvm_cava"}]
 
-    # all workloads togethe
+    # all workloads together
     workloads =[{"audio_decoder", "edge_detection", "hpvm_cava"}]
 
     # entire workload set
@@ -184,6 +191,7 @@ if __name__ == "__main__":
     run_folder = os.path.join(result_folder, date_time)
     os.mkdir(run_folder)
 
+
     #transformation_selection_mode_list = ["random", "arch-aware"]  # choose from {random, arch-aware}
     transformation_selection_mode_list = ["random"]
     #transformation_selection_mode_list = ["arch-aware"]
@@ -204,7 +212,7 @@ if __name__ == "__main__":
         check_points_values.append((False, ""))
 
     for check_point_el in check_points_values:
-        check_point = {"start":check_point_el[0], "folder":check_point_el[1]}
+        check_point = {"start":check_point_el[0], "folder":check_point_el[1], "prev_itr": previous_results}
         for trans_sel_mode in transformation_selection_mode_list:
             for w in workloads:
                 workloads_first_letter = '_'.join(sorted([el[0] for el in w])) +"__"+trans_sel_mode[0]
@@ -214,4 +222,47 @@ if __name__ == "__main__":
                 for d in SA_depth:
                     for latency_scaling,power_scaling, area_scaling in itertools.product(latency_scaling_range, power_scaling_range, area_scaling_range):
                         base_budget_scaling = {"latency": latency_scaling, "power": power_scaling, "area": area_scaling}
-                        run_with_params(w, d, freq_range, base_budget_scaling, trans_sel_mode, study_type, workload_folder, check_point)
+                        if config.memory_conscious:
+                            # use subprocess  to free memory
+                            ret_value = multiprocessing.Value("d", 0.0, lock=False)
+                            p = multiprocessing.Process(target=run_with_params, args=[w, d, freq_range, base_budget_scaling, trans_sel_mode, study_type, workload_folder, date_time, check_point, ret_value])
+                            p.start()
+                            p.join()
+
+                            # checking for memory issues
+                            if ret_value.value == 1:
+                                return "out_of_memory", run_folder
+                        else:
+                            dse_hndler = run_with_params(w, d, freq_range, base_budget_scaling, trans_sel_mode, study_type, workload_folder, date_time, check_point)
+    return "others", run_folder
+
+if __name__ == "__main__":
+    # check pointing information
+    check_points_start = False
+    # check_points_top_folder = "/Users/behzadboro/Project_FARSI_dir/Project_FARSI_with_channels/data_collection/data/simple_run/12-20_15-37_33/data_per_design/12-20_15-39_38_16/PA_knob_ctr_0/"
+    # "/media/reddi-rtx/KINGSTON/FARSI_results/scaling_of_1_2_4_across_all_budgets_07-31"
+    # check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/02-28_17-00_03/a_e_h__r/02-28_17-00_03____lat_1__pow_1__area_1___workloads_a_e_h/check_points"
+    # check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/02-28_17-52_30/a_e_h__r/02-28_17-52_30____lat_1__pow_1__area_1___workloads_a_e_h/check_points"
+    check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/third_leg/a_e_h__r/02-28_17-52_30____lat_1__pow_1__area_1___workloads_a_e_h/check_points"
+    check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/03-01_15-54_25/a_e_h__r/03-01_15-54_25____lat_1__pow_1__area_1___workloads_a_e_h/check_points"
+    check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/03-01_15-54_25"
+    previous_results = ""
+
+    all_dirs = [x[0] for x in os.walk(check_points_top_folder)]
+    previous_results = [dir for dir in all_dirs if "result_summary" in dir][0]
+
+    while True:
+        termination_cause, run_folder = run(check_points_start, check_points_top_folder, previous_results)
+        if not config.memory_conscious:
+            break
+
+        if not termination_cause == "out_of_memory":
+            break
+        # run again with the curent check point
+        check_points_start = True
+        check_points_top_folder = run_folder
+        all_dirs = [x[0] for x in os.walk(check_points_top_folder)]
+        previous_results = [dir for dir in all_dirs if  "result_summary" in dir][0]
+
+
+

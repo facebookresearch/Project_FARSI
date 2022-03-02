@@ -30,7 +30,34 @@ from pygmo import *
 import psutil
 
 
-# ------------------------------
+class Counters():
+    def __init__(self):
+        self.krnel_rnk_to_consider = 0
+        self.krnel_stagnation_ctr = 0
+        self.fitted_budget_ctr = 0
+        self.des_stag_ctr = 0
+        self.krnels_not_to_consider = []
+        self.population_generation_cnt = 0
+
+    def reset(self):
+        self.krnel_rnk_to_consider = 0
+        self.krnel_stagnation_ctr = 0
+        self.fitted_budget_ctr = 0
+        self.des_stag_ctr = 0
+        self.krnels_not_to_consider = []
+        self.population_generation_cnt = 0
+
+    def update(self, krnel_rnk_to_consider, krnel_stagnation_ctr, fitted_budget_ctr, des_stag_ctr, krnels_not_to_consider, population_generation_cnt):
+        self.krnel_rnk_to_consider = krnel_rnk_to_consider
+        self.krnel_stagnation_ctr = krnel_stagnation_ctr
+        self.fitted_budget_ctr = fitted_budget_ctr
+        self.des_stag_ctr = des_stag_ctr
+        self.krnels_not_to_consider = krnels_not_to_consider[:]
+        self.population_generation_cnt = population_generation_cnt
+
+
+
+    # ------------------------------
 # This class is responsible for design space exploration using our proprietary hill-climbing algorithm.
 # Our Algorithm currently uses swap (improving the current design) and  duplicate (relaxing the contention on the
 # current bottleneck) as two main exploration move.
@@ -39,6 +66,7 @@ class HillClimbing:
     def __init__(self, database, result_dir):
 
         # parameters (to configure)
+        self.counters = Counters()
         self.result_dir = result_dir
         self.fitted_budget_ctr = 0  # counting the number of times that we were able to find a design to fit the budget. Used to terminate the search
         self.name_ctr = 0
@@ -136,6 +164,15 @@ class HillClimbing:
                 obj = pickle.load(f)
         return obj
 
+    def populate_counters(self, counters):
+        self.counters = counters
+        self.krnel_rnk_to_consider = counters.krnel_rnk_to_consider
+        self.krnel_stagnation_ctr= counters.krnel_stagnation_ctr
+        self.fitted_budget_ctr = counters.fitted_budget_ctr
+        self.des_stag_ctr = counters.des_stag_ctr
+        self.krnels_not_to_consider = counters.krnels_not_to_consider[:]
+        self.population_generation_cnt = counters.population_generation_cnt
+
     # ------------------------------
     # Functionality
     #       generate initial design point to start the exploration from.
@@ -152,10 +189,15 @@ class HillClimbing:
         elif mode == "generated_from_check_point":
             pickled_file_addr = self.check_point_folder + "/" + "ex_dp_pickled.txt"
             database_file_addr = self.check_point_folder + "/" + "database_pickled.txt"
+            counters_file_addr = self.check_point_folder + "/" + "counters_pickled.txt"
             #sim_pickled_file_addr = self.check_point_folder + "/" + "sim_dp_pickled.txt"
             if "db" in config.check_point_list:
                 self.database = self.get_pickeld_file(database_file_addr)
+            if "counters" in config.check_point_list:
+                self.counters = self.get_pickeld_file(counters_file_addr)
             self.init_ex_dp = self.get_pickeld_file(pickled_file_addr)
+            self.populate_counters(self.counters)
+
         elif mode == "hardcoded":
             self.init_ex_dp = self.dh.gen_specific_hardcoded_ex_dp(self.dh.database)
         elif mode == "parse":
@@ -3065,8 +3107,14 @@ class HillClimbing:
                 if mem_used > config.out_of_memory_percentage:
                     should_terminate, reason_to_terminate = True, "out_of_memory"
 
-
             if should_terminate:
+                # get the best design
+                self.cur_best_ex_dp, self.cur_best_sim_dp = self.sel_next_dp(self.pareto_global,
+                                                                             self.so_far_best_sim_dp,
+                                                                             self.so_far_best_ex_dp, config.annealing_max_temp)
+                self.so_far_best_ex_dp  = self.cur_best_ex_dp
+                self.so_far_best_sim_dp  = self.cur_best_sim_dp
+
                 print("reason to terminate is:" + reason_to_terminate)
                 vis_hardware.vis_hardware(self.cur_best_sim_dp.get_dp_rep())
                 if not (self.last_des_trail == None):
@@ -3083,6 +3131,7 @@ class HillClimbing:
                     plot.des_trail_plot(self.des_trail_list, self.move_profile, des_per_iteration)
                     plot.move_profile_plot(self.move_profile)
                 self.reason_to_terminate = reason_to_terminate
+
                 return
 
 
@@ -3284,6 +3333,10 @@ class HillClimbing:
         self.cleanup_ctr  = 0
         self.des_stag_ctr = 0
         self.recently_seen_design_ctr = 0
+        self.counters.reset()
+        self.moos_tree = moosTreeModel(config.budgetted_metrics)  # only used for moos heuristic
+
+
 
     # ------------------------------
     # Functionality:
@@ -3331,6 +3384,7 @@ class HillClimbing:
                 reason_to_terminate = "exploration (total itr_ctr) iteration threshold reached"
             should_terminate = True
 
+        self.counters.update(self.krnel_rnk_to_consider, self.krnel_stagnation_ctr, self.fitted_budget_ctr, self.des_stag_ctr, self.krnels_not_to_consider, self.population_generation_cnt)
 
         return should_terminate, reason_to_terminate
 

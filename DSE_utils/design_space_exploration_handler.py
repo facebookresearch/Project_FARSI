@@ -312,6 +312,12 @@ class DSEHandler:
             sim_dp_pickled_file.close()
             vis_hardware.vis_hardware(self.dse.so_far_best_ex_dp, config.hw_graphing_mode, result_folder)
 
+        if "counters" in config.check_point_list:
+            counters_pickled_file = open(os.path.join(result_folder, "counters_pickled" + ".txt"), "wb")
+            dill.dump(self.dse.counters, counters_pickled_file)
+            counters_pickled_file.close()
+            #vis_hardware.vis_hardware(self.dse.so_far_best_ex_dp, config.hw_graphing_mode, result_folder)
+
         for key, val in self.dse.so_far_best_sim_dp.dp_stats.SOC_metric_dict["latency"]["glass"][0].items():
             print("lat is {} for {}".format(val, key))
             burst_size = config.default_burst_size
