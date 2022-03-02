@@ -294,7 +294,7 @@ def run_batch():
         termination_cause, run_folder = run(check_points_start, check_points_top_folder, previous_results)
         if not config.memory_conscious:
             break
-        if not termination_cause == "out_of_memory" or ctr>=2:
+        if not termination_cause == "out_of_memory":
             run_folder = create_final_folder(run_folder)
             aggregate_results(run_folder)
             break
