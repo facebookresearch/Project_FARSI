@@ -139,6 +139,7 @@ def run_with_params(workloads, SA_depth, freq_range, base_budget_scaling, trans_
                                       config.FARSI_cost_correlation_study_prefix + "_0_1.csv")
         plot_3d_dist(result_dir_addr, full_file_addr, workloads)
 
+    print("reason to terminate: " + dse_hndler.dse.reason_to_terminate)
     ret_value.value = int(dse_hndler.dse.reason_to_terminate == "out_of_memory")
 
 
@@ -276,7 +277,7 @@ def aggregate_results(run_folder):
 
 def run_batch():
     # check pointing information
-    check_points_start = False
+    check_points_start = True
     # check_points_top_folder = "/Users/behzadboro/Project_FARSI_dir/Project_FARSI_with_channels/data_collection/data/simple_run/12-20_15-37_33/data_per_design/12-20_15-39_38_16/PA_knob_ctr_0/"
     # "/media/reddi-rtx/KINGSTON/FARSI_results/scaling_of_1_2_4_across_all_budgets_07-31"
     # check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/02-28_17-00_03/a_e_h__r/02-28_17-00_03____lat_1__pow_1__area_1___workloads_a_e_h/check_points"
@@ -284,30 +285,37 @@ def run_batch():
     check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/third_leg/a_e_h__r/02-28_17-52_30____lat_1__pow_1__area_1___workloads_a_e_h/check_points"
     check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/03-01_15-54_25/a_e_h__r/03-01_15-54_25____lat_1__pow_1__area_1___workloads_a_e_h/check_points"
     check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/03-01_15-54_25"
-    previous_results = ""
+    check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/03-02_13-47_03"
+    #previous_results = ""
+    all_dirs = [x[0] for x in os.walk(check_points_top_folder)]
+    previous_results = [dir for dir in all_dirs if "result_summary" in dir][0]
 
-    #all_dirs = [x[0] for x in os.walk(check_points_top_folder)]
-    #previous_results = [dir for dir in all_dirs if "result_summary" in dir][0]
     ctr =0
     while True:
-
         termination_cause, run_folder = run(check_points_start, check_points_top_folder, previous_results)
+        # to be backward compatible,
+        # we leave this scenario in
         if not config.memory_conscious:
             break
-        if not termination_cause == "out_of_memory":
+
+        # if out of memory, run again from the check point
+        if termination_cause == "out_of_memory":
+            ctr += 1
+            check_points_start = True
+            check_points_top_folder = run_folder
+            all_dirs = [x[0] for x in os.walk(check_points_top_folder)]
+            previous_results = [dir for dir in all_dirs if "result_summary" in dir][0]
+        else:
+            # adjust the name so we would know which folder contains the final information
             run_folder = create_final_folder(run_folder)
+            # aggregate the results (as they are spread out among multiple folders)
             aggregate_results(run_folder)
             break
-        ctr +=1
-        # run again with the curent check point
-        check_points_start = True
-        check_points_top_folder = run_folder
-        all_dirs = [x[0] for x in os.walk(check_points_top_folder)]
-        previous_results = [dir for dir in all_dirs if  "result_summary" in dir][0]
 
 
 if __name__ == "__main__":
-    batch_count = 2
+    batch_count = 1
+    assert(batch_count == 1)
     for batch_number in range(0, batch_count):
         run_batch()
 

@@ -143,6 +143,7 @@ class HillClimbing:
         self.neighbour_selection_time = 0
         self.total_iteration_cnt = 0
         self.moos_tree = moosTreeModel(config.budgetted_metrics)  # only used for moos heuristic
+        self.ctr_l = 0
 
     def get_total_iteration_cnt(self):
         return self.total_iteration_cnt
@@ -2476,7 +2477,6 @@ class HillClimbing:
     def gen_neigh_and_eval(self, des_tup):
         # "delete this later"
         print("------ depth ------")
-
         # generate on neighbour
         move_strt_time = time.time()
         ex_dp, move_to_try,total_trans_cnt = self.gen_one_neigh(des_tup)
@@ -2526,6 +2526,23 @@ class HillClimbing:
 
         return (ex_dp, sim_dp), total_trans_cnt
 
+
+    def protected_gen_neigh_and_eval(self, des_tup):
+        ctr = 0
+        while True and ctr <100:
+            ctr +=1
+            try:
+                des_tup_new, possible_des_cnt = self.gen_neigh_and_eval(des_tup)
+                return des_tup_new, possible_des_cnt
+                break
+            except SystemExit:
+                print("caught an exit")
+                continue
+            except Exception as e:
+                print("caught an exception")
+        print("return too many exception or exits")
+        exit(0)
+
     # ------------------------------
     # Functionality:
     #       generate neighbours and evaluate them.
@@ -2550,7 +2567,9 @@ class HillClimbing:
                 print("--------breadth--------")
             # iterate on depth (generate one neighbour and evaluate it)
             self.SA_current_depth += 1
-            des_tup_new, possible_des_cnt = self.gen_neigh_and_eval(des_tup)
+            #des_tup_new, possible_des_cnt = self.gen_neigh_and_eval(des_tup)
+            des_tup_new, possible_des_cnt = self.protected_gen_neigh_and_eval(des_tup)
+
             # collect the generate design in a list and run sanity check on it
             des_tup_list.append(des_tup_new)
 
