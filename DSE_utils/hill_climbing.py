@@ -2575,7 +2575,8 @@ class HillClimbing:
             #des_tup_new, possible_des_cnt = self.gen_neigh_and_eval(des_tup)
             des_tup_new, possible_des_cnt = self.protected_gen_neigh_and_eval(des_tup)
 
-            self.total_iteration_ctr += 1
+            #self.total_iteration_ctr += 1
+
             # collect the generate design in a list and run sanity check on it
             des_tup_list.append(des_tup_new)
 
@@ -3099,6 +3100,7 @@ class HillClimbing:
                 #this_itr_ex_sim_dp_dict = {self.so_far_best_ex_dp:  self.so_far_best_sim_dp}
                 this_itr_ex_sim_dp_dict = self.greedy_for_moos(self.so_far_best_ex_dp)   # run simple simulated annealing
 
+                self.total_iteration_ctr += len(list(this_itr_ex_sim_dp_dict.keys()))
 
                 """
                 # collect profiling information about moves and designs generated
