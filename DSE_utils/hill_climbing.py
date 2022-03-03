@@ -39,6 +39,7 @@ class Counters():
         self.krnels_not_to_consider = []
         self.population_generation_cnt = 0
         self.found_any_improvement = False
+        self.total_iteration_ctr = 0
 
     def reset(self):
         self.krnel_rnk_to_consider = 0
@@ -49,7 +50,8 @@ class Counters():
         self.population_generation_cnt = 0
         self.found_any_improvement = False
 
-    def update(self, krnel_rnk_to_consider, krnel_stagnation_ctr, fitted_budget_ctr, des_stag_ctr, krnels_not_to_consider, population_generation_cnt, found_any_improvement):
+
+    def update(self, krnel_rnk_to_consider, krnel_stagnation_ctr, fitted_budget_ctr, des_stag_ctr, krnels_not_to_consider, population_generation_cnt, found_any_improvement, total_iteration_ctr):
         self.krnel_rnk_to_consider = krnel_rnk_to_consider
         self.krnel_stagnation_ctr = krnel_stagnation_ctr
         self.fitted_budget_ctr = fitted_budget_ctr
@@ -57,6 +59,7 @@ class Counters():
         self.krnels_not_to_consider = krnels_not_to_consider[:]
         self.population_generation_cnt = population_generation_cnt
         self.found_any_improvement = found_any_improvement
+        self.total_iteration_ctr = total_iteration_ctr
     #def update_improvement(self, improvement):
     #    self.found_any_improvement = self.found_any_improvement or improvement
 
@@ -142,6 +145,7 @@ class HillClimbing:
         self.population_observed_ctr = 0  #
         self.neighbour_selection_time = 0
         self.total_iteration_cnt = 0
+        self.total_iteration_ctr = 0
         self.moos_tree = moosTreeModel(config.budgetted_metrics)  # only used for moos heuristic
         self.ctr_l = 0
 
@@ -179,6 +183,7 @@ class HillClimbing:
         self.krnels_not_to_consider = counters.krnels_not_to_consider[:]
         self.population_generation_cnt = counters.population_generation_cnt
         self.found_any_improvement = counters.found_any_improvement
+        self.total_iteration_ctr = counters.total_iteration_ctr
 
     # ------------------------------
     # Functionality
@@ -2570,6 +2575,7 @@ class HillClimbing:
             #des_tup_new, possible_des_cnt = self.gen_neigh_and_eval(des_tup)
             des_tup_new, possible_des_cnt = self.protected_gen_neigh_and_eval(des_tup)
 
+            self.total_iteration_ctr += 1
             # collect the generate design in a list and run sanity check on it
             des_tup_list.append(des_tup_new)
 
@@ -3404,7 +3410,7 @@ class HillClimbing:
             else:
                 reason_to_terminate = "all kernels already targeted without improvement"
             should_terminate = True
-        elif self.population_generation_cnt > self.TOTAL_RUN_THRESHOLD:
+        elif self.total_iteration_ctr > self.TOTAL_RUN_THRESHOLD:
             if stat_result.fits_budget(1):
                 reason_to_terminate = "met the budget"
             else:
@@ -3412,7 +3418,7 @@ class HillClimbing:
             should_terminate = True
 
         self.counters.update(self.krnel_rnk_to_consider, self.krnel_stagnation_ctr, self.fitted_budget_ctr, self.des_stag_ctr,
-                             self.krnels_not_to_consider, self.population_generation_cnt, self.found_any_improvement)
+                             self.krnels_not_to_consider, self.population_generation_cnt, self.found_any_improvement, self.total_iteration_ctr)
 
         return should_terminate, reason_to_terminate
 

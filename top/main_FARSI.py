@@ -15,7 +15,7 @@ import psutil
 #   error does the data base has. What should be the population size for each design
 #   and the statistical reduction mode (avg, max, min)
 #   starting_exploration_mode: whether to start from scratch or from an existing check pointed design
-def run_FARSI(result_folder, unique_number, db_input, hw_sampling, starting_exploration_mode ="generated_from_scratch"):
+def run_FARSI(result_folder, unique_number, case_study, db_input, hw_sampling, starting_exploration_mode ="generated_from_scratch"):
     if config.use_cacti:
         print("*****************************")
         print("***** YOU ASKED TO USE CACTI FOR POWER/AREA MODELING OF MEMORY SUBSYSTEM. MAKE SURE YOU HAVE CACTI INSTALLED ****")
@@ -50,6 +50,7 @@ def run_FARSI(result_folder, unique_number, db_input, hw_sampling, starting_expl
             # does the simulation for design points (performance, energy, and area core calculations)
             dse_handler.explore()
             dse_handler.check_point_best_design(unique_number)  # check point
+            dse_handler.write_data(unique_number, result_folder, case_study, 0, 1, 1)
 
             # iterate if budget not met and we have seen improvements
             best_design_sim_last_itr = best_design_sim_this_itr
