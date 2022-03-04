@@ -6,4 +6,5 @@ synthetic,.034,0.008737,0.000017475,0.000000001
 simple_all_parallel, .100,1,1,
 SOC_example, .1,1,1,
 partial_SOC_example_hard, .1,1,1,
+SOC_example_1p_2r,.1,1,1,
 all,,0.008737,0.000017475,0.000000001

@@ -124,7 +124,7 @@ for metric in all_metrics:
                       "navigation heuristic if you want otherwise in ")
                 exit(0)
 
-heuristic_type = "moos" # {moos, FARSI, SA}
+heuristic_type = "FARSI" # {moos, FARSI, SA}
 
 #objective_function = 0  #
 #objective_budget = .000000001

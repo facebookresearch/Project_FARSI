@@ -2221,6 +2221,8 @@ class HillClimbing:
                                                                             best_ex_dp_so_far, best_sim_dp_so_far.dp_stats,
                                                                             cur_temp)
 
+        self.found_any_improvement = self.found_any_improvement or found_improved_solution
+
         if not found_improved_solution:
             selected_sim_dp = self.so_far_best_sim_dp
             selected_ex_dp = self.so_far_best_ex_dp
@@ -3202,6 +3204,7 @@ class HillClimbing:
 
         while True:
             this_itr_ex_sim_dp_dict = self.simple_SA()   # run simple simulated annealing
+            self.total_iteration_ctr += len(list(this_itr_ex_sim_dp_dict.keys()))
 
             # collect profiling information about moves and designs generated
             if config.VIS_MOVE_TRAIL and (self.population_generation_cnt% config.vis_reg_ctr_threshold) == 0 and len(self.des_trail_list) > 0:
@@ -3230,7 +3233,14 @@ class HillClimbing:
             self.collect_stats(this_itr_ex_sim_dp_dict)
 
             # determine if the design has met the budget, if so, terminate
-            should_terminate, reason_to_terminate = self.update_ctrs()
+            mem = psutil.virtual_memory()
+            mem_used = int(mem.percent)
+            print("memory usage ===================================== " + str(psutil.virtual_memory()))
+            if mem_used > config.out_of_memory_percentage:
+                should_terminate, reason_to_terminate = True, "out_of_memory"
+            else:
+                should_terminate, reason_to_terminate = self.update_ctrs()
+
             if should_terminate:
                 print("reason to terminate is:" + reason_to_terminate)
                 vis_hardware.vis_hardware(self.cur_best_sim_dp.get_dp_rep())
@@ -3422,6 +3432,7 @@ class HillClimbing:
         self.counters.update(self.krnel_rnk_to_consider, self.krnel_stagnation_ctr, self.fitted_budget_ctr, self.des_stag_ctr,
                              self.krnels_not_to_consider, self.population_generation_cnt, self.found_any_improvement, self.total_iteration_ctr)
 
+        print(">>>>> total iteration count is: " + str(self.total_iteration_ctr))
         return should_terminate, reason_to_terminate
 
 
