@@ -3506,7 +3506,7 @@ class moosTreeNode:
 
 class moosTreeModel:
     def __init__(self, metric_names):
-        max = Decimal(100000)
+        max = Decimal(1000000000)
         min = Decimal(0)
         node_val = []
         k_ins = {}
