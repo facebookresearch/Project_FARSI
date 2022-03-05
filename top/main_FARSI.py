@@ -56,9 +56,9 @@ def run_FARSI(result_folder, unique_number, case_study, db_input, hw_sampling, s
             best_design_sim_last_itr = best_design_sim_this_itr
             best_design_sim_this_itr = dse_handler.dse.so_far_best_sim_dp
 
-            if dse_handler.dse.reason_to_terminate == "out_of_memory":
+            if dse_handler.dse.reason_to_terminate == "out_of_memory" or dse_handler.dse.reason_to_terminate == "exploration (total itr_ctr) iteration threshold reached":
                 return dse_handler
-            elif not dse_handler.dse.found_any_improvement:
+            elif not dse_handler.dse.found_any_improvement and config.heuristic_type == "FARSI":
                 return dse_handler
             else:
                 dse_handler.dse.reset_ctrs()

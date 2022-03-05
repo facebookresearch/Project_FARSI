@@ -9,6 +9,8 @@ run_folder_name ="/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_4/data_colle
 #run_folder_name ="/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_4/data_collection/data/simple_run/08-02_01-38_26/"
 #run_folder_name ="/media/reddi-rtx/KINGSTON/FARSI_results/optimal_budgetting_problem_08_1"
 run_folder_name = "/Users/behzadboro/FARSI_related_stuff/FARSI_results/1_1_1_for_paper_07-31"
+run_folder_name = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/final_03-04_19-58_52"
+heuristic_comparison_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/blah_"
 
 #run_folder_name = "/home/yingj4/Desktop/FARSI_results/arch-aware-vs-random/all_workloads_together"
 #top_result_folder = "/home/yingj4/Desktop/FARSI_results/arch-aware-vs-random"
@@ -16,4 +18,5 @@ top_result_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_4/data_co
 ignore_file_names = ["README.md", "figures", "cross_workloads", "single_workload", "3D", "budget_optimality", "panda_study", "pie_chart", "verification"]
 #plot_list = ["cross_workloads", "single_workload","plot_3d", "pandas_plots", "budget_optimality"]
 plot_list = ["cross_workloads"]#"cross_workloads", "single_workload"]
+plot_list = ["heuristic_comparison"]#"cross_workloads", "single_workload"]
 draw_for_paper = False

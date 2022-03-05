@@ -3408,16 +3408,16 @@ class HillClimbing:
         if (self.fitted_budget_ctr > config.fitted_budget_ctr_threshold):
             reason_to_terminate = "met the budget"
             should_terminate = True
-        elif self.des_stag_ctr > self.DES_STAG_THRESHOLD and (config.heuristic_type == "FARSI"):
+        elif self.des_stag_ctr > self.DES_STAG_THRESHOLD:
             reason_to_terminate = "des_stag_ctr exceeded"
             should_terminate = True
-        elif len(self.krnels_not_to_consider) >= (len(self.so_far_best_sim_dp.get_kernels()) - len(self.so_far_best_sim_dp.get_dummy_tasks())) and (config.heuristic_type == "FARSI"):
+        elif len(self.krnels_not_to_consider) >= (len(self.so_far_best_sim_dp.get_kernels()) - len(self.so_far_best_sim_dp.get_dummy_tasks())):
             if stat_result.fits_budget(1):
                 reason_to_terminate = "met the budget"
             else:
                 reason_to_terminate = "all kernels already targeted without improvement"
             should_terminate = True
-        elif len(tsks_left_to_optimize) == 0 and (config.heuristic_type == "FARSI"):
+        elif len(tsks_left_to_optimize) == 0:
             if stat_result.fits_budget(1):
                 reason_to_terminate = "met the budget"
             else:

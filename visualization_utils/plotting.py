@@ -2924,8 +2924,11 @@ def find_the_most_recent_directory(top_dir):
     return dirs
 
 
-def get_experiment_full_file_addr_list(experiment_full_dir_list):
-    file_name = "result_summary/FARSI_simple_run_0_1.csv"
+def get_experiment_full_file_addr_list(experiment_full_dir_list, aggregate=False):
+    if aggregate:
+        file_name = 'result_summary/aggregate_all_results.csv'
+    else:
+        file_name = "result_summary/FARSI_simple_run_0_1.csv"
     results = []
     for el in experiment_full_dir_list:
         results.append(os.path.join(el, file_name))
@@ -3265,6 +3268,71 @@ def grouped_barplot_varying_x_for_paper(df, metric, metric_ylabel, varying_x, va
     ax.set_xticklabels(xticklabels, fontsize=fontSize)  # Ying: add fontsize
 
     return ax
+
+
+
+def heuristic_comparison(input_dir_names, all_results_files, metrics):
+    intrested_distance_to_consider = [500, 100, 5]
+    intrested_distance_to_consider = [2, 1, .01]
+
+
+    # iterate and collect all the data
+    heuristic_dist_iter_all = {}
+    for result_file in all_results_files:
+
+        df = pd.concat((pd.read_csv(f) for f in [result_file]))
+        ht = df['heuristic_type']
+        if list(ht)[0] not in heuristic_dist_iter_all:
+            heuristic_dist_iter_all[list(ht)[0]] = []
+        dist_to_goal_non_cost = df["ref_des_dist_to_goal_non_cost"]
+
+
+        dist_itr = {}
+        for intrested_dist in intrested_distance_to_consider:
+            for itr, dist in enumerate(dist_to_goal_non_cost) :
+                if dist < intrested_dist:
+                    dist_itr[intrested_dist] = itr
+                    break
+
+        heuristic_dist_iter_all[list(ht)[0]].append(dist_itr)
+
+    # per heuristic reduce
+    heuristic_dist_iter_avg = {}
+
+    for heuristic, values in heuristic_dist_iter_all.items():
+        aggregate = {}
+        for val in values:
+            for dist, itr in val.items():
+                if dist in aggregate:
+                    aggregate[dist].append(itr)
+                else:
+                    aggregate[dist] = [itr]
+
+        if heuristic not in heuristic_dist_iter_avg.keys():
+            heuristic_dist_iter_avg[heuristic] = {}
+        for dist, all_itr in aggregate.items():
+            heuristic_dist_iter_avg[heuristic][dist] = sum(all_itr)/len(all_itr)
+
+
+
+    # compare heuristics
+    speedup = {}
+    for heuristic in heuristic_dist_iter_avg.keys():
+        speedup[heuristic] = {}
+        for dist in intrested_distance_to_consider:
+            if dist not in heuristic_dist_iter_avg[heuristic].keys():
+                speedup[heuristic][dist] = float('inf')
+            else:
+                speedup[heuristic][dist] = heuristic_dist_iter_avg[heuristic][dist]/heuristic_dist_iter_avg["FARSI"][dist]
+
+
+    return speedup
+
+
+
+
+    print("ok")
+
 
 
 def pandas_plots_for_paper(input_dir_names, all_results_files, metric):
@@ -4370,6 +4438,7 @@ if __name__ == "__main__":
     # according to the plot type, plot
     all_res_column_name_number = get_column_name_number(experiment_full_addr_list[0], "all")
     all_results_files = get_experiment_full_file_addr_list(experiment_full_addr_list)
+
     summary_res_column_name_number = get_column_name_number(experiment_full_addr_list[0], "simple")
     case_studies = {}
     case_studies["bandwidth_analysis"] = ["local_bus_avg_theoretical_bandwidth",
@@ -4546,7 +4615,16 @@ if __name__ == "__main__":
                                     "local_bus_traffic_coeff_var",
                                     ]
 
+    if "heuristic_comparison" in config_plotting.plot_list:  # Ying: optimal_budgetting_problem_08_1
+        #experiment_full_addr_list = get_experiment_dir_list(config_plotting.heuristic_comparison_folder)
+        #all_dirs = [x[0] for x in os.walk(config_plotting.heuristic_comparison_folder)]
 
+        metrics = ["heuristic_type", "ref_des_dist_to_goal_non_cost"]
+        all_files = [os.path.join(dp, f) for dp, dn, filenames in os.walk(config_plotting.heuristic_comparison_folder) for f in filenames if
+                  os.path.splitext(f)[1] == '.csv']
+        aggregate_results = [f for f in all_files if  "aggregate_all_results" in f]
+
+        heuristic_comparison(experiment_full_addr_list, aggregate_results, metrics)
 
 
     if "budget_optimality" in config_plotting.plot_list:    # Ying: optimal_budgetting_problem_08_1
