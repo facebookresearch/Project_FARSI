@@ -307,6 +307,7 @@ class DSEHandler:
             output_fh_minimal.write(
                 "output_design_status" + ",")  # for now only write the latency accuracy as the other
             output_fh_minimal.write("case_study" + ",")  # for now only write the latency accuracy as the other
+            output_fh_minimal.write("heuristic_type" + ",")  # for now only write the latency accuracy as the other
             output_fh_minimal.write("unique_number" + ",")  # for now only write the latency accuracy as the other
 
             output_fh_minimal.write("SA_total_depth,")
@@ -403,6 +404,7 @@ class DSEHandler:
         else:
             output_fh_minimal.write("budget_not_met" + ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write(case_study + ",")  # for now only write the latency accuracy as the other
+        output_fh_minimal.write(config.heuristic_type+ ",")  # for now only write the latency accuracy as the other
         output_fh_minimal.write(str(unique_number) + ",")  # for now only write the latency accuracy as the other
 
         output_fh_minimal.write(str(config.SA_depth) + ",")  # for now only write the latency accuracy as the other

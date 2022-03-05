@@ -321,7 +321,7 @@ def run_batch():
 
 
 if __name__ == "__main__":
-    batch_count = 1
+    batch_count = 2
     #assert(batch_count == 1)
     for batch_number in range(0, batch_count):
         run_batch()

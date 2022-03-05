@@ -2787,6 +2787,7 @@ class HillClimbing:
                     "SA_total_depth": str(config.SA_depth),
                     "transformation_selection_mode": str(config.transformation_selection_mode),
                     "workload": workload,
+                    "heuristic_type": config.heuristic_type,
                     "population generation cnt": sim_dp.dp_rep.get_population_generation_cnt(),
                     "simulation time" : sim_dp.dp_rep.get_simulation_time(),
                     "transformation generation time" : generation_time,
@@ -3407,16 +3408,16 @@ class HillClimbing:
         if (self.fitted_budget_ctr > config.fitted_budget_ctr_threshold):
             reason_to_terminate = "met the budget"
             should_terminate = True
-        elif self.des_stag_ctr > self.DES_STAG_THRESHOLD:
+        elif self.des_stag_ctr > self.DES_STAG_THRESHOLD and (config.heuristic_type == "FARSI"):
             reason_to_terminate = "des_stag_ctr exceeded"
             should_terminate = True
-        elif len(self.krnels_not_to_consider) >= (len(self.so_far_best_sim_dp.get_kernels()) - len(self.so_far_best_sim_dp.get_dummy_tasks())):
+        elif len(self.krnels_not_to_consider) >= (len(self.so_far_best_sim_dp.get_kernels()) - len(self.so_far_best_sim_dp.get_dummy_tasks())) and (config.heuristic_type == "FARSI"):
             if stat_result.fits_budget(1):
                 reason_to_terminate = "met the budget"
             else:
                 reason_to_terminate = "all kernels already targeted without improvement"
             should_terminate = True
-        elif len(tsks_left_to_optimize) == 0:
+        elif len(tsks_left_to_optimize) == 0 and (config.heuristic_type == "FARSI"):
             if stat_result.fits_budget(1):
                 reason_to_terminate = "met the budget"
             else:
