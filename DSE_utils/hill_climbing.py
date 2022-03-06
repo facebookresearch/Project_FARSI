@@ -3040,7 +3040,8 @@ class HillClimbing:
         # initializing the tree
         self.pareto_global = {}
         self.pareto_global [self.so_far_best_ex_dp] = self.so_far_best_sim_dp
-        hyper_volume_ref = [300,1,1]
+        hyper_volume_ref = [300,2,2]
+
         pareto_global_child_evaluation = self.evaluate_pareto(self.pareto_global, hyper_volume_ref)
         root_node = self.moos_tree.get_root()
         root_node.update_evaluation(pareto_global_child_evaluation)

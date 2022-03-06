@@ -274,9 +274,10 @@ def aggregate_results(run_folder):
     previous_results = [dir for dir in all_dirs if "result_summary" in dir][0]
 
 
-def run_batch():
+def run_batch(check_points_start, check_points_top_folder):
     # check pointing information
-    check_points_start = False
+    """
+    #check_points_start = False
     # check_points_top_folder = "/Users/behzadboro/Project_FARSI_dir/Project_FARSI_with_channels/data_collection/data/simple_run/12-20_15-37_33/data_per_design/12-20_15-39_38_16/PA_knob_ctr_0/"
     # "/media/reddi-rtx/KINGSTON/FARSI_results/scaling_of_1_2_4_across_all_budgets_07-31"
     # check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/02-28_17-00_03/a_e_h__r/02-28_17-00_03____lat_1__pow_1__area_1___workloads_a_e_h/check_points"
@@ -287,9 +288,10 @@ def run_batch():
     check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/03-02_13-47_03"
     check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/03-03_08-17_32"
     check_points_top_folder = "/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/03-03_13-47_59"
-    check_points_top_folder ="/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/03-04_08-47_00"
+    #check_points_top_folder ="/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/03-04_08-47_00"
     #check_points_top_folder = ""
     #previous_results = ""
+    """
     if check_points_start:
         all_dirs = [x[0] for x in os.walk(check_points_top_folder)]
         previous_results = [dir for dir in all_dirs if "result_summary" in dir][0]
@@ -320,9 +322,26 @@ def run_batch():
             break
 
 
+def get_all_final_folders():
+    result_folder = os.path.join(config.home_dir, "data_collection/data/simple_run/"+config.heuristic_type)
+    all_dirs = [os.path.join(result_folder, f) for f in os.listdir(result_folder)]
+    #all_dirs = [x[0] for x in os.walk(result_folder)]
+    check_point_folders = [dir for dir in all_dirs if "final" in dir]
+    return check_point_folders
+
 if __name__ == "__main__":
-    batch_count = 2
-    #assert(batch_count == 1)
-    for batch_number in range(0, batch_count):
-        run_batch()
+    batch_count = 1
+    check_points_top_folders = ["/home/reddi-rtx/FARSI_related_stuff/Project_FARSI_TECS/Project_FARSI_6/data_collection/data/simple_run/03-03_13-47_59"]
+    check_points_top_folders = get_all_final_folders()
+    check_points_start = True
+
+
+    if check_points_start:
+        for check_point_top_folder in check_points_top_folders:
+            #assert(batch_count == 1)
+            for batch_number in range(0, batch_count):
+                run_batch(check_points_start, check_point_top_folder)
+    else:
+        for batch_number in range(0, batch_count):
+            run_batch(check_points_start, "")
 
