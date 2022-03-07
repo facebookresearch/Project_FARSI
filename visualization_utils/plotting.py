@@ -3274,7 +3274,7 @@ def grouped_barplot_varying_x_for_paper(df, metric, metric_ylabel, varying_x, va
 
 def heuristic_comparison(input_dir_names, all_results_files, metrics):
     intrested_distance_to_consider = [500, 100, 5]
-    intrested_distance_to_consider = [1000, 500, 100, 50, 10, 3, 1, .01]
+    intrested_distance_to_consider = [1000, 500, 100, 50, 10, 5, 1, .01]
 
 
     # iterate and collect all the data
@@ -3292,9 +3292,13 @@ def heuristic_comparison(input_dir_names, all_results_files, metrics):
         for intrested_dist in intrested_distance_to_consider:
             for itr, dist in enumerate(dist_to_goal_non_cost) :
                 if dist < intrested_dist:
-                    dist_itr[intrested_dist] = len(dist_to_goal_non_cost)
+                    dist_itr[intrested_dist] = itr
                     break
+        if len(list(dist_itr.values())) <= 2:
+            continue
         heuristic_dist_iter_all[list(ht)[0]].append(dist_itr)
+
+
 
     # per heuristic reduce
     heuristic_dist_iter_avg = {}
