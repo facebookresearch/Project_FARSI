@@ -13,6 +13,7 @@ import shutil
 from settings import config_plotting
 import time
 import re
+from collections import OrderedDict
 
 def get_column_name_number(dir_addr, mode):
     column_name_number_dic = {}
@@ -3273,7 +3274,7 @@ def grouped_barplot_varying_x_for_paper(df, metric, metric_ylabel, varying_x, va
 
 def heuristic_comparison(input_dir_names, all_results_files, metrics):
     intrested_distance_to_consider = [500, 100, 5]
-    intrested_distance_to_consider = [2, 1, .01]
+    intrested_distance_to_consider = [1000, 500, 100, 50, 10, 3, 1, .01]
 
 
     # iterate and collect all the data
@@ -3287,20 +3288,18 @@ def heuristic_comparison(input_dir_names, all_results_files, metrics):
         dist_to_goal_non_cost = df["ref_des_dist_to_goal_non_cost"]
 
 
-        dist_itr = {}
+        dist_itr = OrderedDict()
         for intrested_dist in intrested_distance_to_consider:
             for itr, dist in enumerate(dist_to_goal_non_cost) :
                 if dist < intrested_dist:
-                    dist_itr[intrested_dist] = itr
+                    dist_itr[intrested_dist] = len(dist_to_goal_non_cost)
                     break
-
         heuristic_dist_iter_all[list(ht)[0]].append(dist_itr)
 
     # per heuristic reduce
     heuristic_dist_iter_avg = {}
-
     for heuristic, values in heuristic_dist_iter_all.items():
-        aggregate = {}
+        aggregate = OrderedDict()
         for val in values:
             for dist, itr in val.items():
                 if dist in aggregate:
@@ -3309,7 +3308,7 @@ def heuristic_comparison(input_dir_names, all_results_files, metrics):
                     aggregate[dist] = [itr]
 
         if heuristic not in heuristic_dist_iter_avg.keys():
-            heuristic_dist_iter_avg[heuristic] = {}
+            heuristic_dist_iter_avg[heuristic] = OrderedDict()
         for dist, all_itr in aggregate.items():
             heuristic_dist_iter_avg[heuristic][dist] = sum(all_itr)/len(all_itr)
 
@@ -3325,6 +3324,11 @@ def heuristic_comparison(input_dir_names, all_results_files, metrics):
             else:
                 speedup[heuristic][dist] = heuristic_dist_iter_avg[heuristic][dist]/heuristic_dist_iter_avg["FARSI"][dist]
 
+    speedup_sorted = {}
+    for heuristic in speedup.keys():
+        keys = sorted(speedup[heuristic].keys())
+        sorted_ = sorted({key: speedup[heuristic][key] for key in keys}.items())
+        speedup_sorted[heuristic] = sorted_
 
     return speedup
 
@@ -4622,7 +4626,7 @@ if __name__ == "__main__":
         metrics = ["heuristic_type", "ref_des_dist_to_goal_non_cost"]
         all_files = [os.path.join(dp, f) for dp, dn, filenames in os.walk(config_plotting.heuristic_comparison_folder) for f in filenames if
                   os.path.splitext(f)[1] == '.csv']
-        aggregate_results = [f for f in all_files if  "aggregate_all_results" in f]
+        aggregate_results = [f for f in all_files if  "aggregate_all_results" in f and not ("prev_iter" in f)]
 
         heuristic_comparison(experiment_full_addr_list, aggregate_results, metrics)
 
