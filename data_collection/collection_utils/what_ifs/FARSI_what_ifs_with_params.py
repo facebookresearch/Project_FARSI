@@ -322,7 +322,7 @@ def run_batch(check_points_start, check_points_top_folder):
             break
 
 
-def get_all_final_folders():
+def get_all_final_folders(check_points_start):
     if not check_points_start:
         return ""
     result_folder = os.path.join(config.home_dir, "data_collection/data/simple_run/"+config.heuristic_type)
