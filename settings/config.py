@@ -50,7 +50,7 @@ process_id = 0  # used for parallel execution. Each process is assigned an id, t
 
 warning_mode = "always"
 num_clusters = 2  # how many clusters to create everytime we split
-TOTAL_RUN_THRESHOLD = 4000 # acceptable iterations count without improvement before termination
+TOTAL_RUN_THRESHOLD = 5000 # acceptable iterations count without improvement before termination
 DES_STAG_THRESHOLD = 50  # acceptable iterations count without improvement before termination
 
 neigh_gen_mode = "some" # neighbouring design points generation mode ("all" "random_one", ...)
@@ -124,7 +124,7 @@ for metric in all_metrics:
                       "navigation heuristic if you want otherwise in ")
                 exit(0)
 
-heuristic_type = "moos" # {moos, FARSI, SA}
+heuristic_type = "SA" # {moos, FARSI, SA}
 
 #objective_function = 0  #
 #objective_budget = .000000001

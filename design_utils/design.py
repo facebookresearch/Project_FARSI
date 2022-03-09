@@ -519,6 +519,11 @@ class SimDesignPointContainer:
         self.move_applied = None
         self.dummy_tasks = [krnl.get_task() for krnl in self.dp.get_kernels() if (krnl.get_task()).is_task_dummy()]
         self.exploration_and_simulation_approximate_time = 0
+        self.neighbouring_design_space_size = 0
+
+
+    def get_neighbouring_design_space_size(self):
+        return self.neighbouring_design_space_size
 
     def get_dummy_tasks(self):
         return self.dummy_tasks

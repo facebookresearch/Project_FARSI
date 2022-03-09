@@ -844,6 +844,81 @@ class HillClimbing:
 
         return feasible_transformations
 
+    def set_design_space_size(self,  ex_dp, sim_dp):
+        # if this knob is set, we randomly pick a transformation
+        # THis is to illustrate the architectural awareness of FARSI a
+
+        buses = [el for el in ex_dp.get_blocks() if el.type == "ic"]
+        mems = [el for el in ex_dp.get_blocks() if el.type == "mem"]
+        srams = [el for el in ex_dp.get_blocks() if el.type == "sram"]
+        drams = [el for el in ex_dp.get_blocks() if el.type == "dram"]
+        pes = [el for el in ex_dp.get_blocks() if el.type == "pe"]
+        ips = [el for el in ex_dp.get_blocks() if el.subtype == "ip"]
+        gpps = [el for el in ex_dp.get_blocks() if el.subtype == "gpp"]
+        all_blocks = ex_dp.get_blocks()
+
+        # per block
+        # for PEs
+        for pe in gpps:
+            number_of_task_on_block = len(pe.get_tasks_of_block())
+            #sim_dp.neighbouring_design_space_size["hardening"] += number_of_task_on_block + 1# +1 for swap, the rest is for split_swap
+            sim_dp.neighbouring_design_space_size += number_of_task_on_block + 1  # +1 for swap, the rest is for split_swap
+        for pe in ips:
+            #sim_dp.neighbouring_design_space_size["softening"] += 1
+            sim_dp.neighbouring_design_space_size += 1
+
+        # for all
+        for blck in all_blocks:
+            for mode in ["frequency_modulation", "bus_width_modulation", "loop_iteration_modulation"]:
+                if not blck.type =="pe":
+                    if mode == "loop_iteration_modulation":
+                        continue
+                #sim_dp.neighbouring_design_space_size[mode] += 2  # going up or down
+                sim_dp.neighbouring_design_space_size += 2  # going up or down
+
+        for blck in all_blocks:
+            for mode in ["allocation"]:
+                if blck.type == "ic":
+                    continue
+                number_of_task_on_block = len(blck.get_tasks_of_block())
+                #sim_dp.neighbouring_design_space_size[mode] += number_of_task_on_block + 1  # +1 is for split, the rest os for split_swap
+                sim_dp.neighbouring_design_space_size += number_of_task_on_block + 1  # +1 is for split, the rest os for split_swap
+
+        for blck in all_blocks:
+            equal_imm_blocks_present_for_migration = self.dh.get_equal_immediate_blocks_present(ex_dp,
+                                                                                                blck,
+                                                                                                "latency",
+                                                                                                -1,
+                                                                                                    blck.get_tasks_of_block())
+
+            equal_imm_blocks_present_for_migration.extend(self.dh.get_equal_immediate_blocks_present(ex_dp,
+                                                                                                blck,
+                                                                                                "latency",
+                                                                                                +1,
+                                                                                                    blck.get_tasks_of_block()))
+
+            """ 
+            imm_blocks_present_for_migration.extend([self.dh.get_immediate_block(
+                                                                                                     blck,
+                                                                                                     "latency",
+                                                                                                     -1,
+                                                                                                     blck.get_tasks_of_block())])
+            """
+            #other_blocks_to_map_to_lengths = len(equal_imm_blocks_present_for_migration) - len(imm_blocks_present_for_migration)  # subtract to avoid double counting
+            other_blocks_to_map_to_lengths = 0
+            for el in equal_imm_blocks_present_for_migration:
+                if el == blck:
+                    continue
+                elif not el.type == blck.type:
+                    continue
+                else:
+                    other_blocks_to_map_to_lengths +=1
+
+            #other_blocks_to_map_to_lengths = len(equal_imm_blocks_present_for_migration)
+            #sim_dp.neighbouring_design_space_size[blck.type+"_"+"mapping"] += len(blck.get_tasks_of_block())*other_blocks_to_map_to_lengths
+            sim_dp.neighbouring_design_space_size += len(blck.get_tasks_of_block())*other_blocks_to_map_to_lengths
+
+
     def get_transformation_design_space_size(self, move_to_apply, ex_dp, sim_dp, block_of_interest, selected_metric, sorted_metric_dir):
         # if this knob is set, we randomly pick a transformation
         # THis is to illustrate the architectural awareness of FARSI a
@@ -1451,6 +1526,8 @@ class HillClimbing:
         transformation_name,transformation_sub_name, transformation_batch_mode, total_transformation_cnt = self.select_transformation(ex_dp, sim_dp, selected_block, selected_metric, selected_krnl, sorted_metric_dir)
         t_5 = time.time()
 
+        self.set_design_space_size(des_tup[0], des_tup[1])
+
 
         """
         if sim_dp.dp_stats.fits_budget(1) and self.dram_feasibility_check_pass(ex_dp) and self.can_improve_locality(selected_block, selected_krnl):
@@ -1706,8 +1783,93 @@ class HillClimbing:
     def simulated_annealing_energy(self, sim_dp_stats):
         return ()
 
+    def find_best_design(self,sim_stat_ex_dp_dict, sim_dp_stat_ann_delta_energy_dict, sim_dp_stat_ann_delta_energy_dict_all_metrics, best_sim_dp_stat_so_far, best_ex_dp_so_far):
+        if config.heuristic_type == "SA":
+            return self.find_best_design_SA(sim_stat_ex_dp_dict, sim_dp_stat_ann_delta_energy_dict, sim_dp_stat_ann_delta_energy_dict_all_metrics, best_sim_dp_stat_so_far, best_ex_dp_so_far)
+        else:
+            return self.find_best_design_others(sim_stat_ex_dp_dict, sim_dp_stat_ann_delta_energy_dict, sim_dp_stat_ann_delta_energy_dict_all_metrics, best_sim_dp_stat_so_far, best_ex_dp_so_far)
+
+
     # find the best design from a list
-    def find_best_design(self, sim_stat_ex_dp_dict, sim_dp_stat_ann_delta_energy_dict, sim_dp_stat_ann_delta_energy_dict_all_metrics, best_sim_dp_stat_so_far, best_ex_dp_so_far):
+    def find_best_design_SA(self, sim_stat_ex_dp_dict, sim_dp_stat_ann_delta_energy_dict, sim_dp_stat_ann_delta_energy_dict_all_metrics, best_sim_dp_stat_so_far, best_ex_dp_so_far):
+        # for all metrics, we only return true if there is an improvement,
+        # it does not make sense to look at block equality (as energy won't be zero in cases that there is a difficult trade off)
+        if config.sel_next_dp == "all_metrics":
+            sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics = sorted(sim_dp_stat_ann_delta_energy_dict_all_metrics.items(),
+                                                              key=lambda x: x[1])
+
+            if sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics[0][1] < -.0001: # a very small number
+                # if a better design (than the best exist), return
+                return sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics[0], True
+            else:
+                return sorted_sim_dp_stat_ann_delta_energy_dict_all_metrics[0], False
+
+
+        # two blocks are equal if they have the same generic instance name
+        # and have been scheduled the same tasks
+        def blocks_are_equal(block_1, block_2):
+            if not selected_block.get_generic_instance_name() == best_sim_selected_block.get_generic_instance_name():
+                return False
+            elif selected_block.get_generic_instance_name() == best_sim_selected_block.get_generic_instance_name():
+                # make sure tasks are not the same.
+                # this is to avoid scenarios where a block is improved (but it's generic name) equal to the
+                # next block bottleneck. Here we make sure tasks are different
+                block_1_tasks = [tsk.name for tsk in block_1.get_tasks_of_block()]
+                block_2_tasks = [tsk.name for tsk in block_1.get_tasks_of_block()]
+                task_diff = list(set(block_1_tasks) - set(block_2_tasks))
+                return len(task_diff) == 0
+
+        # get the best_sim info
+        sim_dp = best_sim_dp_stat_so_far.dp
+        ex_dp = best_ex_dp_so_far
+
+        best_sim_selected_metric, metric_prob_dict, best_sorted_metric_dir = self.select_metric(sim_dp)
+        best_sim_move_dir = self.select_dir(sim_dp, best_sim_selected_metric)
+        best_sim_selected_krnl, krnl_prob_dict = self.select_kernel(ex_dp, sim_dp, best_sim_selected_metric, best_sorted_metric_dir)
+        best_sim_selected_block, block_prob_dict = self.select_block_without_sync(sim_dp, best_sim_selected_krnl, best_sim_selected_metric)
+
+        # sort the design base on distance
+        sorted_sim_dp_stat_ann_delta_energy_dict = sorted(sim_dp_stat_ann_delta_energy_dict.items(), key=lambda x: x[1])
+
+        #best_neighbour_stat, best_neighbour_delta_energy = sorted_sim_dp_stat_ann_delta_energy_dict[0]  # here we can be smarter
+        if sorted_sim_dp_stat_ann_delta_energy_dict[0][1] < 0:
+            # if a better design (than the best exist), return
+            return sorted_sim_dp_stat_ann_delta_energy_dict[0], True
+        elif sorted_sim_dp_stat_ann_delta_energy_dict[0][1] == 0:
+            # if no better design
+            if len(sorted_sim_dp_stat_ann_delta_energy_dict[0]) == 1:
+                # if no better design (only one design means that our original design is the one)
+                return sorted_sim_dp_stat_ann_delta_energy_dict[0], False
+            else:
+                # filter out the designs  which hasn't seen a distance improvement
+                sim_dp_to_select_from = []
+                for sim_dp_stat, energy in sorted_sim_dp_stat_ann_delta_energy_dict:
+                    #sim_dp_to_select_from.append((sim_dp_stat, energy))
+
+                    designs_to_consider = []
+                    sim_dp = sim_dp_stat.dp
+                    ex_dp = sim_stat_ex_dp_dict[sim_dp_stat]
+                    selected_metric, metric_prob_dict, sorted_metric_dir = self.select_metric(sim_dp)
+                    move_dir = self.select_dir(sim_dp, selected_metric)
+                    selected_krnl, krnl_prob_dict = self.select_kernel(ex_dp, sim_dp, selected_metric, sorted_metric_dir)
+                    selected_block, block_prob_dict = self.select_block_without_sync(sim_dp, selected_krnl,
+                                                                                     selected_metric)
+                    if energy > 0:
+                        designs_to_consider.append((sim_dp_stat, energy))
+                        return sim_dp_to_select_from[0], False
+                    elif not selected_krnl.get_task_name() == best_sim_selected_krnl.get_task_name():
+                        designs_to_consider.append((sim_dp_stat, energy))
+                        return designs_to_consider[0], True
+                    elif not blocks_are_equal(selected_block, best_sim_selected_block):
+                    #elif not selected_block.get_generic_instance_name() == best_sim_selected_block.get_generic_instance_name():
+                        designs_to_consider.append((sim_dp_stat, energy))
+                        return designs_to_consider[0], True
+
+                    return sim_dp_to_select_from[0], False
+
+
+    # find the best design from a list
+    def find_best_design_others(self, sim_stat_ex_dp_dict, sim_dp_stat_ann_delta_energy_dict, sim_dp_stat_ann_delta_energy_dict_all_metrics, best_sim_dp_stat_so_far, best_ex_dp_so_far):
         # for all metrics, we only return true if there is an improvement,
         # it does not make sense to look at block equality (as energy won't be zero in cases that there is a difficult trade off)
         if config.sel_next_dp == "all_metrics":
@@ -2124,8 +2286,11 @@ class HillClimbing:
             selected_sim_dp = best_neighbour_stat.dp
         else:
             try:
-                if math.e**(best_neighbour_delta_energy/max(cur_temp, .001)) < random.choice(range(0, 1)):
+                #if math.e**(best_neighbour_delta_energy/max(cur_temp, .001)) < random.choice(range(0, 1)):
+                #    selected_sim_dp = best_neighbour_stat.dp
+                if random.choice(range(0, 1)) < math.e**(best_neighbour_delta_energy/max(cur_temp, .001)):
                     selected_sim_dp = best_neighbour_stat.dp
+
             except:
                 selected_sim_dp = best_neighbour_stat.dp
 
@@ -2733,7 +2898,8 @@ class HillClimbing:
                 move_validity = ma.is_valid()
                 ref_des_dist_to_goal_all = ma.get_logs("ref_des_dist_to_goal_all")
                 ref_des_dist_to_goal_non_cost = ma.get_logs("ref_des_dist_to_goal_non_cost")
-                neighbouring_design_space_size = self.convert_dictionary_to_parsable_csv_with_semi_column(ma.get_design_space_size())
+                #neighbouring_design_space_size = self.convert_dictionary_to_parsable_csv_with_semi_column(ma.get_design_space_size())
+                neighbouring_design_space_size = sim_dp.get_neighbouring_design_space_size()
                 workload = ma.get_logs("workload")
             else:  # happens at the very fist iteration
                 pickling_time = 0

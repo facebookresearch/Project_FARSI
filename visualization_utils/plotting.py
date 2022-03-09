@@ -14,12 +14,14 @@ from settings import config_plotting
 import time
 import re
 from collections import OrderedDict
-
+from pygmo import *
 def get_column_name_number(dir_addr, mode):
     column_name_number_dic = {}
     try:
         if mode == "all":
             file_name = "result_summary/FARSI_simple_run_0_1_all_reults.csv"
+        elif mode =="aggregate":
+            file_name = "result_summary/aggregate_all_results.csv"
         else:
             file_name = "result_summary/FARSI_simple_run_0_1.csv"
 
@@ -3274,7 +3276,7 @@ def grouped_barplot_varying_x_for_paper(df, metric, metric_ylabel, varying_x, va
 
 def heuristic_comparison(input_dir_names, all_results_files, metrics):
     intrested_distance_to_consider = [500, 100, 5]
-    intrested_distance_to_consider = [1000, 500, 100, 50, 10, 5, 1, .01]
+    intrested_distance_to_consider = [1000, 500, 100, 50, 10, 5, 3, 1, .01]
 
 
     # iterate and collect all the data
@@ -3419,6 +3421,218 @@ def pandas_plots_for_paper(input_dir_names, all_results_files, metric):
     #fig.tight_layout(rect=[0, 0, 1, 1])
     #fig.savefig("/Users/behzadboro/Project_FARSI_dir/Project_FARSI_with_channels/data_collection/data/simple_run/27_point_coverage_zad/bleh.png")
     #plt.close(fig)
+
+
+def pareto_studies(input_dir_names,all_result_files, summary_res_column_name_number):
+    def points_exceed_one_of_the_budgets(point, base_budget, budget_scaling_to_consider):
+        power = point[0]
+        area = point[1]
+        if power > base_budgets["power"] * budget_scale_to_consider and area > base_budgets[
+            "area"] * budget_scale_to_consider:
+            return True
+        return False
+
+    heuristic_results = {}
+
+    #system_char_to_keep_track_of = {"memory_total_area", "local_memory_total_area","pe_total_area", "ip_cnt", "ips_total_area"}
+    system_char_to_keep_track_of = {"system bus count"}
+
+    # budget scaling to consider
+    budget_scale_to_consider = .5
+    # get budget first
+    base_budgets = {}
+    for file in all_result_files:
+        with open(file, newline='') as csvfile:
+            resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+            for i, row in enumerate(resultReader):
+                if i == 1:
+                    base_budgets["power"] = float(row[summary_res_column_name_number["power_budget"]])
+                    base_budgets["area"] = float(row[summary_res_column_name_number["area_budget"]])
+                    break
+
+
+    for file in all_result_files:
+        with open(file, newline='') as csvfile:
+            resultReader = csv.reader(csvfile, delimiter=',', quotechar='|')
+            for i, row in enumerate(resultReader):
+                if i == 0:
+                    continue
+                heuristic_set_name = row[summary_res_column_name_number["heuristic_type"]]
+                if heuristic_set_name not in heuristic_results.keys():
+                    heuristic_results[heuristic_set_name] = []
+                latencies = row[summary_res_column_name_number["latency"]].split(";")
+                latency = {}
+                for el in latencies:
+                    if el == "":
+                        continue
+                    workload_name =  el.split("=")[0]
+                    latency[workload_name] = float(el.split("=")[1])
+
+                #workload_results[workload_set_name].append((float(power),float(area), float(system_complexity)))
+
+                area= float(row[summary_res_column_name_number["area"]])
+                power = float(row[summary_res_column_name_number["power"]])
+                system_char = {}
+                for el in system_char_to_keep_track_of:
+                    system_char[el] = float(row[summary_res_column_name_number[el]])
+                point_system_char = {(latency["audio_decoder"], latency["hpvm_cava"], latency["edge_detection"], power, area): system_char}
+                heuristic_results[heuristic_set_name].append(point_system_char)
+
+    heuristic_pareto_points = {}
+    for heuristic, points_ in heuristic_results.items():
+        points = [list(el.keys())[0] for el in points_]
+        pareto_points= find_pareto_points(list(set(points)))
+        heuristic_pareto_points[heuristic] = pareto_points
+
+    max_0, max_1, max_2, max_3, max_4 = 0, 0,0,0,0
+    for heuristic, pareto_points in heuristic_pareto_points.items():
+        for el in pareto_points:
+            max_0_, max_1_, max_2_, max_3_, max_4_ = el
+            max_0 = max([max_0, max_0_])
+            max_1 = max([max_1, max_1_])
+            max_2 = max([max_2, max_2_])
+            max_3 = max([max_3, max_3_])
+            max_4 = max([max_4, max_4_])
+
+
+    heuristic_hv = {}
+    ref = [max_0, max_1, max_2, max_3, max_4]
+    for heuristic, pareto_points in heuristic_pareto_points.items():
+        hv = hypervolume(pareto_points)
+        hv_value = hv.compute(ref)
+        heuristic_hv[heuristic] = hv_value
+    return hv_value
+
+    all_points_in_isolation = []
+    all_points_cross_workloads = []
+
+    workload_in_isolation = {}
+    for workload, points in workload_results.items():
+        #points = [list(el.keys())[0] for el in points_]
+        if "cava" in workload and "audio" in workload and "edge_detection" in workload:
+            for point in points:
+                all_points_cross_workloads.append(point)
+        else:
+            workload_in_isolation[workload] = points
+
+
+    ctr = 0
+    workload_in_isolation_pareto = {}
+    for workload, points_ in workload_in_isolation.items():
+        workload_in_isolation_pareto[workload] = []
+        points = [list(el.keys())[0] for el in points_]
+        pareto_points = find_pareto_points(list(set(points)))
+        for point in pareto_points:
+            keys = [list(el.keys())[0] for el in workload_in_isolation[workload]]
+            idx = keys.index(point)
+            workload_in_isolation_pareto[workload].append({point:(workload_in_isolation[workload])[idx]})
+
+
+
+    combined_area_power_in_isolation= []
+    s = time.time()
+
+    workload_in_isolation_pareto_only_area_power = {}
+    for key, val in workload_in_isolation_pareto.items():
+        workload_in_isolation_pareto_only_area_power[key] = []
+        for el in val:
+            for k,v in el.items():
+                workload_in_isolation_pareto_only_area_power[key].append(k)
+
+
+    for results_combined in itertools.product(*list(workload_in_isolation_pareto_only_area_power.values())):
+        # add up all the charactersitics
+        system_chars = {}
+        for el in system_char_to_keep_track_of:
+            system_chars[el] = 0
+
+        # add up area,power
+        combined_power_area_tuple = [0,0]
+        for el in results_combined:
+            combined_power_area_tuple[0] += el[0]
+            combined_power_area_tuple[1] += el[1]
+
+        for point in results_combined:
+            keys = [list(point_.keys())[0] for point_ in workload_in_isolation_pareto[workload]]
+            idx = keys.index(point)
+            for el in system_char.keys():
+                system_char[el] += workload_in_isolation
+
+            system_chars[workload].append({point: (workload_in_isolation[workload])[idx]})
+
+
+        #combined_area_power_in_isolation.append((combined_power_area_tuple[0],combined_power_area_tuple[1], combined_power_area_tuple[2]))
+        combined_area_power_in_isolation.append((combined_power_area_tuple[0],combined_power_area_tuple[1]))
+
+    combined_area_power_in_isolation_filtered = []
+    for point in combined_area_power_in_isolation:
+        if not points_exceed_one_of_the_budgets(point, base_budgets, budget_scale_to_consider):
+            combined_area_power_in_isolation_filtered.append(point)
+    combined_area_power_pareto = find_pareto_points(list(set(combined_area_power_in_isolation_filtered)))
+
+
+    all_points_cross_workloads_filtered = []
+    for point in all_points_cross_workloads:
+        if not points_exceed_one_of_the_budgets(point, base_budgets, budget_scale_to_consider):
+            all_points_cross_workloads_filtered.append(point)
+    all_points_cross_workloads_area_power_pareto = find_pareto_points(list(set(all_points_cross_workloads_filtered)))
+
+
+    # prepare for plotting and plot
+    fig = plt.figure(figsize=(12, 12))
+    #plt.rc('font', **axis_font)
+    ax = fig.add_subplot(111)
+    fontSize = 20
+
+    x_values = [el[0] for el in combined_area_power_in_isolation_filtered]
+    y_values = [el[1] for el in combined_area_power_in_isolation_filtered]
+    x_values.reverse()
+    y_values.reverse()
+    ax.scatter(x_values, y_values, label="isolated design methodology",marker=".")
+
+
+    # plt.tight_layout()
+    x_values = [el[0] for el in combined_area_power_pareto]
+    y_values = [el[1] for el in combined_area_power_pareto]
+    x_values.reverse()
+    y_values.reverse()
+    ax.scatter(x_values, y_values, label="isolated design methodology pareto front",marker="x")
+
+
+    x_values = [el[0] for el in all_points_cross_workloads_filtered]
+    y_values = [el[1] for el in all_points_cross_workloads_filtered]
+    x_values.reverse()
+    y_values.reverse()
+    ax.scatter(x_values, y_values, label="cross workload methodology",marker="8")
+    ax.legend(loc="upper right")  # bbox_to_anchor=(1, 1), loc="upper left")
+
+    x_values = [el[0] for el in all_points_cross_workloads_area_power_pareto]
+    y_values = [el[1] for el in all_points_cross_workloads_area_power_pareto]
+    x_values.reverse()
+    y_values.reverse()
+    ax.scatter(x_values, y_values, label="cross workload pareto front",marker="o")
+    #for idx,_ in  enumeate(x_values):
+    #    plt.text(x_values[idx], y_values[idx], s=)
+
+    #plt.text([ for el in x)
+    ax.legend(loc="upper right")  # bbox_to_anchor=(1, 1), loc="upper left")
+
+
+    ax.set_xlabel("power", fontsize=fontSize)
+    ax.set_ylabel("area", fontsize=fontSize)
+    plt.tight_layout()
+
+    # dump in the top folder
+    output_base_dir = '/'.join(input_dir_names[0].split("/")[:-2])
+    output_dir = os.path.join(output_base_dir, "budget_optimality/")
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    fig.savefig(os.path.join(output_dir, "budget_optimality.png"))
+    #plt.show()
+    plt.close('all')
+
+
+
 
 def get_budget_optimality_advanced(input_dir_names,all_result_files, summary_res_column_name_number):
     def points_exceed_one_of_the_budgets(point, base_budget, budget_scaling_to_consider):
@@ -4446,6 +4660,7 @@ if __name__ == "__main__":
     # according to the plot type, plot
     all_res_column_name_number = get_column_name_number(experiment_full_addr_list[0], "all")
     all_results_files = get_experiment_full_file_addr_list(experiment_full_addr_list)
+    aggregate_res_column_name_number = get_column_name_number(experiment_full_addr_list[0], "aggregate")
 
     summary_res_column_name_number = get_column_name_number(experiment_full_addr_list[0], "simple")
     case_studies = {}
@@ -4633,6 +4848,17 @@ if __name__ == "__main__":
         aggregate_results = [f for f in all_files if  "aggregate_all_results" in f and not ("prev_iter" in f)]
 
         heuristic_comparison(experiment_full_addr_list, aggregate_results, metrics)
+
+
+    if "pareto_studies" in config_plotting.plot_list:
+        metrics = ["heuristic_type", "ref_des_dist_to_goal_non_cost"]
+        all_files = [os.path.join(dp, f) for dp, dn, filenames in os.walk(config_plotting.heuristic_comparison_folder)
+                     for f in filenames if
+                     os.path.splitext(f)[1] == '.csv']
+        aggregate_results = [f for f in all_files if "aggregate_all_results" in f and not ("prev_iter" in f)]
+
+        heuristic_hv = pareto_studies(experiment_full_addr_list, aggregate_results, aggregate_res_column_name_number)
+
 
 
     if "budget_optimality" in config_plotting.plot_list:    # Ying: optimal_budgetting_problem_08_1
