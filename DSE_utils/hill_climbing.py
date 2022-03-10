@@ -1784,7 +1784,7 @@ class HillClimbing:
         return ()
 
     def find_best_design(self,sim_stat_ex_dp_dict, sim_dp_stat_ann_delta_energy_dict, sim_dp_stat_ann_delta_energy_dict_all_metrics, best_sim_dp_stat_so_far, best_ex_dp_so_far):
-        if config.heuristic_type == "SA":
+        if config.heuristic_type == "SA" or config.heuristic_type == "moos":
             return self.find_best_design_SA(sim_stat_ex_dp_dict, sim_dp_stat_ann_delta_energy_dict, sim_dp_stat_ann_delta_energy_dict_all_metrics, best_sim_dp_stat_so_far, best_ex_dp_so_far)
         else:
             return self.find_best_design_others(sim_stat_ex_dp_dict, sim_dp_stat_ann_delta_energy_dict, sim_dp_stat_ann_delta_energy_dict_all_metrics, best_sim_dp_stat_so_far, best_ex_dp_so_far)
@@ -2110,7 +2110,9 @@ class HillClimbing:
             selected_sim_dp = best_neighbour_stat.dp
         else:
             try:
-                if math.e**(best_neighbour_delta_energy/max(cur_temp, .001)) < random.choice(range(0, 1)):
+                #if math.e**(best_neighbour_delta_energy/max(cur_temp, .001)) < random.choice(range(0, 1)):
+                #    selected_sim_dp = best_neighbour_stat.dp
+                if random.choice(range(0, 1)) < math.e**(best_neighbour_delta_energy/max(cur_temp, .001)):
                     selected_sim_dp = best_neighbour_stat.dp
             except:
                 selected_sim_dp = best_neighbour_stat.dp
@@ -3072,7 +3074,10 @@ class HillClimbing:
     def greedy_for_moos(self, starting_ex_sim):
         found_improvement = True
         this_itr_ex_sim_dp_dict_all = {}
-        while found_improvement:
+        greedy_ctr_run = 0
+        design_collected_ctr = 0
+        #while found_any_improvement:
+        while greedy_ctr_run < config.MOOS_GREEDY_CTR_RUN and design_collected_ctr < config.DESIGN_COLLECTED_PER_GREEDY:
             this_itr_ex_sim_dp_dict = self.simple_SA()  # run simple simulated annealing
             self.cur_best_ex_dp, self.cur_best_sim_dp, found_improvement = self.sel_next_dp_for_moos(this_itr_ex_sim_dp_dict,
                                                                          self.so_far_best_sim_dp, self.so_far_best_ex_dp, 1)
@@ -3083,6 +3088,8 @@ class HillClimbing:
             self.so_far_best_sim_dp = self.cur_best_sim_dp
             self.so_far_best_ex_dp = self.cur_best_ex_dp
             self.found_any_improvement  = self.found_any_improvement or found_improvement
+            design_collected_ctr = len(this_itr_ex_sim_dp_dict_all)
+            greedy_ctr_run +=1
 
         result = {self.cur_best_ex_dp: self.cur_best_sim_dp}
 

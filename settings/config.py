@@ -124,7 +124,9 @@ for metric in all_metrics:
                       "navigation heuristic if you want otherwise in ")
                 exit(0)
 
-heuristic_type = "SA" # {moos, FARSI, SA}
+heuristic_type = "moos" # {moos, FARSI, SA}
+MOOS_GREEDY_CTR_RUN = 10
+DESIGN_COLLECTED_PER_GREEDY = 20
 
 #objective_function = 0  #
 #objective_budget = .000000001

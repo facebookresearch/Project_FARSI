@@ -3276,7 +3276,7 @@ def grouped_barplot_varying_x_for_paper(df, metric, metric_ylabel, varying_x, va
 
 def heuristic_comparison(input_dir_names, all_results_files, metrics):
     intrested_distance_to_consider = [500, 100, 5]
-    intrested_distance_to_consider = [1000, 500, 100, 50, 10, 5, 3, 1, .01]
+    intrested_distance_to_consider = [1000, 500, 100, 50, 18, 5, 3, 1, .01]
 
 
     # iterate and collect all the data
