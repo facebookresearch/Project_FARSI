@@ -548,6 +548,17 @@ class SimDesignPointContainer:
         return self.exploration_and_simulation_approximate_time
 
 
+    def get_phase_calculation_time(self):
+        return self.dp.simulation_time_phase_calculation_portion
+
+    def get_phase_scheduling_time(self):
+        return self.dp.simulation_time_phase_scheduling_portion
+
+    def get_task_update_time(self):
+        return self.dp.simulation_time_task_update_portion
+
+
+
 
     def get_dp_stats(self):
         return self.dp_stats
@@ -2046,8 +2057,23 @@ class SimDesignPoint(ExDesignPoint):
     def set_par_speedup(self, speedup):
         self.par_speedup_time = speedup
 
+
+    def set_simulation_time_phase_calculation_portion(self, time):
+        self.simulation_time_phase_calculation_portion = time
+
+    def set_simulation_time_task_update_portion(self, time):
+        self.simulation_time_task_update_portion = time
+
+    def set_simulation_time_phase_scheduling_portion(self, time):
+        self.simulation_time_phase_scheduling_portion = time
+
+
     def set_simulation_time_analytical_portion(self, time):
         self.simulation_time_analytical_portion = time
+
+    def set_simulation_time_phase_driven_portion(self, time):
+        self.simulation_time_phase_driven_portion = time
+
 
     def get_simulation_time_analytical_portion(self):
         return self.simulation_time_analytical_portion

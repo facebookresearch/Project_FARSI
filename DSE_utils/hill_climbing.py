@@ -988,7 +988,8 @@ class HillClimbing:
     def select_transformation(self, ex_dp, sim_dp, hot_blck_synced, selected_metric, selected_krnl, sorted_metric_dir):
         feasible_transformations = self.get_feasible_transformations(ex_dp, sim_dp, hot_blck_synced, selected_metric,
                                                                     selected_krnl, sorted_metric_dir)
-        print(list(feasible_transformations))
+        if config.print_info_regularly:
+            print(list(feasible_transformations))
         random.seed(datetime.now().microsecond)
         # pick randomly at the moment.
         # TODO: possibly can do better
@@ -2014,13 +2015,14 @@ class HillClimbing:
         sim_dp_stat_ann_delta_energy_dict = {}
         sim_dp_stat_ann_delta_energy_dict_all_metrics = {}
         # deleteee the following debugging lines
-        print("--------%%%%%%%%%%%---------------")
-        print("--------%%%%%%%%%%%---------------")
-        print("first the best design from the previous iteration")
-        print(" des" + " latency:" + str(best_sim_dp_so_far_stats.get_system_complex_metric("latency")))
-        print(" des" + " power:" + str(
-            best_sim_dp_so_far_stats.get_system_complex_metric("power")))
-        print("energy :" + str(ann_energy_best_dp_so_far))
+        if config.print_info_regularly:
+            print("--------%%%%%%%%%%%---------------")
+            print("--------%%%%%%%%%%%---------------")
+            print("first the best design from the previous iteration")
+            print(" des" + " latency:" + str(best_sim_dp_so_far_stats.get_system_complex_metric("latency")))
+            print(" des" + " power:" + str(
+                best_sim_dp_so_far_stats.get_system_complex_metric("power")))
+            print("energy :" + str(ann_energy_best_dp_so_far))
 
 
 
@@ -2053,17 +2055,18 @@ class HillClimbing:
                                                         sim_dp_stat_ann_delta_energy_dict_all_metrics, best_sim_dp_so_far_stats, best_ex_dp_so_far)
         best_neighbour_stat, best_neighbour_delta_energy = result
 
-        print("all the designs tried")
-        for el, energy in sim_dp_stat_ann_delta_energy_dict_all_metrics.items():
-            print("----------------")
-            sim_dp_ =  el.dp
-            if not sim_dp_.move_applied == None:
-                sim_dp_.move_applied.print_info()
-                print("energy" + str(energy))
-                print("design's latency: " + str(el.get_system_complex_metric("latency")))
-                print("design's power: " + str(el.get_system_complex_metric("power")))
-                print("design's area: " + str(el.get_system_complex_metric("area")))
-                print("design's sub area: " + str(el.get_system_complex_area_stacked_dram()))
+        if config.print_info_regularly:
+            print("all the designs tried")
+            for el, energy in sim_dp_stat_ann_delta_energy_dict_all_metrics.items():
+                print("----------------")
+                sim_dp_ =  el.dp
+                if not sim_dp_.move_applied == None:
+                    sim_dp_.move_applied.print_info()
+                    print("energy" + str(energy))
+                    print("design's latency: " + str(el.get_system_complex_metric("latency")))
+                    print("design's power: " + str(el.get_system_complex_metric("power")))
+                    print("design's area: " + str(el.get_system_complex_metric("area")))
+                    print("design's sub area: " + str(el.get_system_complex_area_stacked_dram()))
 
         # if any negative (desired move) value is detected or there is a design in the new batch
         #  that meet the budget, but the previous best design didn't, we have at least one improved solution
@@ -2434,7 +2437,7 @@ class HillClimbing:
         sim_dp.set_depth_number(self.SA_current_depth)
         sim_dp.set_simulation_time(sim_time)
 
-        print("sim time" + str(sim_time))
+        #print("sim time" + str(sim_time))
         #exit(0)
         return sim_dp
 
@@ -2690,7 +2693,7 @@ class HillClimbing:
         self.seen_SOC_design_codes.append(sim_dp.dp.get_hardware_graph().get_SOC_design_code())
 
 
-        if not sim_dp.move_applied == None:
+        if not sim_dp.move_applied == None and config.print_info_regularly:
             sim_dp.move_applied.print_info()
             print("design's latency: " + str(sim_dp.dp_stats.get_system_complex_metric("latency")))
             print("design's power: " + str(sim_dp.dp_stats.get_system_complex_metric("power")))
@@ -2796,7 +2799,7 @@ class HillClimbing:
         #config.SA_depth = 3*len(self.so_far_best_ex_dp.get_hardware_graph().get_blocks_by_type("mem"))+ len(self.so_far_best_ex_dp.get_hardware_graph().get_blocks_by_type("ic"))
         self.gen_some_neighs_and_eval((self.so_far_best_ex_dp, self.so_far_best_sim_dp), config.SA_breadth, config.SA_depth, des_tup_list)
         exploration_and_simulation_approximate_time_per_iteration = (time.time() - strt)/max(len(des_tup_list), 1)
-        print("sim time + neighbour generation per design point " + str((time.time() - strt)/max(len(des_tup_list), 1)))
+        #print("sim time + neighbour generation per design point " + str((time.time() - strt)/max(len(des_tup_list), 1)))
 
         # convert (outputed) list to dictionary of (ex:sim) specified above.
         # Also, run sanity check on the design, making sure everything is alright
@@ -2951,6 +2954,9 @@ class HillClimbing:
                     "data_number": ctr,
                     "iteration cnt" : self.total_iteration_cnt,
                     "exploration_plus_simulation_time" : sim_dp.get_exploration_and_simulation_approximate_time(),
+                    #"phase_calculation_time": sim_dp.get_phase_calculation_time(),
+                    # "task_update_time": sim_dp.get_task_update_time(),
+                    #"phase_scheduling_time": sim_dp.get_phase_scheduling_time(),
                     "observed population number" : sim_dp.dp_rep.get_population_observed_number(),
                     "SA_total_depth": str(config.SA_depth),
                     "transformation_selection_mode": str(config.transformation_selection_mode),
@@ -3247,11 +3253,11 @@ class HillClimbing:
             for ex, sim in self.pareto_global.items():
                 pareto_global_init[ex] = sim
 
-            print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
-            print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
-            print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
-            print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
-            print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+            #print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+            #print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+            #print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+            #print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+            #print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
 
             # iterate through the children and run greedy heuristic
             for name, child in best_leaf.get_children().items():
@@ -3293,7 +3299,6 @@ class HillClimbing:
                 pareto_global_child.update(pareto_designs)
                 pareto_global_child = self.get_pareto_designs(pareto_global_child)
                 pareto_global_child_evaluation = self.evaluate_pareto(pareto_global_child, hyper_volume_ref)
-                print("evaluation" +str(pareto_global_child_evaluation) +  "-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
                 print("pareto evluation" + str(pareto_global_child_evaluation))
                 child.update_evaluation(pareto_global_child_evaluation)
 
@@ -3648,7 +3653,7 @@ class moosTreeNode:
         key =  list(self.get_k_ins().keys())[0]
         max_dimension = self.get_interval_length(key)
         max_key = key
-        print("max_dimentions" + str(max_dimension))
+        #print("max_dimentions" + str(max_dimension))
 
         for k,v in self.get_k_ins().items():
             if self.get_interval_length(k) > max_dimension:

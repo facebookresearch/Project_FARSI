@@ -303,7 +303,6 @@ def run_batch(check_points_start, check_points_top_folder):
         termination_cause, run_folder = run(check_points_start, check_points_top_folder, previous_results)
         # to be backward compatible,
         # we leave this scenario in
-
         if not config.memory_conscious:
             break
 

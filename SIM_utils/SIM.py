@@ -60,8 +60,6 @@ class OSASimulator:
         while not self.terminate(self.program_status):
             self.tick()
             self.step(self.cur_tick_time)
-        print("analytical simulation time so far:" + str(self.perf_sim.analytical_sim_time_so_far))
-        print("performance simulation time so far:" + str(time.time() - blah))
 
         if config.use_cacti:
             self.dp.correct_power_area_with_cacti(self.database)
@@ -75,5 +73,10 @@ class OSASimulator:
         self.completion_time = self.next_tick_time
         self.dp.set_serial_design_time(self.perf_sim.serial_latency)
         self.dp.set_par_speedup(self.perf_sim.serial_latency/self.completion_time)
-        self.dp.set_simulation_time_analytical_portion(self.perf_sim.analytical_sim_time_so_far)
+        self.dp.set_simulation_time_analytical_portion(self.perf_sim.task_update_time + self.perf_sim.phase_interval_calc_time)
+        self.dp.set_simulation_time_phase_driven_portion(self.perf_sim.phase_scheduling_time)
+        self.dp.set_simulation_time_phase_calculation_portion(self.perf_sim.phase_interval_calc_time)
+        self.dp.set_simulation_time_task_update_portion(self.perf_sim.task_update_time)
+        self.dp.set_simulation_time_phase_scheduling_portion(self.perf_sim.phase_scheduling_time)
+
         return self.dp

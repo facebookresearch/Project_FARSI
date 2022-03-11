@@ -23,7 +23,9 @@ class PerformanceSimulator:
         self.krnl_latency_if_run_in_isolation = {}
         self.serial_latency = 0
         self.workload_time_if_each_kernel_run_serially()
-        self.analytical_sim_time_so_far = 0
+        self.phase_interval_calc_time = 0
+        self.phase_scheduling_time = 0
+        self.task_update_time = 0
 
 
     def workload_time_if_each_kernel_run_serially(self):
@@ -447,15 +449,21 @@ class PerformanceSimulator:
         # advance kernels
         before_time = time.time()
         self.step_kernels()
+        self.task_update_time += (time.time() - before_time)
 
+        before_time = time.time()
         # Aggregates the energy consumed for current phase over all the blocks
         self.calc_design_energy()   # needs be done after kernels have stepped, to aggregate their energy and divide
         self.calc_design_work()   # calculate how much work does each block do for this phase
         self.calc_design_utilization()
-        self.analytical_sim_time_so_far += (time.time() - before_time)
+        self.phase_interval_calc_time += (time.time() - before_time)
 
+        before_time = time.time()
         self.update_scheduled_kernel_list()  # if a kernel is done, schedule it out
+        self.phase_scheduling_time += (time.time() - before_time)
+
         #self.schedule_kernels()  # schedule ready to be scheduled kernels
+
         self.schedule_kernels_token_based()
         self.old_clock_time = self.clock_time  # update clock
 
@@ -463,7 +471,7 @@ class PerformanceSimulator:
         self.update_program_status()
         before_time = time.time()
         self.update_kernels_kpi_for_next_tick(self.design)  # update each kernels' work rate
-        self.analytical_sim_time_so_far += (time.time() - before_time)
+        self.phase_interval_calc_time += (time.time() - before_time)
 
         self.phase_num += 1
         self.update_parallel_tasks()
@@ -471,7 +479,7 @@ class PerformanceSimulator:
         # return the new tick position
         before_time = time.time()
         new_tick_position = self.calc_new_tick_position()
-        self.analytical_sim_time_so_far += (time.time() - before_time)
+        self.phase_interval_calc_time += (time.time() - before_time)
 
         return new_tick_position, self.program_status
 

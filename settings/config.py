@@ -302,6 +302,8 @@ dram_stacked = True
 parallelism_analysis = "dynamic" # choose from ["dynamic", "static"]  # at the moment static is not working, something to do with the task and task sync
                                  # and read to being present after unloading
 
+print_info_regularly = False
+
 out_of_memory_percentage = 93
 default_cmd_queue_size = 16
 default_data_queue_size = 16
