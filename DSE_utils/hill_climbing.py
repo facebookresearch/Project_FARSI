@@ -3350,6 +3350,7 @@ class HillClimbing:
 
                 return
 
+            print(" >>>>> des" + " latency:" + str(self.so_far_best_sim_dp.dp_stats.get_system_complex_metric("latency")))
 
             """ 
             stat_result = self.so_far_best_sim_dp.dp_stats
