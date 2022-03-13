@@ -125,6 +125,7 @@ for metric in all_metrics:
                 exit(0)
 
 heuristic_type = "moos" # {moos, FARSI, SA}
+moos_greedy_mode = "phv"
 MOOS_GREEDY_CTR_RUN = 10
 DESIGN_COLLECTED_PER_GREEDY = 20
 
@@ -302,6 +303,8 @@ dram_stacked = True
 parallelism_analysis = "dynamic" # choose from ["dynamic", "static"]  # at the moment static is not working, something to do with the task and task sync
                                  # and read to being present after unloading
 
+
+heuristic_scaling_study = False
 print_info_regularly = False
 
 out_of_memory_percentage = 93

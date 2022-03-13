@@ -3,6 +3,10 @@ audio_decoder,dummy_last
 edge_detection,rejectZeroCrossings
 hpvm_cava,descale_fxp_cloned
 simple_all_parallel,siink
+edge_detection_1,rejectZeroCrossings_1
+edge_detection_2,rejectZeroCrossings_2
+edge_detection_3,rejectZeroCrossings_3
+edge_detection_4,rejectZeroCrossings_4
 SOC_example,siink
 SOC_example_2p,siink
 SOC_example_1p,siink

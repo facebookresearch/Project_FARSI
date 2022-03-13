@@ -60,6 +60,8 @@ def run_FARSI(result_folder, unique_number, case_study, db_input, hw_sampling, s
                 return dse_handler
             elif not dse_handler.dse.found_any_improvement and config.heuristic_type == "FARSI":
                 return dse_handler
+            elif not dse_handler.dse.found_any_improvement and dse_handler.dse.reason_to_terminate == "met the budget":
+                return dse_handler
             else:
                 dse_handler.dse.reset_ctrs()
                 dse_handler.dse.init_ex_dp =  dse_handler.dse.so_far_best_ex_dp

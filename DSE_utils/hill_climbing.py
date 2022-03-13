@@ -3077,29 +3077,81 @@ class HillClimbing:
         return selected_ex_dp, selected_sim_dp, found_improved_solution
 
 
-    def greedy_for_moos(self, starting_ex_sim):
-        found_improvement = True
+    def greedy_for_moos(self, starting_ex_sim, moos_greedy_mode = "ctr"):
         this_itr_ex_sim_dp_dict_all = {}
         greedy_ctr_run = 0
         design_collected_ctr = 0
-        #while found_any_improvement:
-        while greedy_ctr_run < config.MOOS_GREEDY_CTR_RUN and design_collected_ctr < config.DESIGN_COLLECTED_PER_GREEDY:
-            this_itr_ex_sim_dp_dict = self.simple_SA()  # run simple simulated annealing
-            self.cur_best_ex_dp, self.cur_best_sim_dp, found_improvement = self.sel_next_dp_for_moos(this_itr_ex_sim_dp_dict,
-                                                                         self.so_far_best_sim_dp, self.so_far_best_ex_dp, 1)
 
-            for ex, sim in this_itr_ex_sim_dp_dict.items():
-                this_itr_ex_sim_dp_dict_all[ex] = sim
+        if moos_greedy_mode == 'ctr':
+            while greedy_ctr_run < config.MOOS_GREEDY_CTR_RUN and design_collected_ctr < config.DESIGN_COLLECTED_PER_GREEDY:
+                this_itr_ex_sim_dp_dict = self.simple_SA()  # run simple simulated annealing
+                self.cur_best_ex_dp, self.cur_best_sim_dp, found_improvement = self.sel_next_dp_for_moos(this_itr_ex_sim_dp_dict,
+                                                                             self.so_far_best_sim_dp, self.so_far_best_ex_dp, 1)
 
-            self.so_far_best_sim_dp = self.cur_best_sim_dp
-            self.so_far_best_ex_dp = self.cur_best_ex_dp
-            self.found_any_improvement  = self.found_any_improvement or found_improvement
-            design_collected_ctr = len(this_itr_ex_sim_dp_dict_all)
-            greedy_ctr_run +=1
+                for ex, sim in this_itr_ex_sim_dp_dict.items():
+                    this_itr_ex_sim_dp_dict_all[ex] = sim
 
-        result = {self.cur_best_ex_dp: self.cur_best_sim_dp}
+                self.so_far_best_sim_dp = self.cur_best_sim_dp
+                self.so_far_best_ex_dp = self.cur_best_ex_dp
+                self.found_any_improvement  = self.found_any_improvement or found_improvement
+                design_collected_ctr = len(this_itr_ex_sim_dp_dict_all)
+                greedy_ctr_run +=1
+        elif moos_greedy_mode == 'neighbour':
+            found_improvement = True
+            while found_improvement:
+                this_itr_ex_sim_dp_dict = self.simple_SA()  # run simple simulated annealing
+                self.cur_best_ex_dp, self.cur_best_sim_dp, found_improvement = self.sel_next_dp_for_moos(
+                    this_itr_ex_sim_dp_dict,
+                    self.so_far_best_sim_dp, self.so_far_best_ex_dp, 1)
 
-        result = this_itr_ex_sim_dp_dict_all
+                for ex, sim in this_itr_ex_sim_dp_dict.items():
+                    this_itr_ex_sim_dp_dict_all[ex] = sim
+
+                self.so_far_best_sim_dp = self.cur_best_sim_dp
+                self.so_far_best_ex_dp = self.cur_best_ex_dp
+                self.found_any_improvement = self.found_any_improvement or found_improvement
+                design_collected_ctr = len(this_itr_ex_sim_dp_dict_all)
+                greedy_ctr_run += 1
+        elif moos_greedy_mode == "phv":
+            phv_improvement = True
+            hyper_volume_ref = [300, 2, 2]
+            local_pareto = {}
+            phv_so_far = 0
+            while phv_improvement and greedy_ctr_run < config.MOOS_GREEDY_CTR_RUN:
+                # run hill climbing
+                this_itr_ex_sim_dp_dict = self.simple_SA()  # run simple simulated annealing
+                # get best neighbour
+                self.cur_best_ex_dp, self.cur_best_sim_dp, found_improvement = self.sel_next_dp_for_moos(
+                    this_itr_ex_sim_dp_dict,
+                    self.so_far_best_sim_dp, self.so_far_best_ex_dp, 1)
+
+                # find best neighbour
+                for ex, sim in this_itr_ex_sim_dp_dict.items():
+                    if ex == self.cur_best_ex_dp:
+                        best_neighbour_ex =   ex
+                        best_neighbour_sim = sim
+                        break
+
+                # update the pareto with new best neighbour
+                new_pareto = {}
+                for ex, sim in local_pareto.items():
+                    new_pareto[ex] = sim
+                new_pareto[best_neighbour_ex] = best_neighbour_sim
+                pareto_designs = self.get_pareto_designs(new_pareto)
+                pareto_with_best_neighbour = self.evaluate_pareto(new_pareto, hyper_volume_ref)
+                phv_improvement = pareto_with_best_neighbour > phv_so_far
+
+                # if phv improved, add the neighbour to the local pareto
+                if phv_improvement:
+                    local_pareto = {}
+                    for ex, sim in new_pareto.items():
+                        local_pareto[ex] = sim
+                    phv_so_far = pareto_with_best_neighbour
+
+                greedy_ctr_run +=1
+
+        #result = {self.cur_best_ex_dp: self.cur_best_sim_dp}
+        result = local_pareto
         return result
 
 
@@ -3253,12 +3305,6 @@ class HillClimbing:
             for ex, sim in self.pareto_global.items():
                 pareto_global_init[ex] = sim
 
-            #print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
-            #print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
-            #print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
-            #print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
-            #print("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
-
             # iterate through the children and run greedy heuristic
             for name, child in best_leaf.get_children().items():
                 if should_terminate:
@@ -3281,7 +3327,8 @@ class HillClimbing:
                 self.so_far_best_ex_dp  = self.cur_best_ex_dp
                 self.so_far_best_sim_dp  = self.cur_best_sim_dp
                 #this_itr_ex_sim_dp_dict = {self.so_far_best_ex_dp:  self.so_far_best_sim_dp}
-                this_itr_ex_sim_dp_dict = self.greedy_for_moos(self.so_far_best_ex_dp)   # run simple simulated annealing
+                this_itr_ex_sim_dp_dict = self.greedy_for_moos(self.so_far_best_ex_dp, config.moos_greedy_mode)   # run simple simulated annealing
+
 
                 self.total_iteration_ctr += len(list(this_itr_ex_sim_dp_dict.keys()))
 

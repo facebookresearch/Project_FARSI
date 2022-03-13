@@ -3274,11 +3274,7 @@ def grouped_barplot_varying_x_for_paper(df, metric, metric_ylabel, varying_x, va
 
 
 
-def heuristic_comparison(input_dir_names, all_results_files, metrics):
-    intrested_distance_to_consider = [500, 100, 5]
-    intrested_distance_to_consider = [1000, 500, 100, 50, 18, 5, 3, 1, .01]
-
-
+def find_average_iteration_to_distance(input_dir_names, all_results_files, intrested_distance_to_consider):
     # iterate and collect all the data
     heuristic_dist_iter_all = {}
     for result_file in all_results_files:
@@ -3296,8 +3292,8 @@ def heuristic_comparison(input_dir_names, all_results_files, metrics):
                 if dist < intrested_dist:
                     dist_itr[intrested_dist] = itr
                     break
-        if len(list(dist_itr.values())) <= 2:
-            continue
+        #if len(list(dist_itr.values())) <= 2:
+        #    continue
         heuristic_dist_iter_all[list(ht)[0]].append(dist_itr)
 
 
@@ -3318,8 +3314,7 @@ def heuristic_comparison(input_dir_names, all_results_files, metrics):
         for dist, all_itr in aggregate.items():
             heuristic_dist_iter_avg[heuristic][dist] = sum(all_itr)/len(all_itr)
 
-
-
+    """
     # compare heuristics
     speedup = {}
     for heuristic in heuristic_dist_iter_avg.keys():
@@ -3335,6 +3330,49 @@ def heuristic_comparison(input_dir_names, all_results_files, metrics):
         keys = sorted(speedup[heuristic].keys())
         sorted_ = sorted({key: speedup[heuristic][key] for key in keys}.items())
         speedup_sorted[heuristic] = sorted_
+    """
+
+
+    return heuristic_dist_iter_avg
+
+def find_closest_dist_on_average(input_dir_names, all_results_files):
+    max_min_dist  = 100
+    # iterate and collect data for farthest distance
+    heuristic_closest_dist_iter_all = {}
+    for result_file in all_results_files:
+        df = pd.concat((pd.read_csv(f) for f in [result_file]))
+        ht = df['heuristic_type']
+        if list(ht)[0] not in heuristic_closest_dist_iter_all:
+            heuristic_closest_dist_iter_all[list(ht)[0]] = []
+        dist_to_goal_non_cost = df["ref_des_dist_to_goal_non_cost"]
+
+
+        dist_itr = OrderedDict()
+        min_dist = 1000
+        for itr, dist in enumerate(dist_to_goal_non_cost) :
+            min_dist = min(min_dist, dist)
+        if min_dist >= max_min_dist:
+            continue
+        heuristic_closest_dist_iter_all[list(ht)[0]].append(min_dist)
+
+    # per heuristic reduce
+    heuristic_closest_dist_iter_avg = {}
+    for heuristic, values in heuristic_closest_dist_iter_all.items():
+        heuristic_closest_dist_iter_avg[heuristic] = sum(values)/len(values)
+
+    return heuristic_closest_dist_iter_avg
+
+def heuristic_comparison(input_dir_names, all_results_files, summary_res_column_name_number):
+    intrested_distance_to_consider = [500, 100, 5]
+    intrested_distance_to_consider = [1000, 500, 100, 10, 5, 1, .01]
+    find_average_iteration_to_distance(input_dir_names, all_results_files, intrested_distance_to_consider)
+    heuristic_closest_dist_iter_avg = find_closest_dist_on_average(input_dir_names, all_results_files)
+    # longest distance of all the heuristics
+    longest_dist = min(list(heuristic_closest_dist_iter_avg.values()))
+    longest_dist = 31
+    heuristic_dist_iter_avg  = find_average_iteration_to_distance(input_dir_names, all_results_files, [longest_dist])
+
+    hvp = pareto_studies(input_dir_names, all_results_files, summary_res_column_name_number)
 
     return speedup
 
@@ -3501,7 +3539,7 @@ def pareto_studies(input_dir_names,all_result_files, summary_res_column_name_num
         hv = hypervolume(pareto_points)
         hv_value = hv.compute(ref)
         heuristic_hv[heuristic] = hv_value
-    return hv_value
+    return heuristic_hv
 
     all_points_in_isolation = []
     all_points_cross_workloads = []
@@ -4847,9 +4885,10 @@ if __name__ == "__main__":
                   os.path.splitext(f)[1] == '.csv']
         aggregate_results = [f for f in all_files if  "aggregate_all_results" in f and not ("prev_iter" in f)]
 
-        heuristic_comparison(experiment_full_addr_list, aggregate_results, metrics)
+        heuristic_comparison(experiment_full_addr_list, aggregate_results, aggregate_res_column_name_number)
 
 
+    """
     if "pareto_studies" in config_plotting.plot_list:
         metrics = ["heuristic_type", "ref_des_dist_to_goal_non_cost"]
         all_files = [os.path.join(dp, f) for dp, dn, filenames in os.walk(config_plotting.heuristic_comparison_folder)
@@ -4858,7 +4897,7 @@ if __name__ == "__main__":
         aggregate_results = [f for f in all_files if "aggregate_all_results" in f and not ("prev_iter" in f)]
 
         heuristic_hv = pareto_studies(experiment_full_addr_list, aggregate_results, aggregate_res_column_name_number)
-
+    """
 
 
     if "budget_optimality" in config_plotting.plot_list:    # Ying: optimal_budgetting_problem_08_1

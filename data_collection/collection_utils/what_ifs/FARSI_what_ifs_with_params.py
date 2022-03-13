@@ -160,7 +160,9 @@ def run(check_points_start, check_points_top_folder, previous_results):
     #workloads = [{"audio_decoder"}]
     #workloads = [{"synthetic"}]
     #workloads = [{"hpvm_cava"}]
-    #workloads = [{"edge_detection"}]
+    #workloads = [{"edge_detection_1"}]
+    #workloads = [{"edge_detection_1", "edge_detection_2", "edge_detection_3"}]
+    #workloads = [{"edge_detection_1", "edge_detection_2"}]
     #workloads = [{"SLAM"}]
 
     #workloads =[{"audio_decoder", "hpvm_cava"}]
