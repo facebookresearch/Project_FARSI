@@ -3132,6 +3132,9 @@ class HillClimbing:
                         best_neighbour_sim = sim
                         break
 
+                for ex, sim in this_itr_ex_sim_dp_dict.items():
+                    this_itr_ex_sim_dp_dict_all[ex] = sim
+
                 # update the pareto with new best neighbour
                 new_pareto = {}
                 for ex, sim in local_pareto.items():
@@ -3142,6 +3145,7 @@ class HillClimbing:
                 phv_improvement = pareto_with_best_neighbour > phv_so_far
 
                 # if phv improved, add the neighbour to the local pareto
+
                 if phv_improvement:
                     local_pareto = {}
                     for ex, sim in new_pareto.items():
@@ -3151,7 +3155,7 @@ class HillClimbing:
                 greedy_ctr_run +=1
 
         #result = {self.cur_best_ex_dp: self.cur_best_sim_dp}
-        result = local_pareto
+        result = this_itr_ex_sim_dp_dict_all
         return result
 
 
