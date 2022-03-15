@@ -124,7 +124,7 @@ for metric in all_metrics:
                       "navigation heuristic if you want otherwise in ")
                 exit(0)
 
-heuristic_type = "moos" # {moos, FARSI, SA}
+heuristic_type = "FARSI" # {moos, FARSI, SA}
 moos_greedy_mode = "phv"
 MOOS_GREEDY_CTR_RUN = 10
 DESIGN_COLLECTED_PER_GREEDY = 20
@@ -304,7 +304,7 @@ parallelism_analysis = "dynamic" # choose from ["dynamic", "static"]  # at the m
                                  # and read to being present after unloading
 
 
-heuristic_scaling_study = False
+heuristic_scaling_study = True
 print_info_regularly = False
 
 out_of_memory_percentage = 93

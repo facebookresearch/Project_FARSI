@@ -161,7 +161,7 @@ def run(check_points_start, check_points_top_folder, previous_results):
     #workloads = [{"synthetic"}]
     #workloads = [{"hpvm_cava"}]
     #workloads = [{"edge_detection_1"}]
-    #workloads = [{"edge_detection_1", "edge_detection_2", "edge_detection_3"}]
+    workloads = [ {"edge_detection_1"},{"edge_detection_1", "edge_detection_2"}, {"edge_detection_1", "edge_detection_2", "edge_detection_3"}, {"edge_detection_1", "edge_detection_2", "edge_detection_3", "edge_detection_4"} ]#, "edge_detection_4"}]
     #workloads = [{"edge_detection_1", "edge_detection_2"}]
     #workloads = [{"SLAM"}]
 
@@ -170,7 +170,7 @@ def run(check_points_start, check_points_top_folder, previous_results):
     #workloads =[{"audio_decoder"}, {"edge_detection"}, {"hpvm_cava"}]
 
     # all workloads together
-    workloads =[{"audio_decoder", "edge_detection", "hpvm_cava"}]
+    #workloads =[{"audio_decoder", "edge_detection", "hpvm_cava"}]
 
     # entire workload set
     #workloads = [{"hpvm_cava"}, {"audio_decoder"}, {"edge_detection"}, {"edge_detection", "audio_decoder"}, {"hpvm_cava", "audio_decoder"}, {"hpvm_cava", "edge_detection"} , {"audio_decoder", "edge_detection", "hpvm_cava"}]
@@ -195,8 +195,8 @@ def run(check_points_start, check_points_top_folder, previous_results):
     os.mkdir(run_folder)
 
     #transformation_selection_mode_list = ["random", "arch-aware"]  # choose from {random, arch-aware}
-    transformation_selection_mode_list = ["random"]
-    #transformation_selection_mode_list = ["arch-aware"]
+    #transformation_selection_mode_list = ["random"]
+    transformation_selection_mode_list = ["arch-aware"]
 
     check_points_values = []
     if check_points_start:

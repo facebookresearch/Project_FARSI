@@ -155,7 +155,7 @@ class database_input_class():
                 for metric in self.budgets_dict['glass'].keys():
                     if metric == "latency":
                         continue
-                    self.budgets_dict['glass'][metric] *= 1
+                    self.budgets_dict['glass'][metric] *= len(sw_hw_database_population["workloads"])
 
             self.misc_data["same_ip_tasks_list"] = []
         elif sw_hw_database_population["db_mode"] == "generate":
