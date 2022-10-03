@@ -40,7 +40,7 @@ Each workload has its set of spreadsheet whose name starts with the $workload na
 
 **Software Database Spreadsheets:**
 
-**Task Data Movement:** contains information about the data movement between tasks and their execution dependency. This sheet is an adjacency matrix format, where the first row and the first column list the workload's tasks. The cell at the coordinate between two tasks shows the data movement among them. Note that data flows from the task shown in the row to the task shown in the column. Also, note that this format implies the execution dependency between tasks if said cells are non-empty. 
+*Task Data Movement:* contains information about the data movement between tasks and their execution dependency. This sheet is an adjacency matrix format, where the first row and the first column list the workload's tasks. The cell at the coordinate between two tasks shows the data movement among them. Note that data flows from the task shown in the row to the task shown in the column. Also, note that this format implies the execution dependency between tasks if said cells are non-empty. 
 
 *Task instruction count:* contains information about each task's computation, specifically quantifying its non-memory instruction count.
 
