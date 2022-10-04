@@ -54,9 +54,9 @@ Each workload has its set of spreadsheet whose name starts with the $workload na
 
 *Task Area Performance:* Area associated with accelerators.
 
-*misc_database - Budget.csv:* budget (power, performance, area) associated with various workloads.
+*misc_database - Budget:* budget (power, performance, area) associated with various workloads.
 
-*misc_database - Block Characteristics.csv:* contains information about the potential IPs used in the system. These are non-task specific IPs (as opposed to accelerators that are task-specific and whose information is provided in the TASK PE (AREA/Energy/Performance) spreadsheets.).
+*misc_database - Block Characteristics:* contains information about the potential IPs used in the system. These are non-task specific IPs (as opposed to accelerators that are task-specific and whose information is provided in the TASK PE (AREA/Energy/Performance) spreadsheets.).
 
 *misc_database - Last Tasks.csv:* name of the last task within each workload.
 
