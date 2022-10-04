@@ -38,7 +38,7 @@ Although the semantics discussed above can be encoded and inputted in various fo
 
 Each workload has its set of spreadsheet whose name starts with the $workload name$_database, e.g., audio_decoder_database.
 
-**Software Database Spreadsheets:**
+**Software Database Spreadsheets**
 
 *Task Data Movement:* contains information about the data movement between tasks and their execution dependency. This sheet is an adjacency matrix format, where the first row and the first column list the workload's tasks. The cell at the coordinate between two tasks shows the data movement among them. Note that data flows from the task shown in the row to the task shown in the column. Also, note that this format implies the execution dependency between tasks if said cells are non-empty. 
 
@@ -46,7 +46,7 @@ Each workload has its set of spreadsheet whose name starts with the $workload na
 
 *Task Itr Count:*  each task's loop iteration count.
 
-**Hardware Database Spreadsheets:**
+**Hardware Database Spreadsheets**
 
 *Task PE Performance:* Performance (in the number of cycles) associated with mapping of tasks to different processing elements (PEs).
 
@@ -60,7 +60,7 @@ Each workload has its set of spreadsheet whose name starts with the $workload na
 
 *misc_database - Last Tasks.csv:* name of the last task within each workload.
 
-**Mapping Database Spreadsheets:**
+**Mapping Database Spreadsheets**
 
 *Hardware Graph:* contains information about how hardware components are connected. It's an adjacency matrix with the first row and the first column specifying the hardware block names. a **1** in the cell at the coordinate between two blocks indicates a connection between said blocks.
 
@@ -109,14 +109,17 @@ Ying Jing
 
 
 ## How to Cite
-@misc{boroujerdian2022farsi,
-      title={FARSI: Facebook AR System Investigator for Agile Domain-Specific System-on-Chip Exploration}, 
-      author={Behzad Boroujerdian and Ying Jing and Amit Kumar and Lavanya Subramanian and Luke Yen and Vincent Lee and Vivek Venkatesan and Amit Jindal and Robert Shearer and Vijay Janapa Reddi},
-      year={2022},
-      eprint={2201.05232},
-      archivePrefix={arXiv},
-      primaryClass={cs.AR}
+@article{10.1145/3544016,
+author = {Boroujerdian, Behzad and Jing, Ying and Tripathy, Devashree and Kumar, Amit and Subramanian, Lavanya and Yen, Luke and Lee, Vincent and Venkatesan, Vivek and Jindal, Amit and Shearer, Robert and Reddi, Vijay Janapa},
+title = {FARSI: An Early-Stage Design Space Exploration Framework to Tame the Domain-Specific System-on-Chip Complexity},
+year = {2022},
+publisher = {Association for Computing Machinery},
+url = {https://doi.org/10.1145/3544016},
+doi = {10.1145/3544016},
+journal = {ACM Trans. Embed. Comput. Syst.},
+month = {may}
 }
+
 
 ## License
 Copyright (c) Facebook, Inc. and its affiliates.
