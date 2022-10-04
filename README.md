@@ -73,26 +73,30 @@ Each workload has its set of spreadsheet whose name starts with the $workload na
 ## Running FARSI
 
 ### Stand Alone Simulation ###
-Running the simulation standalone.
+The following commands allows the user to run the simulation in standalone mode.
+
+Switch into the bellow directory.
 ```shell
 cd data_collection/collection_utils/sim_run/
 ```
-Set the workload name in the simple_sim_run.py
+Set the workload name in the simple_sim_run.py (by default we choose a simple workload) and run the simulation.
 
 ```shell
 python simple_sim_run.py
 ```
 
-The output data will be provided in data_collection/data/simple_sim_run/$date_time$
+The output data will be provided under the data_collection/data/simple_sim_run/$date_time$ folder
 
 
 
 ### Simulation + Exploration Heuristic ###
-Running both the simulation and exploration simulatenously. 
+The following commands allow the user to run both the simulation and exploration simulatenously. 
+
+Switch into bellow directory.
 ```shell
 cd data_collection/collection_utils/what_ifs/
 ```
-Set the workload name properly in FARSI_what_ifs_with_params.py. Select among, audio_decoder, hpvm_cava, and edge_dtection. 
+Set the workload name properly in FARSI_what_ifs_with_params.py (Select among, audio_decoder, hpvm_cava, and edge_detection) and run FARSI. 
 
 ```shell
 python FARSI_what_ifs_with_params.py   # run FARSI
