@@ -31,7 +31,7 @@ Software/hardware database shown above is used as an input to FARSI's framework.
 
 **Software Database:** This includes labeled task dependency graphs (TDG). A task is the smallest optimization unit and is typically selected from the computationally intensive functions since they significantly impact the system behavior. TDG contains the dependency information between tasks, the number of instructions processed within a task, and the data movement between them.
  
-**Hardware database**: This involves power, performance, and area estimation of each task for different hardware mappings (e.g., to general-purpose processors or specialized accelerators).
+**Hardware Database**: This involves power, performance, and area estimation of each task for different hardware mappings (e.g., to general-purpose processors or specialized accelerators).
 
 ### FARSI Input Encoding:
 Although the semantics discussed above can be encoded and inputted in various formats, currently, our front-end parsers take them in the form of spreadsheets. Here we detail these sheets. Please note that examples of these sheets are provided in the specs/database_data/parsing folder. 
@@ -46,7 +46,7 @@ Each workload has its set of spreadsheet whose name starts with the $workload na
 
 *Task Itr Count:*  each task's loop iteration count.
 
-**Hardware database spreadsheets:**
+**Hardware Database Spreadsheets:**
 
 *Task PE Performance:* Performance (in the number of cycles) associated with mapping of tasks to different processing elements (PEs).
 
@@ -60,7 +60,7 @@ Each workload has its set of spreadsheet whose name starts with the $workload na
 
 *misc_database - Last Tasks.csv:* name of the last task within each workload.
 
-**Mapping database spreadsheets:**
+**Mapping Database Spreadsheets:**
 
 *Hardware Graph:* contains information about how hardware components are connected. It's an adjacency matrix with the first row and the first column specifying the hardware block names. a **1** in the cell at the coordinate between two blocks indicates a connection between said blocks.
 
@@ -72,8 +72,8 @@ Each workload has its set of spreadsheet whose name starts with the $workload na
 
 ## Running FARSI
 
-### Stand Alone Aimulation ###
-Running the simulation standalone
+### Stand Alone Simulation ###
+Running the simulation standalone.
 ```shell
 cd data_collection/collection_utils/simp_run/
 ```
