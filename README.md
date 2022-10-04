@@ -26,6 +26,39 @@ To further clarify this, the figure below puts FARSI on the map compared to the 
 FARSI is a python based source code. Hence, relevant python libraries need to be installed.
 
 
+## FARSI Input
+Software/hardware database shown above is used as an input to FARSI's framework. Here we briefly explain their functionality and encoding. 
+
+**Software Database:** This includes labeled task dependency graphs (TDG). A task is the smallest optimization unit and is typically selected from the computationally intensive functions since they significantly impact the system behavior. TDG contains the dependency information between tasks, the number of instructions processed within a task, and the data movement between them.
+ 
+**Hardware database**: This involves power, performance, and area estimation of each task for different hardware mappings (e.g., to general-purpose processors or specialized accelerators)
+
+### FARSI Input Encoding:
+Although the semantics discussed above can be encoded and inputted in various formats, currently, our front-end parsers take them in the form of spreadsheets. Here we detail these sheets. Please note that examples of these sheets are provided in the specs/database_data/parsing folder. 
+
+Each workload has its set of spreadsheet whose name starts with the $workload name$_database, e.g., audio_decoder_database.
+
+**Software Database Spreadsheets:**
+
+*Task Data Movement:* contains information about the data movement between tasks and their execution dependency. This sheet is an adjacency matrix format, where the first row and the first column list the workload's tasks. The cell at the coordinate between two tasks shows the data movement among them. Note that data flows from the task shown in the row to the task shown in the column. Also, note that this format implies the execution dependency between tasks if said cells are non-empty. 
+
+*Task instruction count:* contains information about each task's computation, specifically quantifying its non-memory instruction count.
+
+*Task Itr Count:*  each task's loop iteration count.
+
+**Hardware database spreadsheets:**
+*Task PE Performance:* Performance (in the number of cycles) associated with mapping of tasks to different processing elements (PEs).
+
+*Task PE Energy:* Energy associated with the accelerator running a task.
+
+*Task Area Performance:* Area associated with accelerators.
+
+*misc_database - Budget.csv:* budget (power, performance, area) associated with various workloads.
+
+*misc_database - Block Characteristics.csv:* contains information about the potential IPs used in the system. These are non-task specific IPs (as opposed to accelerators that are task-specific and whose information is provided in the TASK PE (AREA/Energy/Performance) spreadsheets.).
+
+*misc_database - Last Tasks.csv:* name of the last task within each workload.
+
 ## Running FARSI
 ```shell
 cd data_collection/collection_utils/what_ifs/
