@@ -71,19 +71,37 @@ Each workload has its set of spreadsheet whose name starts with the $workload na
 
 
 ## Running FARSI
+
+### Stand Alone Aimulation ###
+Running the simulation standalone
+```shell
+cd data_collection/collection_utils/simp_run/
+```
+Set the workload name in the simple_sim_run.py
+
+```shell
+python simple_sim_run.py
+```
+
+The output data will be provided in data_collection/data/simple_sim_run/$date_time$
+
+
+
+### Stand Alone Aimulation ###
+Running the simulation standalone
 ```shell
 cd data_collection/collection_utils/what_ifs/
 ```
-Set the workload name properly in FARSI_what_ifs.py. Select among, audio_decoder, hpvm_cava, and edge_dtection. 
+Set the workload name properly in FARSI_what_ifs_with_params.py. Select among, audio_decoder, hpvm_cava, and edge_dtection. 
 
 ```shell
-python FARSI_what_ifs_simple.py   # run FARSI
+python FARSI_what_ifs_with_params.py   # run FARSI
 ```
 
 PS: To modify the settings, modify the settings/config.py file. This file contains many knobs that will determine the exploration heuristic and simulation
 features. Please refer to the in file documentations for more details
 
-PS: for more advanced studies (e.g., conducting sweep studies and advance plotting) refer to FARSI_what_ifs.py and set the study_type appropriately.
+output will be provided under data_collection/data/simple_run/$date_time$
 
 ## Main Contributors
 Behzad Boroujerdian\
