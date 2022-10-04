@@ -1011,4 +1011,180 @@ for _ in gen:
 # all the combinations of balls and bins
 # # https://www.careerbless.com/aptitude/qa/permutations_combinations_imp7.php
 
+import matplotlib.pyplot as plt
+plt.style.use('seaborn-whitegrid')
+import numpy as np
+
+
+def plot_design_space_size():
+    pe_range = [10, 12, 14, 16, 18, 20]
+    pe_count_design_space_size = {}
+    knob_count = 4
+    for pe_cnt in pe_range:
+        pe_count_design_space_size[pe_cnt] = count_system_variation(pe_cnt, knob_count, "customization")
+
+
+    #colors = {'Sim Time: Sub Sec':'lime', 'Sim Time: Sec':'darkgreen', 'Sim Time: Minute':'darkgreen', 'Sim Time: Hour':'olivedrab', 'Sim Time: Day':'darkgreen'}
+    colors = {'Sim Time: Sub Sec':'lime', 'Sim Time: Sec':'darkgreen', 'Sim Time: Minute':'darkgreen', 'Sim Time: Hour':'white', 'Sim Time: Day':'white'}
+    simulation_time = {"Sim Time: Sub Sec": .1*1/60, "Sim Time: Sec": 1/60, "Sim Time: Minute":2, 'Sim Time: hour': 60, 'Sim Time: Day': 60*24}
+    #simulation_time = {'mili-sec':.001*1/60, 'hour': 60, 'day': 60*24}
+    selected_simulation_time = {'Sim Time: Hour': 60, 'Sim Time: Day': 60*24}
+
+
+    # budget
+
+    font_size =25
+
+    # cardinality
+    fig, ax1 = plt.subplots()
+    #ax1 = ax3.twinx()
+    ax1.set_xlabel('Number of Processing Elements', fontsize=font_size)
+    ax1.set_ylabel('Design Space Size', fontsize =font_size)
+    ax1.plot(list(pe_count_design_space_size.keys()), list(pe_count_design_space_size.values()), label="Cardinality", color='red')
+    #plt.legend() #loc="upper left")
+
+
+    # exploration time
+    ax2 = ax1.twinx()
+    cntr = 0
+    for k ,v in selected_simulation_time.items():
+        ax2.plot(list(pe_count_design_space_size.keys()),
+                 [(el * v)/ (365 * 24 * 60) for el in list(pe_count_design_space_size.values())], label=k, color=colors[k], linestyle=":")
+        cntr +=1
+
+
+    """
+    k = 'Sim Time: Sub Sec'
+    v = simulation_time[k]
+    percentage = .0001
+    ax2.plot(list(pe_count_design_space_size.keys()),
+             [(el * v*percentage) / (30 * 24 * 60) for el in list(pe_count_design_space_size.values())], label=k + "+ selected points", color="gold",
+             linestyle=":")
+    """
+
+    #ax2.plot(list(pe_count_design_space_size.keys()),
+    #         [(el * v) / (30 * 24 * 60) for el in list(pe_count_design_space_size.values())], label=k + " + selected points", color="yellow", linestyle=":")
+    ax2.set_ylabel('Exploration Time (Year)', fontsize=font_size)
+
+    ax3 = ax1.twinx()
+    #ax3.hlines(y=100, color='blue', linestyle='-', xmin=min(pe_range), xmax=20, label="Exploration Time Budget")
+    ax3.hlines(y=100, color='white', linestyle='-', xmin=min(pe_range), xmax=20, label="Exploration Time Budget")
+
+    #ax1.hlines(y=.00000005, color='r', linestyle='-', xmin=8, xmax=20)
+
+
+
+    # ticks and such
+    ax1.tick_params(axis='y', labelsize=font_size)
+    ax1.tick_params(axis='x', labelsize=font_size)
+
+    #ax2.tick_params(axis='y', which="both", bottom=False, top=False, right=False, left=False, labelbottom=False)
+    #ax3.tick_params(axis='y', which="both", bottom=False, top=False, right=False, left=False, labelbottom=False)
+    #ax3.tick_params(None)
+    ax1.set_yscale('log')
+    ax2.set_yscale('log')
+    ax3.set_yscale('log')
+
+    ax1.set_xticklabels([10, 12, 15, 17, 20])
+    ax2.set_yticklabels([])
+    ax3.set_yticklabels([])
+
+    ax2.xaxis.set_ticks_position('none')
+    ax2.yaxis.set_ticks_position('none')
+    ax3.xaxis.set_ticks_position('none')
+    ax3.yaxis.set_ticks_position('none')
+
+    ax1.set_ylim((1, ax1.get_ybound()[1]))
+    ax2.set_ylim((1, ax1.get_ybound()[1]))
+    ax3.set_ylim((1, ax1.get_ybound()[1]))
+    ax1.set_xlim((10, 20))
+    ax2.set_xlim((10, 20))
+    ax3.set_xlim((10, 20))
+
+
+
+
+
+    # show
+    #plt.legend() #loc="upper left")
+    fig.tight_layout()
+    plt.show()
+    fig.savefig("exploration_time.png")
+
+    print("ok")
+# print("number of system variations: " + str(float(system_variations)))
+# print("exhaustive simulation time (hours): " + str(float(system_variations)/(20*3600)))
+
+def count_system_variation(task_cnt, knob_count, mode="all"):
+    MAX_TASK_CNT = task_cnt
+
+    # assuming that we have 5 different tasks and hence (can have up to 5 different blocks).
+    # we'd like to know how many different migration/allocation combinations are out there.
+    # Assumptions:
+    #           PE's are identical.
+    #           Buses are identical
+    #           memory is ignored for now
+
+    MAX_PE_CNT = MAX_TASK_CNT
+    task_cnt = MAX_TASK_CNT
+    system_variations = 0
+    num_of_knobs = knob_count
+
+    topology_dict = [1,
+                     1,
+                     4,
+                     38,
+                     728,
+                     26704,
+                     1866256,
+                     251548592,
+                     66296291072,
+                     34496488594816,
+                     35641657548953344,
+                     73354596206766622208,
+                     301272202649664088951808,
+                     2471648811030443735290891264,
+                     40527680937730480234609755344896,
+                     1328578958335783201008338986845427712,
+                     87089689052447182841791388989051400978432,
+                     11416413520434522308788674285713247919244640256,
+                     2992938411601818037370034280152893935458466172698624,
+                     1569215570739406346256547210377768575765884983264804405248,
+                     1645471602537064877722485517800176164374001516327306287561310208]
+
+    for pe_cnt in range(1, MAX_PE_CNT):
+
+        topology = topology_dict[pe_cnt-1]
+        # then calculate mapping (migrate)
+        mapping = calc_stirling(task_cnt, pe_cnt)*factorial(pe_cnt)
+        # then calculate customization (swap)
+        swap = math.pow(num_of_knobs, (pe_cnt))
+
+        if mode == "all":
+            system_variations += topology*mapping*swap
+        if mode == "customization":
+            system_variations += swap
+        if mode == "mapping":
+            system_variations += mapping
+        if mode == "topology":
+            system_variations += topology
+
+
+
+
+
+    return system_variations
+    #print("{:e}".format(system_variations))
+
+pe_cnt = 20
+knob_count = 4
+ds_size = {}
+ds_size_digits = {}
+for design_stage in ["topology", "mapping", "customization", "all"]:
+    ds_size[design_stage] = count_system_variation(pe_cnt, knob_count, design_stage)
+    ds_size_digits[design_stage] = math.log10(count_system_variation(pe_cnt, knob_count, design_stage))
+
+
+
+plot_design_space_size()
 

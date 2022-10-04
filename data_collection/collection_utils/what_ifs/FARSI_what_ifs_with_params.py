@@ -157,15 +157,17 @@ def run(check_points_start, check_points_top_folder, previous_results):
     #freq_range = [1] #, 4, 6, 8]
 
     # fast run
-    #workloads = [{"audio_decoder"}]
+    workloads = [{"audio_decoder"}]
     #workloads = [{"synthetic"}]
-    #workloads = [{"hpvm_cava"}]
-    #workloads = [{"edge_detection_1"}]
+    workloads = [{"hpvm_cava"}]
+    workloads = [{"edge_detection"}]
     workloads = [ {"edge_detection_1"},{"edge_detection_1", "edge_detection_2"}, {"edge_detection_1", "edge_detection_2", "edge_detection_3"}, {"edge_detection_1", "edge_detection_2", "edge_detection_3", "edge_detection_4"} ]#, "edge_detection_4"}]
+
     #workloads = [{"edge_detection_1", "edge_detection_2"}]
     #workloads = [{"SLAM"}]
 
     #workloads =[{"audio_decoder", "hpvm_cava"}]
+
     # each workload in isolation
     #workloads =[{"audio_decoder"}, {"edge_detection"}, {"hpvm_cava"}]
 

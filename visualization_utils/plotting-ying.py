@@ -2745,6 +2745,8 @@ def get_budget_optimality(input_dir_names,all_result_files, summary_res_column_n
     plt.close('all')
 
 
+
+
 def find_pareto_points(points):
     efficients = is_pareto_efficient_dumb(np.array(points))
     pareto_points_array = [points[idx] for idx, el in enumerate(efficients) if el]
@@ -2761,11 +2763,14 @@ def find_pareto_points(points):
     return pareto_points
 
 
+
+
 def is_pareto_efficient_dumb(costs):
     is_efficient = np.ones(costs.shape[0], dtype = bool)
     for i, c in enumerate(costs):
         is_efficient[i] = np.all(np.any(costs[:i]>c, axis=1)) and np.all(np.any(costs[i+1:]>c, axis=1))
     return is_efficient
+
 
 
 

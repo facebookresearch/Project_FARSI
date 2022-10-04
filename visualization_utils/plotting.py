@@ -1,6 +1,7 @@
 #Copyright (c) Facebook, Inc. and its affiliates.
 #This source code is licensed under the MIT license found in the
 #LICENSE file in the root directory of this source tree.
+import math
 import itertools
 import copy
 import csv
@@ -3335,10 +3336,74 @@ def find_average_iteration_to_distance(input_dir_names, all_results_files, intre
 
     return heuristic_dist_iter_avg
 
+def heuristic_scaling_parsing(input_dir_names, all_results_files):
+    max_min_dist  = 30
+
+    # iterate and collect data for the closest distance
+    heuristic_closest_dist_iter_all = {}
+    heuristic_avg_neighbourhood_size_all = {}
+    power_budget_ref = .008737
+
+    for result_file in all_results_files:
+        df = pd.concat((pd.read_csv(f) for f in [result_file]))
+        dist_to_goal_non_cost = df["ref_des_dist_to_goal_non_cost"]
+        task_count = len((df["latency"][1]).split(";")[:-1])
+        budget_scaling = float(df["power_budget"][1])/(power_budget_ref*task_count)
+        neighbourhood_sizes = []
+        for el in df["neighbouring design space size"]:
+            blah = type(el)
+            if (not el == 0) and not (math.isnan(el)):
+                neighbourhood_sizes.append(el)
+
+        # get avg neighbourhood size for the entire run
+        avg_neighbourhood_size = sum(neighbourhood_sizes)/len(neighbourhood_sizes)
+
+        dist_itr = OrderedDict()
+        min_dist = 1000
+        for itr, dist in enumerate(dist_to_goal_non_cost) :
+            min_dist = min(min_dist, dist)
+            min_itr = itr
+        if min_dist >= max_min_dist:
+            continue
+
+        # collect data about the closest distance and neighbour hood in a dictionary
+        if task_count not in heuristic_closest_dist_iter_all.keys():
+            heuristic_closest_dist_iter_all[task_count] = {}
+        if task_count not in heuristic_avg_neighbourhood_size_all.keys():
+            heuristic_avg_neighbourhood_size_all[task_count] = {}
+
+        if budget_scaling not in heuristic_closest_dist_iter_all[task_count].keys():
+            heuristic_closest_dist_iter_all[task_count][budget_scaling] = []
+        if budget_scaling not in heuristic_avg_neighbourhood_size_all[task_count].keys():
+            heuristic_avg_neighbourhood_size_all[task_count][budget_scaling] = []
+
+
+        heuristic_closest_dist_iter_all[task_count][budget_scaling].append(min_itr)
+        heuristic_avg_neighbourhood_size_all[task_count][budget_scaling].append(avg_neighbourhood_size)
+
+    # avg collected data
+    heuristic_closest_dist_iter_avg = {}
+    for task_count in heuristic_closest_dist_iter_all.keys():
+        heuristic_closest_dist_iter_avg[task_count] = {}
+        for budget_scaling in heuristic_closest_dist_iter_all[task_count].keys():
+            heuristic_closest_dist_iter_avg[task_count][budget_scaling] = sum(heuristic_closest_dist_iter_all[task_count][budget_scaling])/len(heuristic_closest_dist_iter_all[task_count][budget_scaling])
+
+    heuristic_avg_neighbourhood_size_avg = {}
+    for task_count in heuristic_avg_neighbourhood_size_all.keys():
+        heuristic_avg_neighbourhood_size_avg[task_count] = {}
+        for budget_scaling in heuristic_avg_neighbourhood_size_all[task_count].keys():
+            heuristic_avg_neighbourhood_size_avg[task_count][budget_scaling] = sum(heuristic_avg_neighbourhood_size_all[task_count][budget_scaling])/len(heuristic_avg_neighbourhood_size_all[task_count][budget_scaling])
+
+
+
+    return heuristic_closest_dist_iter_avg, heuristic_avg_neighbourhood_size_avg
+
+
 def find_closest_dist_on_average(input_dir_names, all_results_files):
-    max_min_dist  = 100
+    max_min_dist  = 30
     # iterate and collect data for farthest distance
     heuristic_closest_dist_iter_all = {}
+    results_for_plotting = {}
     for result_file in all_results_files:
         df = pd.concat((pd.read_csv(f) for f in [result_file]))
         ht = df['heuristic_type']
@@ -3354,26 +3419,67 @@ def find_closest_dist_on_average(input_dir_names, all_results_files):
         if min_dist >= max_min_dist:
             continue
         heuristic_closest_dist_iter_all[list(ht)[0]].append(min_dist)
+        if int(min_dist) == 15 and list(ht)[0] == "SA":
+            results_for_plotting["SA"] = result_file
+        if int(min_dist) == 4 and list(ht)[0] == "moos":
+            results_for_plotting["moos"] = result_file
+
+
 
     # per heuristic reduce
     heuristic_closest_dist_iter_avg = {}
+    max_of_closest_dist_reached = {}
     for heuristic, values in heuristic_closest_dist_iter_all.items():
+        #max_of_closest_dist_reached = 0
         heuristic_closest_dist_iter_avg[heuristic] = sum(values)/len(values)
+        max_of_closest_dist_reached[heuristic] = max(values)
 
-    return heuristic_closest_dist_iter_avg
+    return heuristic_closest_dist_iter_avg, max_of_closest_dist_reached
+
+
+def heuristic_scaling(input_dir_names, all_results_files, summary_res_column_name_number):
+    heuristic_closest_dist_iter = heuristic_scaling_parsing(input_dir_names, all_results_files)
+    print("ok")
 
 def heuristic_comparison(input_dir_names, all_results_files, summary_res_column_name_number):
-    intrested_distance_to_consider = [500, 100, 5]
-    intrested_distance_to_consider = [1000, 500, 100, 10, 5, 1, .01]
-    find_average_iteration_to_distance(input_dir_names, all_results_files, intrested_distance_to_consider)
-    heuristic_closest_dist_iter_avg = find_closest_dist_on_average(input_dir_names, all_results_files)
-    # longest distance of all the heuristics
-    longest_dist = min(list(heuristic_closest_dist_iter_avg.values()))
-    longest_dist = 31
-    heuristic_dist_iter_avg  = find_average_iteration_to_distance(input_dir_names, all_results_files, [longest_dist])
+    intrested_distance_to_consider = [500, 200, 100, 50, 10]
+    #intrested_distance_to_consider = [1000, 500, 100, 10, 5, 1, .01]
+    heuristic_dist_along_the_way_iter_avg = find_average_iteration_to_distance(input_dir_names, all_results_files, intrested_distance_to_consider)
+    heuristic_closest_dist_avg, max_of_closest_dist_reached = find_closest_dist_on_average(input_dir_names, all_results_files)
+    #longest_dist = max(list(heuristic_closest_dist_iter_avg.values()))
+    heuristic_dist_iter_avg = find_average_iteration_to_distance(input_dir_names, all_results_files, [max_of_closest_dist_reached["SA"]])
+    heuristic_phv = pareto_studies(input_dir_names, all_results_files, summary_res_column_name_number)
 
-    hvp = pareto_studies(input_dir_names, all_results_files, summary_res_column_name_number)
 
+    # calculate quality gain
+    #FARSI_closest_dist = heuristic_closest_dist_avg["FARSI"]
+    quality_gain =  {}
+    for heu,dist in heuristic_closest_dist_avg.items():
+        quality_gain[heu] =  ((heuristic_closest_dist_avg["SA"] - dist)/heuristic_closest_dist_avg["SA"])*100
+
+
+    # calculate speedup
+    speedup = {}
+    for heu, vals in heuristic_dist_iter_avg.items():
+        for dist, iter in vals.items():
+            if not dist == max_of_closest_dist_reached["SA"]:
+                continue
+            speedup[heu] = heuristic_dist_iter_avg["SA"][dist]/iter
+
+
+    # calculate speedup
+    speedup_along_the_way = {}
+    for heu, vals in heuristic_dist_along_the_way_iter_avg.items():
+        if heu not in speedup_along_the_way.keys():
+            speedup_along_the_way[heu] = {}
+        for dist, iter in vals.items():
+            speedup_along_the_way[heu][dist] = iter/heuristic_dist_along_the_way_iter_avg["SA"][dist]
+
+
+    # calculate hpv
+    phv_normalized = {}
+    for heu in heuristic_phv.keys():
+        phv_normalized[heu] = heuristic_phv[heu]/heuristic_phv["SA"]
     return speedup
 
 
@@ -3520,6 +3626,7 @@ def pareto_studies(input_dir_names,all_result_files, summary_res_column_name_num
     for heuristic, points_ in heuristic_results.items():
         points = [list(el.keys())[0] for el in points_]
         pareto_points= find_pareto_points(list(set(points)))
+        #pareto_points= find_pareto_points(list(set(points)))
         heuristic_pareto_points[heuristic] = pareto_points
 
     max_0, max_1, max_2, max_3, max_4 = 0, 0,0,0,0
@@ -4887,6 +4994,13 @@ if __name__ == "__main__":
 
         heuristic_comparison(experiment_full_addr_list, aggregate_results, aggregate_res_column_name_number)
 
+    if "heuristic_scaling" in config_plotting.plot_list:  # Ying: optimal_budgetting_problem_08_1
+        metrics = ["heuristic_type", "ref_des_dist_to_goal_non_cost"]
+        all_files = [os.path.join(dp, f) for dp, dn, filenames in os.walk(config_plotting.heuristic_comparison_folder) for f in filenames if
+                  os.path.splitext(f)[1] == '.csv']
+        aggregate_results = [f for f in all_files if  "aggregate_all_results" in f and not ("prev_iter" in f)]
+
+        heuristic_scaling(experiment_full_addr_list, aggregate_results, aggregate_res_column_name_number)
 
     """
     if "pareto_studies" in config_plotting.plot_list:
