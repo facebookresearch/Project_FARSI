@@ -75,7 +75,7 @@ Each workload has its set of spreadsheet whose name starts with the $workload na
 ### Stand Alone Simulation ###
 Running the simulation standalone.
 ```shell
-cd data_collection/collection_utils/simp_run/
+cd data_collection/collection_utils/sim_run/
 ```
 Set the workload name in the simple_sim_run.py
 
@@ -87,8 +87,8 @@ The output data will be provided in data_collection/data/simple_sim_run/$date_ti
 
 
 
-### Stand Alone Aimulation ###
-Running the simulation standalone
+### Simulation + Exploration Heuristic ###
+Running both the simulation and exploration simulatenously. 
 ```shell
 cd data_collection/collection_utils/what_ifs/
 ```
