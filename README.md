@@ -31,7 +31,7 @@ Software/hardware database shown above is used as an input to FARSI's framework.
 
 **Software Database:** This includes labeled task dependency graphs (TDG). A task is the smallest optimization unit and is typically selected from the computationally intensive functions since they significantly impact the system behavior. TDG contains the dependency information between tasks, the number of instructions processed within a task, and the data movement between them.
  
-**Hardware database**: This involves power, performance, and area estimation of each task for different hardware mappings (e.g., to general-purpose processors or specialized accelerators)
+**Hardware database**: This involves power, performance, and area estimation of each task for different hardware mappings (e.g., to general-purpose processors or specialized accelerators).
 
 ### FARSI Input Encoding:
 Although the semantics discussed above can be encoded and inputted in various formats, currently, our front-end parsers take them in the form of spreadsheets. Here we detail these sheets. Please note that examples of these sheets are provided in the specs/database_data/parsing folder. 
@@ -58,6 +58,15 @@ Each workload has its set of spreadsheet whose name starts with the $workload na
 *misc_database - Block Characteristics.csv:* contains information about the potential IPs used in the system. These are non-task specific IPs (as opposed to accelerators that are task-specific and whose information is provided in the TASK PE (AREA/Energy/Performance) spreadsheets.).
 
 *misc_database - Last Tasks.csv:* name of the last task within each workload.
+
+**Mapping database spreadsheets:**
+*Hardware Graph:* contains information about how hardware components are connected. It's an adjacency matrix with the first row and the first column specifying the hardware block names. a **1** in the cell at the coordinate between two blocks indicates a connection between said blocks.
+
+*Task To Hardware Mapping:* contains information about which hardware blocks various tasks are mapped to. The first row specifies the hardware block names, and the first column specifies the software task names. If a task is mapped onto a hardware block, it is listed under that block. We follow two conventions within this spread sheet. 
+  1) Under the NoC and Memory blocks,  direction of the accesses (read or write) needs to be specified, and this is denoted by an arrow **->**.
+     For example, a cell that contains **Task1 -> Task2** under a memory **M0** cell indicates that **Task1 data is written into M0 and furthermore, this data will be read by Task2 (as Task1's child)**. Please note that only the write direction is specified, and the read direction is implied from the writes, as was shown in the previous example.
+  2) If multiple tasks are mapped to the same block, we separate them with a semicolon. 
+
 
 ## Running FARSI
 ```shell
