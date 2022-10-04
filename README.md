@@ -47,6 +47,7 @@ Each workload has its set of spreadsheet whose name starts with the $workload na
 *Task Itr Count:*  each task's loop iteration count.
 
 **Hardware database spreadsheets:**
+
 *Task PE Performance:* Performance (in the number of cycles) associated with mapping of tasks to different processing elements (PEs).
 
 *Task PE Energy:* Energy associated with the accelerator running a task.
@@ -60,6 +61,7 @@ Each workload has its set of spreadsheet whose name starts with the $workload na
 *misc_database - Last Tasks.csv:* name of the last task within each workload.
 
 **Mapping database spreadsheets:**
+
 *Hardware Graph:* contains information about how hardware components are connected. It's an adjacency matrix with the first row and the first column specifying the hardware block names. a **1** in the cell at the coordinate between two blocks indicates a connection between said blocks.
 
 *Task To Hardware Mapping:* contains information about which hardware blocks various tasks are mapped to. The first row specifies the hardware block names, and the first column specifies the software task names. If a task is mapped onto a hardware block, it is listed under that block. We follow two conventions within this spread sheet. 
