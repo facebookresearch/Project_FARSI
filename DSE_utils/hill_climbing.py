@@ -25,7 +25,7 @@ import pickle
 import importlib
 import gc
 import difflib
-from pygmo import *
+#from pygmo import *
 #from pygmo.util import *
 import psutil
 
@@ -195,7 +195,7 @@ class HillClimbing:
     #       init_des_point: initial design point
     #       mode: starting point mode (from scratch or from check point)
     # ------------------------------
-    def gen_init_ex_dp(self, mode="generated_from_scratch"):
+    def gen_init_ex_dp(self, mode="generated_from_scratch", init_des=""):
         if mode == "generated_from_scratch":  # start from the simplest design possible
             self.init_ex_dp = self.dh.gen_init_des()
         elif mode == "generated_from_check_point":
@@ -209,7 +209,8 @@ class HillClimbing:
                 self.counters = self.get_pickeld_file(counters_file_addr)
             self.init_ex_dp = self.get_pickeld_file(pickled_file_addr)
             self.populate_counters(self.counters)
-
+        elif mode == "FARSI_des_passed_in":
+            self.init_ex_dp = init_des
         elif mode == "hardcoded":
             self.init_ex_dp = self.dh.gen_specific_hardcoded_ex_dp(self.dh.database)
         elif mode == "parse":
@@ -842,6 +843,7 @@ class HillClimbing:
         if len(list(set(feasible_transformations))) == 0:
             feasible_transformations = ["identity"]
 
+
         return feasible_transformations
 
     def set_design_space_size(self,  ex_dp, sim_dp):
@@ -1415,7 +1417,7 @@ class HillClimbing:
         mems =[blk for blk in task_s_blocks if blk.type == "mem"]
 
         for mem in mems:
-            path= sim_dp.dp.get_hardware_graph().get_path_between_two_vertecies(pe, mem)
+            path= ex_dp.get_hardware_graph().get_path_between_two_vertecies(pe, mem)
             if len(path) > 4:  # more than two ICs
                 return True
         return False
@@ -3413,6 +3415,12 @@ class HillClimbing:
                 reason_to_terminate = "exploration (total itr_ctr) iteration threshold reached"
 
             """
+
+
+    def explore_simple_greedy_one_sample(self, orig_ex_dp, mode="random"):
+        orig_sim_dp = self.eval_design(self.init_ex_dp, self.database)
+        des_tup = [orig_ex_dp, orig_sim_dp]
+        des_tup_new, possible_des_cnt = self.gen_neigh_and_eval(des_tup)
 
     # ------------------------------
     # Functionality:

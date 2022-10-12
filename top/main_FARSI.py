@@ -76,6 +76,35 @@ def run_FARSI(result_folder, unique_number, case_study, db_input, hw_sampling, s
             #return dse_handler
 
 
+def set_up_FARSI_with_arch_gym(result_folder, unique_number, case_study, db_input, hw_sampling, starting_exploration_mode ="generated_from_scratch"):
+    starting_exploration_mode = "FARSI_des_passed_in"
+    if config.use_cacti:
+        print("*****************************")
+        print("***** YOU ASKED TO USE CACTI FOR POWER/AREA MODELING OF MEMORY SUBSYSTEM. MAKE SURE YOU HAVE CACTI INSTALLED ****")
+        print("*****************************")
+
+    with warnings.catch_warnings():
+        warnings.simplefilter(config.warning_mode)
+        assert starting_exploration_mode in ["generated_from_scratch", "generated_from_check_point", "parse", "hardcoded", "FARSI_des_passed_in"]
+
+        config.dse_type = "simple_greedy_one_sample"
+
+        # init relevant configs and objects
+        num_SOCs = 1  # how many SOCs to spread the design across
+        so_far_best_ex_dp = None
+        boost_SOC = False  # specify whether to stick with the old SOC type or boost it
+        best_design_sim_this_itr = None
+
+        # set up the design handler and the design explorer
+        dse_handler = DSEHandler(result_folder)
+        # First copies the DataBase information (SoC, Blocks(modules), tasks, mappings, scheduling)
+        # then chooses among DSE algorithms (hill climbing) and initializes it
+        dse_handler.setup_an_explorer(db_input, hw_sampling)
+
+        # generate an initial design point (right now, the simplest design)
+        dse_handler.dse.gen_init_ex_dp()
+        return dse_handler
+
 # Run FARSI only to simulate one design (parsed, generated or from check point)
 # Variables:
 #   unique_number: a unique number used for check_point

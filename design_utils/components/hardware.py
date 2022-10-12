@@ -1463,6 +1463,11 @@ class HardwareGraph:
     def update_graph(self, block_to_prime_with=None):
         if not block_to_prime_with:
             block_to_prime_with = self.get_root()
+        elif block_to_prime_with not in self.get_blocks():
+            for blck in self.get_blocks():
+                if blck.instance_name == block_to_prime_with.instance_name:
+                    block_to_prime_with = blck
+                    break
         self.prune_unnecessary_nodes(block_to_prime_with)
         self.blocks = self.traverse_neighs_recursively(block_to_prime_with, [])
         self.set_config_code()

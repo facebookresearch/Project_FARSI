@@ -1186,5 +1186,5 @@ for design_stage in ["topology", "mapping", "customization", "all"]:
 
 
 
-plot_design_space_size()
+#plot_design_space_size()
 

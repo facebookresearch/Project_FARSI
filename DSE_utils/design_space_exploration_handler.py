@@ -142,7 +142,7 @@ class DSEHandler:
     # ---------------
     def setup_an_explorer(self, db_input, hw_sampling):
         # body
-        if config.dse_type == "hill_climbing" or config.dse_type == "moos":
+        if config.dse_type == "hill_climbing" or config.dse_type == "moos" or config.dse_type == "simple_greedy_one_sample":
             exploration_start_time = time.time()  # time hooks (for data collection)
             self.database = DataBase(db_input, hw_sampling)   # initialize the database
             # initializes the design space exploration of certain type
@@ -215,9 +215,9 @@ class DSEHandler:
     #      boost_SOC: choose a better SOC (This is for multiple SOC design. Not activated yet)
     #      mode: whether to bootstrap exploration from scratch or from an already existing design.
     # ---------------
-    def prepare_for_exploration(self, boost_SOC, starting_exploration_mode="from_scratch"):
+    def prepare_for_exploration(self, boost_SOC, starting_exploration_mode="from_scratch", init_des = ""):
         # either generate an initial design point(dh.gen_init_des()) or use a check_pointed one
-        self.dse.gen_init_ex_dp(starting_exploration_mode)
+        self.dse.gen_init_ex_dp(starting_exploration_mode, init_des)
         self.dse.dh.boos_SOC = boost_SOC
 
     # ---------------
@@ -230,6 +230,8 @@ class DSEHandler:
             self.dse.explore_ds()
         if config.heuristic_type == "moos":
             self.dse.explore_ds_with_moos()
+        if config.heuristic_type == "simple_greedy_one_sample":
+            self.dse.explore_simple_greedy_one_sample(self.dse.init_ex_dp)
 
     # ---------------
     # Functionality:
