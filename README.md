@@ -24,6 +24,17 @@ To further clarify this, the figure below puts FARSI on the map compared to the 
 
 ## Building/Installing FARSI
 FARSI is a python based source code. Hence, relevant python libraries need to be installed.
+conda env create -f environment.yml;
+conda activate farsi;
+conda env list;
+
+Download cacti modified for FARSI from https://github.com/zaddan/cacti_for_FARSI and put it in ${CACTI_FOLDER}.
+
+Change paths in Project_FARSI/settings/config_cacti.py
+cact_bin_addr = "${CACTI_FOLDER}/cacti"
+cacti_param_addr = "${CACTI_FOLDER}/farsi_gen.cfg"
+cacti_data_log_file = "${CACTI_FOLDER}/data_log.csv"
+
 
 
 ## FARSI Input
